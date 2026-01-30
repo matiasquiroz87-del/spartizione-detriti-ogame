@@ -1,0 +1,1115 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CR Reader (stable v9)</title>
+<style>
+  :root{--bg:#0b1020;--panel:#111a33;--text:#e7efff;--muted:#a9b7d8;--line:rgba(255,255,255,.10);--acc:#6ad1ff;}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:radial-gradient(1200px 700px at 20% 0%, #14214a 0%, var(--bg) 55%, #070b16 100%);color:var(--text);}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px;}
+  .top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;}
+  .brand h1{font-size:18px;margin:0;letter-spacing:.3px}
+  .brand .sub{color:var(--muted);font-size:12px}
+  .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.16)}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 45px rgba(0,0,0,.35);overflow:hidden;margin-top:12px}
+  .hd{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .bd{padding:14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  input[type=text]{flex:1;min-width:320px;background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px 12px;outline:none}
+  input[type=text]:focus{border-color:rgba(106,209,255,.55);box-shadow:0 0 0 3px rgba(106,209,255,.12)}
+  .btn{background:rgba(106,209,255,.18);border:1px solid rgba(106,209,255,.35);color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:700}
+  .btn:hover{background:rgba(106,209,255,.24)}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+  .kpi{grid-column:span 6;background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .kpi.wide{grid-column:span 12}
+  .k{color:var(--muted);font-size:12px}
+  .v{font-size:16px;font-weight:800;margin-top:4px}
+  details{background:rgba(0,0,0,.16);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  summary{cursor:pointer;padding:12px 14px;font-weight:800}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;line-height:1.35;color:#d9e6ff;white-space:pre-wrap;word-break:break-word;padding:12px 14px;border-top:1px solid var(--line);max-height:55vh;overflow:auto;background:rgba(0,0,0,.22)}
+  .ok{color:#baf7c9} .err{color:#ffb4b4} .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <h1>CR Reader (ripartenza da versione stabile “ieri notte”)</h1>
+      <div class="sub">Carica un CR via proxy (nomoreangel HTML) e parse DF + attaccanti con la logica stabile del v9.</div>
+    </div>
+    <div class="pill">Proxy: <span id="proxyLbl"></span></div>
+  </div>
+
+  <div class="card">
+    <div class="hd"><div style="font-weight:800">Carica CR</div><div class="pill">Stato: <span id="status" class="muted">in attesa</span></div></div>
+    <div class="bd">
+      <div class="row">
+        <input id="apiid" type="text" placeholder="cr-it-269-..." autocomplete="off" spellcheck="false"/>
+        <button class="btn" id="btnLoad">Carica</button>
+        <button class="btn" id="btnDemo">Demo</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="pill">URL usato: <span class="muted" id="usedUrl">—</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hd"><div style="font-weight:800">Risultato</div><div class="pill">Fonte: <span class="muted" id="source">—</span></div></div>
+    <div class="bd">
+      <div class="grid">
+        <div class="kpi"><div class="k">Detriti (Metallo)</div><div class="v" id="kM">—</div></div>
+        <div class="kpi"><div class="k">Detriti (Cristallo)</div><div class="v" id="kC">—</div></div>
+        <div class="kpi"><div class="k">Detriti (Deuterio)</div><div class="v" id="kD">—</div></div>
+        <div class="kpi"><div class="k">Attaccanti</div><div class="v" id="kAtt">—</div><div class="k muted" id="kAttN"></div></div>
+        <div class="kpi wide"><div class="k">Note</div><div class="v" style="font-size:13px" id="kNote">—</div></div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+        <details style="flex:1;min-width:360px">
+          <summary>Testo estratto</summary>
+          <div class="mono" id="outText">—</div>
+        </details>
+        <details style="flex:1;min-width:360px">
+          <summary>Log</summary>
+          <div class="mono" id="outLog">—</div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div class="muted" style="margin-top:10px;font-size:12px">
+    Nota: apri la pagina via <b>http://</b> (server locale/hosting) per evitare blocchi CORS.
+  </div>
+</div>
+
+<script>
+(() => {
+  const PROXY_BASE = "https://ogame-api-proxy.matiasquiroz87.workers.dev/?apiid=";
+  const $ = (id)=>document.getElementById(id);
+
+  function parseIntOgame(s){
+    if(s==null) return 0;
+    const str = String(s).trim();
+    if(!str) return 0;
+    // remove dots as thousands separators, keep commas as decimals -> but we want int
+    const norm = str.replace(/\./g,"").replace(/,/g,"");
+    const n = Number(norm);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function fmt(n, dec=0){
+    const x = Number(n||0);
+    const d = Number(dec||0);
+    return x.toLocaleString("it-IT",{minimumFractionDigits:d, maximumFractionDigits:d});
+  }
+  function escapeHtml(s){
+    return String(s||"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+  function setDebug(msg){ $("debug").textContent = msg; }
+
+  // ---------- persistence ----------
+  function saveState(){
+    const safe = {
+      proxyBase: state.proxyBase,
+      attackers: state.attackers.map(a=>({
+        name:a.name, weight:a.weight,
+        collected:a.collected||{m:0,c:0,d:0}
+      })),
+      df: state.df, mode: state.mode, collector: state.collector, rrLog: state.rrLog
+    };
+    localStorage.setItem(STATE_KEY, JSON.stringify(safe));
+  }
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STATE_KEY);
+      if(!raw) return;
+      const s = JSON.parse(raw);
+      if(s.proxyBase) state.proxyBase = s.proxyBase;
+      if(s.df) state.df = s.df;
+      if(s.mode) state.mode = s.mode;
+      if(s.collector) state.collector = s.collector;
+      if(Array.isArray(s.rrLog)) state.rrLog = s.rrLog;
+    }catch(e){}
+  }
+
+  // ---------- drag & drop panels ----------
+  function getPanelOrder(){
+    try{
+      const raw = localStorage.getItem(PANEL_KEY);
+      if(!raw) return null;
+      return JSON.parse(raw);
+    }catch(e){return null;}
+  }
+  function savePanelOrder(){
+    const cols = [$("colA"), $("colB")];
+    const data = {};
+    cols.forEach((col, idx)=>{
+      const ids = Array.from(col.querySelectorAll("details.panel[data-panel-id]")).map(d=>d.getAttribute("data-panel-id"));
+      data["col"+idx]=ids;
+    });
+    localStorage.setItem(PANEL_KEY, JSON.stringify(data));
+  }
+  function applyPanelOrder(){
+    const order = getPanelOrder();
+    if(!order) return;
+    const cols = [$("colA"), $("colB")];
+    cols.forEach((col, idx)=>{
+      const key = "col"+idx;
+      const ids = order[key];
+      if(!Array.isArray(ids)) return;
+      const map = new Map();
+      Array.from(col.querySelectorAll("details.panel[data-panel-id]")).forEach(d=>map.set(d.getAttribute("data-panel-id"), d));
+      ids.forEach(id=>{ const el=map.get(id); if(el) col.appendChild(el); });
+      map.forEach((el,id)=>{ if(!ids.includes(id)) col.appendChild(el); });
+    });
+  }
+  function setupDragAndDrop(){
+    const cols = [$("colA"), $("colB")];
+    let dragEl = null;
+
+    cols.forEach(col=>{
+      col.querySelectorAll("details.panel[data-panel-id] > summary").forEach(sum=>{
+        const handle = sum.querySelector(".drag-handle");
+        if(!handle) return;
+        handle.draggable = true;
+
+        handle.addEventListener("dragstart",(ev)=>{
+          dragEl = sum.parentElement;
+          dragEl.classList.add("dragging");
+          ev.dataTransfer.effectAllowed = "move";
+          ev.dataTransfer.setData("text/plain", dragEl.getAttribute("data-panel-id")||"");
+        });
+        handle.addEventListener("dragend", ()=>{
+          if(dragEl) dragEl.classList.remove("dragging");
+          dragEl=null;
+          savePanelOrder();
+        });
+      });
+
+      col.addEventListener("dragover",(ev)=>{
+        if(!dragEl) return;
+        ev.preventDefault();
+        const after = getAfter(col, ev.clientY);
+        if(after==null) col.appendChild(dragEl);
+        else col.insertBefore(dragEl, after);
+      });
+      col.addEventListener("drop",(ev)=>{
+        if(!dragEl) return;
+        ev.preventDefault();
+        savePanelOrder();
+      });
+    });
+
+    function getAfter(container, y){
+      const els = [...container.querySelectorAll("details.panel[data-panel-id]:not(.dragging)")];
+      let closest = {offset: Number.NEGATIVE_INFINITY, el:null};
+      for(const child of els){
+        const box = child.getBoundingClientRect();
+        const offset = y - (box.top + box.height/2);
+        if(offset < 0 && offset > closest.offset){
+          closest = {offset, el: child};
+        }
+      }
+      return closest.el;
+    }
+  }
+
+  // ---------- API ----------
+
+  function decodeHtmlEntities(str){
+    // Decodifica &amp; ecc. in modo semplice
+    const ta = document.createElement("textarea");
+    ta.innerHTML = str;
+    return ta.value;
+  }
+
+  function extractNomoreangelRaw(html){
+    const s = String(html||"");
+    if(!/<!doctype html/i.test(s)) return null;
+
+    // 1) Cerca <pre>...</pre> (raw output spesso sta qui)
+    const preMatch = s.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+    if(preMatch){
+      let inner = preMatch[1];
+      // rimuovi eventuali tag residui
+      inner = inner.replace(/<[^>]+>/g, "");
+      inner = decodeHtmlEntities(inner);
+      inner = inner.trim();
+      if(inner) return inner;
+    }
+
+    // 2) fallback: a volte c'è un textarea con id/output
+    const taMatch = s.match(/<textarea[^>]*>([\s\S]*?)<\/textarea>/i);
+    if(taMatch){
+      let inner = taMatch[1];
+      inner = decodeHtmlEntities(inner).trim();
+      if(inner) return inner;
+    }
+
+    return null;
+  }
+
+  async function loadFromApi(apiId){
+    const base = ($("proxyBase").value.trim() || state.proxyBase);
+    const url = base + encodeURIComponent(apiId);
+    const res = await fetch(url);
+    let txt = await res.text();
+
+    // Se il proxy ci ritorna la pagina HTML di nomoreangel, estraiamo il RAW dal <pre>
+    const extracted = extractNomoreangelRaw(txt);
+    if(extracted){
+      txt = extracted;
+    }
+    return {status: res.status, ok: res.ok, url, text: txt, was_html: !!extracted};
+  }
+
+  // ---------- parsing CR ----------
+  const SHIP_COST = {
+    "Cargo leggero": 2000+2000, "Cargo Pesante": 6000+6000, "Caccia Leggero": 3000+1000,
+    "Caccia Pesante": 6000+4000, "Incrociatore": 20000+7000, "Nave da battaglia": 45000+15000,
+    "Colonizzatrice": 10000+20000, "Riciclatrice": 10000+6000, "Sonda spia": 0+1000,
+    "Bombardiere": 50000+25000, "Satellite Solare": 0, "Corazzata": 30000+40000,
+    "Morte Nera": 5000000+4000000, "Incrociatore da Battaglia": 30000+40000,
+    "Crawler": 2000000+1500000, "Reaper": 85000+55000, "Pathfinder": 8000+15000
+  };
+  const SHIP_ID_TO_NAME = {
+    202:"Cargo leggero", 203:"Cargo Pesante", 204:"Caccia Leggero", 205:"Caccia Pesante",
+    206:"Incrociatore", 207:"Nave da battaglia", 208:"Colonizzatrice", 209:"Riciclatrice",
+    210:"Sonda spia", 211:"Bombardiere", 212:"Satellite Solare", 213:"Corazzata",
+    214:"Morte Nera", 215:"Incrociatore da Battaglia", 217:"Crawler", 218:"Reaper", 219:"Pathfinder"
+  };
+
+
+  function parseCR(text){
+    const t = String(text||"");
+
+    // --- A) CR "testo classico" (IT/EN)
+    if(/\bAttaccante\b/i.test(t) && /\bDopo la battaglia\b/i.test(t)){
+      const attackers = [];
+      let current = null;
+      let inAfter = false;
+
+      const lines = t.split(/\r?\n/);
+      const reAtt = /^Attaccante\s+(.+?)\s+\[/i;
+      const reAfter = /^Dopo la battaglia/i;
+
+      for(const raw of lines){
+        const line = raw.trim();
+        if(!line) continue;
+        if(reAfter.test(line)) { inAfter = true; current = null; continue; }
+        if(inAfter) continue;
+
+        const m = line.match(reAtt);
+        if(m){
+          if(current) attackers.push(current);
+          current = {
+            name: m[1].trim(),
+            ships:{},
+            weight:0,
+            collected:{m:0,c:0,d:0},
+            share:{m:0,c:0,d:0},
+            settle:{m:0,c:0,d:0},
+            settleTotal:0
+          };
+          continue;
+        }
+        if(!current) continue;
+
+        const shipMatch = line.match(/^([A-Za-zÀ-ÖØ-öø-ÿ\s]+)\s+([\d\.\,]+)$/);
+        if(shipMatch){
+          const ship = shipMatch[1].trim();
+          const qty = parseIntOgame(shipMatch[2]);
+          current.ships[ship] = (current.ships[ship]||0) + qty;
+        }
+      }
+      if(current) attackers.push(current);
+
+      for(const a of attackers){
+        let w=0;
+        for(const [ship, qty] of Object.entries(a.ships)){
+          const c = SHIP_COST[ship];
+          if(typeof c==="number") w += c*qty;
+        }
+        a.weight = w;
+      }
+
+      let df = {m:0,c:0,d:0};
+      const dfMatch = t.match(/float\s+([\d\.\,]+)\s*metal,\s*([\d\.\,]+)\s*crystal\s+and\s*([\d\.\,]+)\s*deuterium/i)
+                  || t.match(/fluttuano\s+([\d\.\,]+)\s*metallo,\s*([\d\.\,]+)\s*cristallo\s+e\s*([\d\.\,]+)\s*deuterio/i);
+      if(dfMatch){
+        df = {m: parseIntOgame(dfMatch[1]), c: parseIntOgame(dfMatch[2]), d: parseIntOgame(dfMatch[3])};
+      }
+      return {attackers, df};
+    }
+
+    // --- B) CR in formato "stdClass dump" (rawOut / tool esterni, es. nomoreangel rawOut)
+    // In molti dump nomoreangel, DF e altri dati sono annidati in [generic] => stdClass Object ( ... )
+    // e gli attaccanti in [attackers] => Array ( ... ). Qui estraiamo i blocchi con un parser a parentesi.
+
+    function extractParenBlock(afterIdx){
+      // trova la prima '(' dopo afterIdx e ritorna {body, endIdx} dove body è interno alle parentesi bilanciate
+      const s = t;
+      let i = afterIdx;
+      while(i < s.length && s[i] !== '(') i++;
+      if(i >= s.length) return null;
+      let depth = 0;
+      const start = i;
+      for(; i < s.length; i++){
+        const ch = s[i];
+        if(ch === '(') depth++;
+        else if(ch === ')'){
+          depth--;
+          if(depth === 0){
+            return { body: s.slice(start+1, i), endIdx: i+1 };
+          }
+        }
+      }
+      return null;
+    }
+
+    function findBlockByKey(key){
+      const rx = new RegExp("\\\\["+key+"\\\\]\\\\s*=>\\\\s*(?:stdClass Object|Array)\\\\s*\\\\(", "i");
+      const m = rx.exec(t);
+      if(!m) return null;
+      const block = extractParenBlock(m.index + m[0].length - 1);
+      return block ? block.body : null;
+    }
+
+    function pickFromText(txt, keyVariants){
+      const s = String(txt||"");
+      for(const k of keyVariants){
+        const rx = new RegExp("\\\\["+k+"\\\\]\\\\s*=>\\\\s*([0-9\\\\.,]+)", "i");
+        const m = s.match(rx);
+        if(m) return parseIntOgame(m[1]);
+      }
+      return 0;
+    }
+
+    // 1) DF: prima prova nel root, poi dentro [generic]
+    let df = {m:0,c:0,d:0};
+    const dfKeysM = ["metal_in_debris_field","metal_to_debris_field","debris_metal","wreckfield_metal","metal_df","metal_in_df"];
+    const dfKeysC = ["crystal_in_debris_field","crystal_to_debris_field","debris_crystal","wreckfield_crystal","crystal_df","crystal_in_df"];
+    const dfKeysD = ["deuterium_in_debris_field","deuterium_to_debris_field","debris_deuterium","wreckfield_deuterium","deuterium_df","deuterium_in_df"];
+
+    df.m = pickFromText(t, dfKeysM);
+    df.c = pickFromText(t, dfKeysC);
+    df.d = pickFromText(t, dfKeysD);
+
+    if(df.m===0 && df.c===0 && df.d===0){
+      const genericBlock = findBlockByKey("generic");
+      if(genericBlock){
+        df.m = pickFromText(genericBlock, dfKeysM);
+        df.c = pickFromText(genericBlock, dfKeysC);
+        df.d = pickFromText(genericBlock, dfKeysD);
+      }
+    }
+
+    // 2) Attaccanti: estrai blocco attackers (o attacker) e parsalo
+    const attackersMap = new Map();
+
+    let attackersBlock = findBlockByKey("attackers") || findBlockByKey("attacker");
+    if(!attackersBlock){
+      // fallback: alcuni dump non hanno wrapper chiaro -> usa tutto
+      attackersBlock = t;
+    }
+
+    // split per entries tipo "[0] => stdClass Object ("
+    const reEntry = /\[\d+\]\s*=>\s*stdClass Object\s*\(/ig;
+    const positions = [];
+    let me;
+    while((me = reEntry.exec(attackersBlock))!==null) positions.push(me.index);
+    positions.push(attackersBlock.length);
+
+    for(let i=0;i<positions.length-1;i++){
+      const chunk = attackersBlock.slice(positions[i], positions[i+1]);
+
+      // distinguere attackers vs defenders: in chunk deve esserci almeno un name/attacker_name e NON "defender_name" se presente
+      const mName = chunk.match(/\[(attacker_name|name)\]\s*=>\s*([^\n\r]+)/i);
+      const name = (mName && mName[2] ? mName[2].trim() : "");
+      if(!name) continue;
+
+      if(!attackersMap.has(name)){
+        attackersMap.set(name, {
+          name,
+          ships:{},
+          weight:0,
+          collected:{m:0,c:0,d:0},
+          share:{m:0,c:0,d:0},
+          settle:{m:0,c:0,d:0},
+          settleTotal:0
+        });
+      }
+      const a = attackersMap.get(name);
+
+      // fleet entries
+      const reFleet = /\[ship_type\]\s*=>\s*(\d+)[\s\S]{0,260}?\[(?:ship_count|count)\]\s*=>\s*([0-9\.,]+)/ig;
+      let m;
+      while((m = reFleet.exec(chunk)) !== null){
+        const typeId = Number(m[1]);
+        const qty = parseIntOgame(m[2]);
+        if(!qty) continue;
+        const shipName = SHIP_ID_TO_NAME[typeId] || ("Ship#"+typeId);
+        a.ships[shipName] = (a.ships[shipName]||0) + qty;
+      }
+    }
+
+    let attackers = Array.from(attackersMap.values());
+
+    // fallback nomi (se non abbiamo entry marker)
+    if(!attackers.length){
+      const reNameLoose = /\[(attacker_name|name)\]\s*=>\s*([^\n\r]+)/ig;
+      const set = new Set();
+      let mn;
+      while((mn=reNameLoose.exec(attackersBlock))!==null){
+        const nm = (mn[2]||"").trim();
+        if(nm && nm.length<=40) set.add(nm);
+      }
+      attackers = Array.from(set).map(n=>({
+        name:n, ships:{}, weight:1,
+        collected:{m:0,c:0,d:0}, share:{m:0,c:0,d:0},
+        settle:{m:0,c:0,d:0}, settleTotal:0
+      }));
+    }
+
+    if(!attackers.length){
+      attackers.push({
+        name:"Attaccante",
+        ships:{},
+        weight:1,
+        collected:{m:0,c:0,d:0},
+        share:{m:0,c:0,d:0},
+        settle:{m:0,c:0,d:0},
+        settleTotal:0
+      });
+    }
+
+    // compute weights
+    for(const a of attackers){
+      let w = 0;
+      for(const [ship, qty] of Object.entries(a.ships)){
+        const c = SHIP_COST[ship];
+        if(typeof c==="number") w += c*qty;
+      }
+      a.weight = w || 1;
+    }
+
+    return {attackers, df};
+  }
+
+  // ---------- parsing RR ----------
+  function extractPlayerFromRR(text){
+    const t = String(text||"");
+    const m1 = t.match(/^[ \t]*(?:Da|From)\s*:\s*([^\n\r]+)$/im);
+    if(m1){
+      let cand = m1[1].trim().replace(/\.+$/,"").trim();
+      if(cand && !/^flotta$/i.test(cand)) return cand;
+    }
+    const m3 = t.match(/riciclatrici\s+di\s+([^\n\r]+)$/im);
+    if(m3) return m3[1].trim();
+    return "";
+  }
+  function extractCoordsFromText(text){
+    const m = String(text||"").match(/(\d+:\d+:\d+)/);
+    return m ? m[1] : "";
+  }
+  function autoAssignByCoords(rrText){
+    const coord = extractCoordsFromText(rrText);
+    if(!coord) return "";
+    // if we had stored crText, try find unique attacker whose name appears near coord is not possible; better: if only one attacker exists, return it
+    if(state.attackers.length===1) return state.attackers[0].name;
+    return "";
+  }
+
+  function parseRR(text, coordFilter){
+    const t = String(text||"");
+
+    // stdClass dump (nomoreangel rawOut)
+    const hasStd = /\[owner_name\]\s*=>/i.test(t) && /\[metal_retrieved\]\s*=>/i.test(t);
+    if(hasStd){
+      const items = [];
+      const parts = t.split(/\[rr_id\]\s*=>/i).map((p,i)=> i===0 ? p : "[rr_id] =>"+p);
+      for(const part of parts){
+        if(!/\[metal_retrieved\]\s*=>/i.test(part)) continue;
+
+        const owner = (part.match(/\[owner_name\]\s*=>\s*([^\n\r]+)/i)||[])[1]?.trim() || "";
+        const coord  = (part.match(/\[coordinates\]\s*=>\s*([0-9]+:[0-9]+:[0-9]+)/i)||[])[1]?.trim() || "";
+        const m = parseIntOgame((part.match(/\[metal_retrieved\]\s*=>\s*([0-9\.,]+)/i)||[])[1]||"0");
+        const c = parseIntOgame((part.match(/\[crystal_retrieved\]\s*=>\s*([0-9\.,]+)/i)||[])[1]||"0");
+        const d = parseIntOgame((part.match(/\[deuterium_retrieved\]\s*=>\s*([0-9\.,]+)/i)||[])[1]||"0");
+
+        if(coordFilter){
+          if(!coord || coord !== coordFilter) continue;
+        }
+        items.push({coord, m, c, d, owner});
+      }
+      return items;
+    }
+
+    // classic fallback robust
+    const blocks = t.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+    const out = [];
+    const reCoord = /\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/;
+
+    function toNum(s){ return parseIntOgame(s); }
+
+    for(const b of blocks){
+      const coordMatch = b.match(reCoord);
+      const coord = coordMatch ? (coordMatch[1]||coordMatch[2]) : "";
+      if(coordFilter){
+        if(!coord || coord !== coordFilter) continue;
+      }
+      const lines = b.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+      let best = null;
+
+      for(let i=0;i<lines.length-2;i++){
+        const a=lines[i], c=lines[i+1], d=lines[i+2];
+        const looksTime = (s)=> /(\d{1,2}:\d{2}(:\d{2})?)|--?:--?/.test(s);
+        const looksDate = (s)=> /\d{2}\.\d{2}\.\d{4}/.test(s);
+        if(looksTime(a)||looksDate(a)||looksTime(c)||looksDate(c)||looksTime(d)||looksDate(d)) continue;
+        if(/^[\d\.,]+$/.test(a)&&/^[\d\.,]+$/.test(c)&&/^[\d\.,]+$/.test(d)){
+          best = {m:toNum(a), c:toNum(c), d:toNum(d)};
+          break;
+        }
+      }
+      if(!best){
+        for(const ln of lines){
+          if(/\d{2}\.\d{2}\.\d{4}/.test(ln) || /--?:--?/.test(ln)) continue;
+          const m = ln.match(/([\d\.,]+)\s+([\d\.,]+)\s+([\d\.,]+)(?!\d)/);
+          if(m){ best={m:toNum(m[1]), c:toNum(m[2]), d:toNum(m[3])}; break; }
+        }
+      }
+      if(!best){
+        const nums = (b.match(/[\d\.,]+/g)||[]).map(toNum).filter(n=>Number.isFinite(n)&&n>=0);
+        let max=-1;
+        for(let i=0;i<nums.length-2;i++){
+          const s=nums[i]+nums[i+1]+nums[i+2];
+          if(s>max){max=s; best={m:nums[i], c:nums[i+1], d:nums[i+2]};}
+        }
+      }
+      if(best) out.push({coord, m:best.m, c:best.c, d:best.d, owner:""});
+    }
+    return out;
+  }
+
+  // ---------- compute ----------
+  function rrRecomputeCollected(){
+    state.attackers.forEach(a=>{ a.collected={m:0,c:0,d:0}; });
+    for(const row of state.rrLog){
+      const a = state.attackers.find(x=>x.name===row.player);
+      if(!a) continue;
+      a.collected.m += row.m;
+      a.collected.c += row.c;
+      a.collected.d += row.d;
+    }
+  }
+
+  function computeShares(){
+    // apply DF override if set
+    const dfM = parseIntOgame($("dfM").value);
+    const dfC = parseIntOgame($("dfC").value);
+    const dfD = parseIntOgame($("dfD").value);
+    const useOverride = (dfM||dfC||dfD) > 0;
+    const df = useOverride ? {m:dfM,c:dfC,d:dfD} : state.df;
+
+    const n = state.attackers.length || 1;
+    const totalW = state.attackers.reduce((s,a)=>s+(a.weight||0),0);
+    const mode = $("mode").value;
+
+    state.attackers.forEach(a=>{
+      let ratio = 1/n;
+      if(mode==="equa"){
+        ratio = totalW>0 ? (a.weight/totalW) : (1/n);
+      }
+      a.share.m = df.m * ratio;
+      a.share.c = df.c * ratio;
+      a.share.d = df.d * ratio;
+
+      const colM = a.collected?.m||0, colC=a.collected?.c||0, colD=a.collected?.d||0;
+      a.settle.m = a.share.m - colM;
+      a.settle.c = a.share.c - colC;
+      a.settle.d = a.share.d - colD;
+      a.settleTotal = a.settle.m + a.settle.c + a.settle.d;
+    });
+
+    state.mode = mode;
+    state.collector = $("collector").value || state.collector;
+
+    // KPIs
+    $("kAtt").textContent = String(state.attackers.length || 0);
+    $("kM").textContent = fmt(df.m,0);
+    $("kC").textContent = fmt(df.c,0);
+    $("kD").textContent = fmt(df.d,0);
+
+    renderAll();
+    saveState();
+  }
+
+  // ---------- render ----------
+  function ensureRRPlayerOptions(){
+    const sel = $("rrPlayer");
+    const prev = sel.value;
+    sel.innerHTML = "";
+    const optAuto = document.createElement("option");
+    optAuto.value="__auto__";
+    optAuto.textContent="Auto (da RR)";
+    sel.appendChild(optAuto);
+    state.attackers.forEach(a=>{
+      const opt=document.createElement("option");
+      opt.value=a.name; opt.textContent=a.name;
+      sel.appendChild(opt);
+    });
+    if(prev && (prev==="__auto__" || state.attackers.some(a=>a.name===prev))) sel.value=prev;
+    else sel.value="__auto__";
+  }
+
+  function ensureCollectorOptions(){
+    const sel = $("collector");
+    const prev = sel.value;
+    sel.innerHTML = "";
+    state.attackers.forEach(a=>{
+      const opt=document.createElement("option");
+      opt.value=a.name; opt.textContent=a.name;
+      sel.appendChild(opt);
+    });
+    if(prev && state.attackers.some(a=>a.name===prev)) sel.value=prev;
+    else if(state.attackers.length) sel.value=state.attackers[0].name;
+  }
+
+  function renderRRTable(){
+    const tb = $("tbodyRR");
+    tb.innerHTML = "";
+    if(!state.attackers.length){
+      const tr=document.createElement("tr");
+      tr.innerHTML = `<td class="muted" colspan="6">Carica un CR per popolare i giocatori.</td>`;
+      tb.appendChild(tr);
+      return;
+    }
+    state.attackers.forEach(a=>{
+      const m=a.collected?.m||0, c=a.collected?.c||0, d=a.collected?.d||0;
+      const tr=document.createElement("tr");
+      tr.innerHTML = `
+        <td><b>${escapeHtml(a.name)}</b></td>
+        <td class="num">${fmt(m,0)}</td>
+        <td class="num">${fmt(c,0)}</td>
+        <td class="num">${fmt(d,0)}</td>
+        <td class="num">${fmt(m+c+d,0)}</td>
+        <td class="num"><button class="ghost smallBtn" data-act="clear" data-player="${escapeHtml(a.name)}">Svuota</button></td>
+      `;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll("button[data-act='clear']").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const p = btn.getAttribute("data-player");
+        state.rrLog = state.rrLog.filter(r=>r.player!==p);
+        rrRecomputeCollected();
+        computeShares();
+      });
+    });
+  }
+
+  function renderResult(){
+    const tb = $("tbodyRes");
+    tb.innerHTML = "";
+    const dec = Number($("decimals").value||2);
+    if(!state.attackers.length){
+      const tr=document.createElement("tr");
+      tr.innerHTML = `<td class="muted" colspan="7">Carica un CR.</td>`;
+      tb.appendChild(tr);
+      return;
+    }
+    state.attackers.forEach(a=>{
+      const colTot = (a.collected?.m||0)+(a.collected?.c||0)+(a.collected?.d||0);
+      const tr=document.createElement("tr");
+      tr.innerHTML = `
+        <td><b>${escapeHtml(a.name)}</b></td>
+        <td class="num">${fmt(a.weight,0)}</td>
+        <td class="num">${fmt(a.share.m,dec)}</td>
+        <td class="num">${fmt(a.share.c,dec)}</td>
+        <td class="num">${fmt(a.share.d,dec)}</td>
+        <td class="num">${fmt(colTot,dec)}</td>
+        <td class="num"><span class="${a.settleTotal>=0?'ok':'no'}">${fmt(a.settleTotal,dec)}</span></td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
+
+  function renderTransports(){
+    const tb = $("tbodyTx");
+    tb.innerHTML = "";
+    const collector = $("collector").value || (state.attackers[0]?.name||"");
+    const capLC = parseIntOgame($("capLC").value) || 25000;
+    const capSC = parseIntOgame($("capSC").value) || 50000;
+    const strat = $("strategy").value;
+    const dec = Number($("decimals").value||2);
+
+    const rec = state.attackers.filter(a=>a.name!==collector && a.settleTotal>0);
+    if(!collector || !rec.length){
+      const tr=document.createElement("tr");
+      tr.innerHTML = `<td class="muted" colspan="4">Nessuna spedizione necessaria (o raccoglitore non selezionato).</td>`;
+      tb.appendChild(tr);
+      return;
+    }
+    for(const a of rec){
+      const amount = a.settleTotal;
+      const needs = calcTransports(amount, capLC, capSC, strat);
+      const tr=document.createElement("tr");
+      tr.innerHTML = `
+        <td><b>${escapeHtml(collector)}</b> → <b>${escapeHtml(a.name)}</b></td>
+        <td class="num">${fmt(amount,dec)}</td>
+        <td class="num">${fmt(needs.sc,0)}</td>
+        <td class="num">${fmt(needs.lc,0)}</td>
+      `;
+      tb.appendChild(tr);
+    }
+  }
+
+  function calcTransports(amount, capLC, capSC, strat){
+    let rem = Math.max(0, Number(amount||0));
+    let lc=0, sc=0;
+    const take = (cap)=>{ const k = Math.floor(rem/cap); rem -= k*cap; return k; };
+
+    if(strat==="SC_LC"){
+      sc += take(capSC);
+      if(rem>0){ sc += 1; rem = 0; }
+    }else{
+      lc += take(capLC);
+      if(rem>0){ lc += 1; rem = 0; }
+    }
+    return {lc, sc};
+  }
+
+  function renderAll(){
+    ensureRRPlayerOptions();
+    ensureCollectorOptions();
+    renderRRTable();
+    renderResult();
+    renderTransports();
+  }
+
+  // ---------- actions ----------
+  function setProxyBase(){
+    state.proxyBase = $("proxyBase").value.trim() || state.proxyBase;
+  }
+
+  $("btnToggleCR").addEventListener("click", ()=>{
+    const ta = $("cr");
+    ta.style.display = (ta.style.display==="none" ? "block" : "none");
+  });
+  $("btnToggleRR").addEventListener("click", ()=>{
+    const ta = $("rr");
+    ta.style.display = (ta.style.display==="none" ? "block" : "none");
+  });
+
+  $("proxyBase").addEventListener("input", ()=>{
+    setProxyBase();
+    saveState();
+  });
+
+  $("btnLoadCR").addEventListener("click", async ()=>{
+    try{
+      setProxyBase();
+      const id = $("apiCrId").value.trim();
+      if(!id) return;
+      const resp = await loadFromApi(id);
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      const txt = resp.text;
+      setDebug(`Fetch OK (${resp.status})${resp.was_html?" (estratto da HTML)":""}. URL: ${resp.url}\nPreview: ${txt.slice(0,300).replace(/\s+/g," ").trim()}...`);
+
+      state.crText = txt;
+      $("cr").value = txt;
+      const parsed = parseCR(txt);
+      state.attackers = parsed.attackers;
+      state.df = parsed.df;
+      state.rrLog = []; // reset RR when CR changes
+      rrRecomputeCollected();
+      ensureCollectorOptions();
+      setDebug(`CR OK: ${state.attackers.length} attaccanti. DF: M ${fmt(state.df.m,0)} C ${fmt(state.df.c,0)} D ${fmt(state.df.d,0)}`);
+      computeShares();
+    }catch(e){
+      setDebug("CR ERR: " + e.message);
+      alert("Errore caricamento CR: " + e.message);
+    }
+  });
+
+  $("btnLoadRR").addEventListener("click", async ()=>{
+    try{
+      setProxyBase();
+      const id = $("apiRrId").value.trim();
+      if(!id) return;
+      const resp = await loadFromApi(id);
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      const txt = resp.text;
+      setDebug(`Fetch OK (${resp.status})${resp.was_html?" (estratto da HTML)":""}. URL: ${resp.url}\nPreview: ${txt.slice(0,300).replace(/\s+/g," ").trim()}...`);
+
+      state.rrText = txt;
+      $("rr").value = txt;
+      setDebug("RR caricato. Premi “Aggiungi RR” (o lascia Auto).");
+      // auto-add when auto
+      if($("rrPlayer").value==="__auto__"){
+        $("btnAddRR").click();
+      }
+    }catch(e){
+      setDebug("RR ERR: " + e.message);
+      alert("Errore caricamento RR: " + e.message);
+    }
+  });
+
+  $("btnAddRR").addEventListener("click", ()=>{
+    const raw = $("rr").value || "";
+    if(!raw.trim()) return;
+
+    const coordFilter = ($("rrCoord").value||"").trim();
+    let player = $("rrPlayer").value;
+
+    if(player==="__auto__"){
+      let guessed = extractPlayerFromRR(raw);
+      if(!guessed) guessed = autoAssignByCoords(raw);
+      if(guessed) player = guessed;
+    }
+
+    const rows = parseRR(raw, coordFilter);
+    if(!rows.length){
+      alert("Nessun RR valido trovato. Controlla API ID / filtro coordinate.");
+      return;
+    }
+
+    for(const r of rows){
+      const finalPlayer = (player && player!=="__auto__") ? player : (r.owner || "");
+      if(!finalPlayer){
+        alert('RR caricato, ma manca owner_name. Seleziona manualmente il giocatore e premi "Aggiungi RR".');
+        return;
+      }
+      // ensure in roster
+      if(!state.attackers.some(a=>a.name===finalPlayer)){
+        state.attackers.push({
+          name: finalPlayer, ships:{}, weight:0,
+          collected:{m:0,c:0,d:0}, share:{m:0,c:0,d:0},
+          settle:{m:0,c:0,d:0}, settleTotal:0
+        });
+      }
+      state.rrLog.push({player: finalPlayer, coord:r.coord||"", m:r.m||0, c:r.c||0, d:r.d||0});
+    }
+
+    rrRecomputeCollected();
+    computeShares();
+    setDebug(`RR aggiunto: ${rows.length} record.`);
+  });
+
+  $("btnClearRR").addEventListener("click", ()=>{
+    state.rrLog = [];
+    rrRecomputeCollected();
+    computeShares();
+  });
+
+  $("mode").addEventListener("change", computeShares);
+  $("collector").addEventListener("change", computeShares);
+  $("decimals").addEventListener("change", computeShares);
+  $("capLC").addEventListener("input", computeShares);
+  $("capSC").addEventListener("input", computeShares);
+  $("strategy").addEventListener("change", computeShares);
+  $("dfM").addEventListener("input", computeShares);
+  $("dfC").addEventListener("input", computeShares);
+  $("dfD").addEventListener("input", computeShares);
+
+  $("btnExample").addEventListener("click", ()=>{
+    // minimal example: just set api ids user provided
+    $("apiCrId").value = "cr-it-269-99ac041223643141081dcf46c909523a0684d4b0";
+    $("apiRrId").value = "rr-it-269-0c420ad76f0bed6e54c8efa2d9ef17e4e953df69";
+    setDebug("Inseriti esempi di API ID. Premi “Carica CR” poi “Carica RR”.");
+  });
+
+  $("btnCopy").addEventListener("click", async ()=>{
+    const dec = Number($("decimals").value||2);
+    const lines = [];
+    lines.push("Spartizione Detriti — ACS");
+    lines.push(`Modalità: ${$("mode").value}`);
+    lines.push(`DF: M ${fmt(state.df.m,0)} C ${fmt(state.df.c,0)} D ${fmt(state.df.d,0)}`);
+    lines.push("");
+    for(const a of state.attackers){
+      const colTot = (a.collected?.m||0)+(a.collected?.c||0)+(a.collected?.d||0);
+      lines.push(`${a.name}: quota ${fmt(a.share.m+a.share.c+a.share.d,dec)} | raccolto ${fmt(colTot,dec)} | da regolare ${fmt(a.settleTotal,dec)}`);
+    }
+    const txt = lines.join("\n");
+    try{ await navigator.clipboard.writeText(txt); setDebug("Riepilogo copiato."); }
+    catch(e){ alert("Clipboard non disponibile. Copia manualmente dal debug."); setDebug(txt); }
+  });
+
+  $("btnExport").addEventListener("click", ()=>{
+    const payload = {
+      v:1,
+      proxyBase: $("proxyBase").value.trim() || state.proxyBase,
+      df: state.df,
+      mode: $("mode").value,
+      collector: $("collector").value,
+      rrLog: state.rrLog,
+      attackers: state.attackers.map(a=>({name:a.name, weight:a.weight, ships:a.ships}))
+    };
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "spartizione_detriti.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $("btnImport").addEventListener("click", ()=> $("fileImport").click());
+  $("fileImport").addEventListener("change", async ()=>{
+    const f = $("fileImport").files?.[0];
+    if(!f) return;
+    const txt = await f.text();
+    try{
+      const p = JSON.parse(txt);
+      if(p.proxyBase) {$("proxyBase").value = p.proxyBase; state.proxyBase=p.proxyBase;}
+      if(p.df) state.df=p.df;
+      if(p.mode) $("mode").value = p.mode;
+      if(p.collector) state.collector=p.collector;
+      if(Array.isArray(p.attackers)){
+        state.attackers = p.attackers.map(x=>({
+          name:x.name, ships:x.ships||{}, weight:x.weight||0,
+          collected:{m:0,c:0,d:0}, share:{m:0,c:0,d:0},
+          settle:{m:0,c:0,d:0}, settleTotal:0
+        }));
+      }
+      if(Array.isArray(p.rrLog)) state.rrLog = p.rrLog;
+      rrRecomputeCollected();
+      ensureCollectorOptions();
+      computeShares();
+      setDebug("Import OK.");
+    }catch(e){
+      alert("JSON non valido.");
+    }
+  });
+
+  
+  $("btnTestCR").addEventListener("click", async ()=>{
+    try{
+      setProxyBase();
+      const id = $("apiCrId").value.trim();
+      if(!id) return;
+      const resp = await loadFromApi(id);
+      setDebug(`CR TEST status=${resp.status} ok=${resp.ok}${resp.was_html?" (estratto da HTML)":""}\nURL: ${resp.url}\n--- preview ---\n${resp.text.slice(0,1200)}`);
+    }catch(e){
+      setDebug("CR TEST ERR: " + e.message);
+    }
+  });
+
+  $("btnTestRR").addEventListener("click", async ()=>{
+    try{
+      setProxyBase();
+      const id = $("apiRrId").value.trim();
+      if(!id) return;
+      const resp = await loadFromApi(id);
+      setDebug(`RR TEST status=${resp.status} ok=${resp.ok}${resp.was_html?" (estratto da HTML)":""}\nURL: ${resp.url}\n--- preview ---\n${resp.text.slice(0,1200)}`);
+    }catch(e){
+      setDebug("RR TEST ERR: " + e.message);
+    }
+  });
+
+
+  // ---------- init ----------
+  loadState();
+  $("proxyBase").value = state.proxyBase;
+  $("mode").value = state.mode;
+  applyPanelOrder();
+  setupDragAndDrop();
+
+  // restore rrLog roster if needed
+  // (attackers list will be filled by CR; rrLog alone is not enough to compute shares)
+  renderAll();
+  setDebug("Pronto. Carica un CR via API.");
+}
+
+  const SHIP_COST = {
+    "Cargo leggero": 2000+2000, "Cargo Pesante": 6000+6000, "Caccia Leggero": 3000+1000,
+    "Caccia Pesante": 6000+4000, "Incrociatore": 20000+7000, "Nave da battaglia": 45000+15000,
+    "Colonizzatrice": 10000+20000, "Riciclatrice": 10000+6000, "Sonda spia": 0+1000,
+    "Bombardiere": 50000+25000, "Satellite Solare": 0, "Corazzata": 30000+40000,
+    "Morte Nera": 5000000+4000000, "Incrociatore da Battaglia": 30000+40000,
+    "Crawler": 2000000+1500000, "Reaper": 85000+55000, "Pathfinder": 8000+15000
+  };
+  const SHIP_ID_TO_NAME = {
+    202:"Cargo leggero", 203:"Cargo Pesante", 204:"Caccia Leggero", 205:"Caccia Pesante",
+    206:"Incrociatore", 207:"Nave da battaglia", 208:"Colonizzatrice", 209:"Riciclatrice",
+    210:"Sonda spia", 211:"Bombardiere", 212:"Satellite Solare", 213:"Corazzata",
+    214:"Morte Nera", 215:"Incrociatore da Battaglia", 217:"Crawler", 218:"Reaper", 219:"Pathfinder"
+  };
+
+  function fmt(n){ return Number(n||0).toLocaleString("it-IT"); }
+  function setStatus(msg, cls){ $("status").textContent=msg; $("status").className = cls||"muted"; }
+  function log(s){ $("outLog").textContent = ($("outLog").textContent==="—"?"":$("outLog").textContent+"\n")+s; }
+  function setSource(s){ $("source").textContent=s||"—"; }
+
+  async function fetchHtml(apiid){
+    const url = PROXY_BASE + encodeURIComponent(apiid);
+    $("usedUrl").textContent = url;
+    const resp = await fetch(url, {cache:"no-store"});
+    return {url, status:resp.status, ok:resp.ok, text: await resp.text()};
+  }
+
+  function extractTextFromHtml(html){
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const pre = doc.querySelector("pre");
+    if(pre && pre.textContent && pre.textContent.trim().length>20) return pre.textContent;
+    return (doc.body ? doc.body.innerText : "") || "";
+  }
+
+  
+
+  function render(parsed, extracted){
+    $("outText").textContent = extracted.slice(0, 20000) + (extracted.length>20000 ? "\n\n[...tagliato UI...]" : "");
+    const df = parsed.df || {m:0,c:0,d:0};
+    $("kM").textContent = fmt(df.m);
+    $("kC").textContent = fmt(df.c);
+    $("kD").textContent = fmt(df.d);
+
+    const names = (parsed.attackers||[]).map(a=>a.name).filter(Boolean);
+    $("kAtt").textContent = names.length ? names.join(", ") : "—";
+    $("kAttN").textContent = names.length ? `Totale: ${names.length}` : "";
+    $("kNote").textContent = names.length
+      ? "OK: attaccanti trovati dal dump (RAW stdClass o CR classico)."
+      : "Attaccanti non trovati: se succede, incolla 30 righe del raw attorno a [attackers] o [players].";
+  }
+
+  async function run(apiid){
+    $("outLog").textContent="—"; $("outText").textContent="—";
+    $("kM").textContent=$("kC").textContent=$("kD").textContent=$("kAtt").textContent="—";
+    $("kAttN").textContent=""; $("kNote").textContent="—";
+    setStatus("caricamento…","muted"); setSource("—");
+
+    try{
+      const f = await fetchHtml(apiid);
+      log(`Fetch: status=${f.status} ok=${f.ok}`);
+      if(!f.ok) throw new Error("HTTP "+f.status);
+      setSource("nomoreangel (via proxy)"); 
+      const extracted = extractTextFromHtml(f.text);
+      log("Testo estratto: " + extracted.length + " caratteri");
+      const parsed = parseCR(extracted);
+      log("ParseCR: DF M=" + (parsed.df?.m||0) + " C=" + (parsed.df?.c||0) + " D=" + (parsed.df?.d||0) + " | attaccanti=" + (parsed.attackers?.length||0));
+      render(parsed, extracted);
+      setStatus("OK","ok");
+    }catch(e){
+      setStatus("errore: "+(e?.message||String(e)),"err");
+      log("ERRORE: " + (e?.stack||String(e)));
+    }
+  }
+
+  $("proxyLbl").textContent = PROXY_BASE;
+  $("btnLoad").addEventListener("click", ()=> {
+    const apiid = $("apiid").value.trim();
+    if(!apiid) return setStatus("inserisci apiid CR","err");
+    run(apiid);
+  });
+  $("btnDemo").addEventListener("click", ()=> {
+    $("apiid").value = "cr-it-269-99ac041223643141081dcf46c909523a0684d4b0";
+    run($("apiid").value.trim());
+  });
+})();
+</script>
+</body>
+</html>
