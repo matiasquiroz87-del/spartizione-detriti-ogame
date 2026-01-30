@@ -1142,7 +1142,7 @@ function parseRR(text, coordFilter){
   // --- UI actions
   
   // --- API Reader (nomoreangel.de) — AUTO READ (rawOut=on)
-  const API_BASE = "https://nomoreangel.de/api-reader/?rawOut=on&apiid=";
+  const API_BASE = "https://ogame-api-proxy.matiasquiroz87.workers.dev/";
 
   async function loadFromApi(apiId){
     const url = API_BASE + encodeURIComponent(apiId);
