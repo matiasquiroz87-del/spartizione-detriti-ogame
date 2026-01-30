@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OGame CR Reader (nomoreangel)</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#111a33; --panel2:#0f1730; --text:#e7efff; --muted:#a9b7d8;
+    --line:rgba(255,255,255,.10); --acc:#6ad1ff;
+  }
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:radial-gradient(1200px 700px at 20% 0%, #14214a 0%, var(--bg) 55%, #070b16 100%);color:var(--text);}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px;}
+  .top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;}
+  .brand{display:flex;flex-direction:column;gap:2px}
+  .brand h1{font-size:18px;margin:0;letter-spacing:.3px}
+  .brand .sub{color:var(--muted);font-size:12px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 45px rgba(0,0,0,.35);overflow:hidden}
+  .card .hd{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .card .bd{padding:14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  input[type=text]{flex:1;min-width:320px;background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px 12px;outline:none}
+  input[type=text]:focus{border-color:rgba(106,209,255,.55);box-shadow:0 0 0 3px rgba(106,209,255,.12)}
+  .btn{background:rgba(106,209,255,.18);border:1px solid rgba(106,209,255,.35);color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:700}
+  .btn:hover{background:rgba(106,209,255,.24)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.16)}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+  .kpi{grid-column:span 6;background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .kpi .k{color:var(--muted);font-size:12px}
+  .kpi .v{font-size:16px;font-weight:800;margin-top:4px}
+  .kpi small{color:var(--muted)}
+  .kpi.wide{grid-column:span 12}
+  .list{margin:0;padding-left:18px;color:var(--text)}
+  details{background:rgba(0,0,0,.16);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  summary{cursor:pointer;padding:12px 14px;font-weight:800}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;line-height:1.35;color:#d9e6ff;white-space:pre-wrap;word-break:break-word;padding:12px 14px;border-top:1px solid var(--line);max-height:55vh;overflow:auto;background:rgba(0,0,0,.22)}
+  .muted{color:var(--muted)}
+  .err{color:#ffb4b4}
+  .ok{color:#baf7c9}
+  .hint{font-size:12px;color:var(--muted)}
+  a{color:var(--acc);text-decoration:none}
+  a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <h1>CR Reader (nomoreangel)</h1>
+      <div class="sub">Legge un CR via proxy → estrae testo da HTML → mostra coordinate, DF e attaccanti.</div>
+    </div>
+    <div class="pill">Usa il tuo proxy Cloudflare: <span class="muted" id="proxyLbl">—</span></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="hd">
+      <div style="font-weight:800">1) Inserisci API ID CR</div>
+      <div class="hint">Esempio: <span class="muted">cr-it-269-...</span></div>
+    </div>
+    <div class="bd">
+      <div class="row">
+        <input id="apiid" type="text" placeholder="cr-it-269-..." autocomplete="off" spellcheck="false"/>
+        <button class="btn" id="btnLoad">Carica CR</button>
+        <button class="btn" id="btnDemo" title="Carica l'esempio">Demo</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="pill">Stato: <span id="status" class="muted">in attesa</span></span>
+        <span class="pill">Fonte: <span id="source" class="muted">—</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="hd">
+      <div style="font-weight:800">2) Riepilogo</div>
+      <div class="hint muted">Compilato automaticamente</div>
+    </div>
+    <div class="bd">
+      <div class="grid">
+        <div class="kpi"><div class="k">Coordinate</div><div class="v" id="kCoords">—</div></div>
+        <div class="kpi"><div class="k">Data/ora</div><div class="v" id="kWhen">—</div></div>
+        <div class="kpi"><div class="k">Detriti (Metallo)</div><div class="v" id="kM">—</div><small class="muted">Metal to debrisfield</small></div>
+        <div class="kpi"><div class="k">Detriti (Cristallo)</div><div class="v" id="kC">—</div><small class="muted">Crystal to debrisfield</small></div>
+        <div class="kpi wide"><div class="k">Attaccanti</div>
+          <div class="v" id="kAtt">—</div>
+          <div class="hint" id="kAttHint"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+        <details style="flex:1;min-width:360px">
+          <summary>Testo estratto (da HTML)</summary>
+          <div class="mono" id="outText">—</div>
+        </details>
+        <details style="flex:1;min-width:360px">
+          <summary>Log parsing</summary>
+          <div class="mono" id="outLog">—</div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint" style="margin-top:10px">
+    Nota: per evitare problemi CORS, serve aprire questa pagina via <b>http://</b> (server locale o hosting).
+  </div>
+</div>
+
+<script>
+(() => {
+  const PROXY_BASE_DEFAULT = "https://ogame-api-proxy.matiasquiroz87.workers.dev/?apiid=";
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => {
+    const x = Number(n||0);
+    if(!Number.isFinite(x)) return "0";
+    return x.toLocaleString("it-IT");
+  };
+  const parseIntOgame = (s) => {
+    const t = String(s||"").replace(/\./g,"").replace(/,/g,"").trim();
+    const n = parseInt(t,10);
+    return Number.isFinite(n)?n:0;
+  };
+
+  $("proxyLbl").textContent = PROXY_BASE_DEFAULT;
+
+  function setStatus(msg, cls){
+    const el = $("status");
+    el.textContent = msg;
+    el.className = cls || "muted";
+  }
+  function setSource(msg){ $("source").textContent = msg || "—"; }
+  function logLine(s){ $("outLog").textContent = ( $("outLog").textContent==="—" ? "" : $("outLog").textContent + "\n") + s; }
+  function resetOut(){
+    $("outLog").textContent = "—";
+    $("outText").textContent = "—";
+    $("kCoords").textContent = "—";
+    $("kWhen").textContent = "—";
+    $("kM").textContent = "—";
+    $("kC").textContent = "—";
+    $("kAtt").textContent = "—";
+    $("kAttHint").textContent = "";
+  }
+
+  async function fetchHtml(apiid){
+    const url = PROXY_BASE_DEFAULT + encodeURIComponent(apiid);
+    const resp = await fetch(url, {cache:"no-store"});
+    const txt = await resp.text();
+    return {url, status: resp.status, ok: resp.ok, text: txt};
+  }
+
+  function extractTextFromHtml(html, log){
+    // Prefer <pre> if present (often the rawOut is in a <pre>)
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const pre = doc.querySelector("pre");
+    if(pre && pre.textContent && pre.textContent.trim().length > 30){
+      log.push(`Estratto da <pre>: ${pre.textContent.length} caratteri`);
+      return pre.textContent;
+    }
+    const bodyText = (doc.body ? doc.body.innerText : "") || "";
+    log.push(`Estratto da body.innerText: ${bodyText.length} caratteri`);
+    return bodyText;
+  }
+
+  function parseConverted(text, log){
+    // "General Information" style
+    if(!/Metal\s+to\s+debrisfield:/i.test(text) || !/Attacker/i.test(text)){
+      return null;
+    }
+    const dfM = (text.match(/Metal\s+to\s+debrisfield:\s*([0-9\.\,]+)/i)||[])[1];
+    const dfC = (text.match(/Crystal\s+to\s+debrisfield:\s*([0-9\.\,]+)/i)||[])[1];
+    const coords = (text.match(/Combat\s+coordinates:\s*([0-9:]+)/i)||[])[1];
+    const date = (text.match(/Date:\s*([0-9\-]+)/i)||[])[1];
+    const time = (text.match(/Time:\s*([0-9:]+)/i)||[])[1];
+    const tz   = (text.match(/Timezone:\s*([+\-0-9:]+)/i)||[])[1];
+
+    // attackers: lines like "[2:96:10] Pablito"
+    const attackers = new Set();
+    const lines = text.split(/\r?\n/);
+    let inInitial = false;
+    let seenCombat = false;
+    for(let i=0;i<lines.length;i++){
+      const line = lines[i].trim();
+      if(/Combat Report:/i.test(line)) seenCombat = true;
+      if(seenCombat && /^Initial:/i.test(line)) inInitial = true;
+      if(inInitial && /^Round\s+\d+/i.test(line)) break;
+
+      if(inInitial && line.startsWith("[") && line.includes("]")){
+        const name = line.split("]").slice(1).join("]").trim();
+        // only capture if previous non-empty line was "Attacker"
+        let j=i-1;
+        while(j>=0 && !lines[j].trim()) j--;
+        if(j>=0 && /^Attacker$/i.test(lines[j].trim())){
+          if(name) attackers.add(name);
+        }
+      }
+    }
+
+    const out = {
+      coords: coords || "—",
+      when: (date ? `${date} ${time||""} ${tz||""}`.trim() : "—"),
+      dfM: parseIntOgame(dfM),
+      dfC: parseIntOgame(dfC),
+      attackers: Array.from(attackers)
+    };
+    log.push(`Parser convertito: attaccanti=${out.attackers.length}, DF M=${out.dfM}, C=${out.dfC}`);
+    return out;
+  }
+
+  function parseRawStdClass(text, log){
+    // Quick & robust: look for generic debris and try to resolve attackers via a "players" block if present.
+    if(!/stdClass Object\s*\(/i.test(text)) return null;
+
+    const pick = (keys, scope) => {
+      const s = scope || text;
+      for(const k of keys){
+        const m = s.match(new RegExp("\\\\["+k+"\\\\]\\\\s*=>\\\\s*([0-9\\\\.,]+)","i"));
+        if(m) return parseIntOgame(m[1]);
+      }
+      return 0;
+    };
+
+    // coords
+    let coords = (text.match(/\[coordinates\]\s*=>\s*([0-9:]+)/i)||[])[1] || "—";
+    // when
+    let when = (text.match(/\[event_time\]\s*=>\s*([0-9T:+-]+)/i)||[])[1] || "—";
+
+    // debris: try generic block first, else anywhere
+    const dfM = pick(["metal_in_debris_field","metal_to_debris_field","debris_metal","metal_df"]);
+    const dfC = pick(["crystal_in_debris_field","crystal_to_debris_field","debris_crystal","crystal_df"]);
+
+    // attackers names: try [attackers] root with [attacker_name]/[name], else [players] with role/is_attacker
+    const attackers = new Set();
+
+    // attempt simple scan for attacker_name or owner_name with alliance_tag? (CR might have attacker_name)
+    const reAtk = /\[(attacker_name|name)\]\s*=>\s*([^\n\r]+)/ig;
+    // only inside [attackers] block if it exists
+    const atkBlockIdx = text.search(/\[attackers\]\s*=>\s*(?:Array|stdClass Object)\s*\(/i);
+    if(atkBlockIdx !== -1){
+      const slice = text.slice(atkBlockIdx, atkBlockIdx + 200000);
+      let m;
+      while((m=reAtk.exec(slice))!==null){
+        const nm = (m[2]||"").trim();
+        if(nm && nm.length<40) attackers.add(nm);
+      }
+    }
+
+    // players fallback: look for "[players] => Array"
+    if(attackers.size === 0){
+      const playersIdx = text.search(/\[players\]\s*=>\s*Array\s*\(/i);
+      if(playersIdx !== -1){
+        const slice = text.slice(playersIdx, playersIdx + 220000);
+        // name lines in players
+        const rePlayer = /\[(player_name|name)\]\s*=>\s*([^\n\r]+)/ig;
+        let m;
+        while((m=rePlayer.exec(slice))!==null){
+          const nm = (m[2]||"").trim();
+          if(nm && nm.length<40){
+            // heuristic: include if nearby indicates attacker
+            const around = slice.slice(Math.max(0,m.index-250), m.index+250);
+            if(/\[(role|player_role|type)\]\s*=>\s*attacker/i.test(around) || /\[(is_attacker|attacker)\]\s*=>\s*1/i.test(around)){
+              attackers.add(nm);
+            }
+          }
+        }
+      }
+    }
+
+    const out = {coords, when, dfM, dfC, attackers: Array.from(attackers)};
+    log.push(`Parser RAW stdClass: attaccanti=${out.attackers.length}, DF M=${out.dfM}, C=${out.dfC}`);
+    return out;
+  }
+
+  function render(res, srcLabel){
+    $("kCoords").textContent = res.coords || "—";
+    $("kWhen").textContent = res.when || "—";
+    $("kM").textContent = fmt(res.dfM);
+    $("kC").textContent = fmt(res.dfC);
+    if(res.attackers && res.attackers.length){
+      $("kAtt").textContent = res.attackers.join(", ");
+      $("kAttHint").textContent = `Totale: ${res.attackers.length}`;
+      $("kAttHint").className = "hint ok";
+    }else{
+      $("kAtt").textContent = "—";
+      $("kAttHint").textContent = "Attaccanti non trovati nel testo estratto.";
+      $("kAttHint").className = "hint err";
+    }
+    setSource(srcLabel);
+  }
+
+  async function run(apiid){
+    resetOut();
+    setStatus("caricamento…", "muted");
+
+    const log = [];
+    try{
+      const f = await fetchHtml(apiid);
+      log.push(`Fetch: status=${f.status} ok=${f.ok}`);
+      log.push(`URL: ${f.url}`);
+      if(!f.ok) throw new Error("HTTP "+f.status);
+
+      const extracted = extractTextFromHtml(f.text, log);
+      $("outText").textContent = extracted.slice(0, 12000) + (extracted.length>12000 ? "\n\n[...tagliato in UI: testo completo disponibile in log, ma non serve per il reader...]" : "");
+
+      // Try converted first
+      let parsed = parseConverted(extracted, log);
+      if(parsed){
+        render(parsed, "convertito (General Information)");
+        setStatus("OK (convertito)", "ok");
+      }else{
+        log.push("Convertito non rilevato → provo RAW stdClass…");
+        parsed = parseRawStdClass(extracted, log);
+        if(parsed){
+          render(parsed, "RAW stdClass (best effort)");
+          setStatus("OK (RAW)", "ok");
+        }else{
+          setStatus("ERRORE", "err");
+          throw new Error("Formato non riconosciuto (né convertito né stdClass).");
+        }
+      }
+    }catch(e){
+      setStatus("errore: "+(e && e.message ? e.message : String(e)), "err");
+      log.push("ERRORE: " + (e && e.stack ? e.stack : String(e)));
+    }finally{
+      $("outLog").textContent = log.join("\n");
+    }
+  }
+
+  $("btnLoad").addEventListener("click", ()=> {
+    const apiid = $("apiid").value.trim();
+    if(!apiid){ setStatus("inserisci un apiid CR", "err"); return; }
+    run(apiid);
+  });
+
+  $("btnDemo").addEventListener("click", ()=> {
+    $("apiid").value = "cr-it-269-99ac041223643141081dcf46c909523a0684d4b0";
+    run($("apiid").value.trim());
+  });
+})();
+</script>
+</body>
+</html>
