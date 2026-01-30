@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OGame CR Reader (NoMoreAngel)</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#101a33; --panel2:#0e1730; --text:#d6e2ff; --muted:#93a4d6;
+      --line:#23335c; --accent:#6aa8ff; --accent2:#35d0ff; --danger:#ff5d7a; --ok:#35ffb3;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    body{margin:0; font-family:var(--sans); color:var(--text); background:
+      radial-gradient(1200px 700px at 20% -10%, rgba(106,168,255,.25), transparent 60%),
+      radial-gradient(900px 500px at 80% 0%, rgba(53,208,255,.18), transparent 55%),
+      linear-gradient(180deg, #070a14, var(--bg));
+      min-height:100vh;
+    }
+    .wrap{max-width:1050px; margin:0 auto; padding:24px 16px 64px;}
+    .topbar{
+      background: linear-gradient(180deg, rgba(16,26,51,.9), rgba(14,23,48,.75));
+      border:1px solid rgba(35,51,92,.8);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      padding:18px 18px 14px;
+      position: sticky; top: 14px; backdrop-filter: blur(8px);
+      z-index: 5;
+    }
+    .brand{display:flex; align-items:center; gap:12px; margin-bottom:10px}
+    .logo{
+      width:34px; height:34px; border-radius:10px;
+      background: radial-gradient(circle at 30% 30%, var(--accent2), var(--accent));
+      box-shadow: 0 6px 18px rgba(106,168,255,.25);
+    }
+    .brand h1{font-size:16px; margin:0; letter-spacing:.3px}
+    .brand .sub{font-size:12px; color:var(--muted)}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
+    label{display:block; font-size:12px; color:var(--muted); margin:0 0 6px}
+    input[type="text"]{
+      width:min(560px, 100%);
+      background: rgba(7,10,20,.65);
+      border:1px solid rgba(35,51,92,.9);
+      border-radius: 12px;
+      padding:12px 12px;
+      color:var(--text);
+      outline:none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+    input[type="text"]:focus{border-color: rgba(106,168,255,.9); box-shadow: 0 0 0 3px rgba(106,168,255,.18)}
+    .btn{
+      border:1px solid rgba(35,51,92,.9);
+      background: linear-gradient(180deg, rgba(106,168,255,.25), rgba(16,26,51,.65));
+      color:var(--text);
+      padding:11px 14px;
+      border-radius:12px;
+      cursor:pointer;
+      user-select:none;
+      font-weight:600;
+      letter-spacing:.2px;
+    }
+    .btn:hover{border-color: rgba(106,168,255,.9)}
+    .btn:active{transform: translateY(1px)}
+    .btn.secondary{
+      background: linear-gradient(180deg, rgba(53,208,255,.18), rgba(16,26,51,.65));
+    }
+    .hint{margin-top:10px; color:var(--muted); font-size:12px; line-height:1.45}
+    .grid{display:grid; grid-template-columns: 1.1fr .9fr; gap:14px; margin-top:16px}
+    @media (max-width: 900px){ .grid{grid-template-columns:1fr} .topbar{position:relative; top:auto} }
+    .card{
+      background: linear-gradient(180deg, rgba(16,26,51,.9), rgba(14,23,48,.72));
+      border:1px solid rgba(35,51,92,.8);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:12px 14px;
+      border-bottom:1px solid rgba(35,51,92,.65);
+      display:flex; align-items:center; justify-content:space-between; gap:10px
+    }
+    .card .hd .t{font-weight:700; font-size:13px; letter-spacing:.2px}
+    .pill{font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid rgba(35,51,92,.8); color:var(--muted)}
+    .pill.ok{color:#bfffe9; border-color: rgba(53,255,179,.35); background: rgba(53,255,179,.08)}
+    .pill.bad{color:#ffd0d8; border-color: rgba(255,93,122,.35); background: rgba(255,93,122,.08)}
+    .card .bd{padding:14px}
+    .kpi{display:grid; grid-template-columns: repeat(3, 1fr); gap:10px}
+    @media (max-width: 520px){ .kpi{grid-template-columns:1fr} }
+    .k{background: rgba(7,10,20,.5); border:1px solid rgba(35,51,92,.6); border-radius: 12px; padding:10px}
+    .k .l{font-size:11px; color:var(--muted)}
+    .k .v{font-size:15px; font-weight:800; margin-top:3px}
+    .list{margin-top:12px; display:flex; flex-direction:column; gap:8px}
+    .li{background: rgba(7,10,20,.45); border:1px solid rgba(35,51,92,.55); border-radius: 12px; padding:10px; display:flex; justify-content:space-between; gap:10px}
+    .li .name{font-weight:700}
+    .li .meta{color:var(--muted); font-size:12px}
+    details{border:1px solid rgba(35,51,92,.7); border-radius: 12px; background: rgba(7,10,20,.45); overflow:hidden}
+    summary{cursor:pointer; padding:10px 12px; color:var(--text); font-weight:700; font-size:13px}
+    details[open] summary{border-bottom:1px solid rgba(35,51,92,.55)}
+    pre{
+      margin:0; padding:12px;
+      font-family:var(--mono);
+      font-size:12px;
+      line-height:1.45;
+      white-space:pre-wrap;
+      word-break:break-word;
+      color:#cfe0ff;
+    }
+    textarea{
+      width:100%;
+      min-height:180px;
+      resize:vertical;
+      border-radius: 12px;
+      border:1px solid rgba(35,51,92,.75);
+      background: rgba(7,10,20,.55);
+      color:var(--text);
+      padding:12px;
+      font-family: var(--mono);
+      font-size:12px;
+      outline:none;
+    }
+    textarea:focus{border-color: rgba(106,168,255,.9); box-shadow: 0 0 0 3px rgba(106,168,255,.18)}
+    .small{font-size:12px; color:var(--muted)}
+    a{color:#9fc6ff; text-decoration:none}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>CR Reader (NoMoreAngel)</h1>
+          <div class="sub">Legge un combat report via API-ID e prova a estrarre <b>attaccanti</b> + <b>debris field</b>. Se disponibile, mostra anche l'output “convertito”.</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1 1 520px">
+          <label>API-ID (es. <span style="font-family:var(--mono)">cr-it-269-...</span>)</label>
+          <input id="apiid" type="text" spellcheck="false" value="" placeholder="cr-it-269-..." />
+        </div>
+        <button class="btn" id="loadBtn">Carica CR</button>
+        <button class="btn secondary" id="demoBtn" title="Carica l'esempio fornito">Demo</button>
+      </div>
+
+      <div class="hint">
+        Nota: il tool deve essere aperto via <b>http/https</b> (non <span style="font-family:var(--mono)">file://</span>).<br/>
+        Se l'API-Reader restituisce solo RAW (<span style="font-family:var(--mono)">stdClass Object</span>), qui sotto puoi comunque ottenere i dati principali da quel dump.
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card" id="summaryCard">
+        <div class="hd">
+          <div class="t">Riepilogo CR</div>
+          <div class="pill" id="statusPill">in attesa</div>
+        </div>
+        <div class="bd">
+          <div class="kpi">
+            <div class="k"><div class="l">Coordinate</div><div class="v" id="kCoord">—</div></div>
+            <div class="k"><div class="l">Debris Metallo</div><div class="v" id="kDM">—</div></div>
+            <div class="k"><div class="l">Debris Cristallo</div><div class="v" id="kDC">—</div></div>
+          </div>
+
+          <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px">
+            <div style="font-weight:800">Attaccanti</div>
+            <div class="small" id="atkCount">—</div>
+          </div>
+          <div class="list" id="atkList"></div>
+
+          <div style="margin-top:12px" class="small" id="notes"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <div class="t">Output convertito (se presente)</div>
+          <div class="pill" id="convPill">—</div>
+        </div>
+        <div class="bd">
+          <textarea id="convertedBox" placeholder="Qui comparirà l'output 'General Information...' se il sito lo fornisce nell'HTML. Altrimenti resta vuoto."></textarea>
+          <div class="small" style="margin-top:10px">
+            Se questa box resta vuota, vuol dire che dall'HTML scaricato non emerge l'output convertito.<br/>
+            In quel caso puoi usare l'estrazione RAW sotto (tab “RAW dump”).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="hd">
+        <div class="t">RAW dump (stdClass / testo estratto)</div>
+        <div class="pill" id="rawPill">—</div>
+      </div>
+      <div class="bd">
+        <details open>
+          <summary>Apri/chiudi RAW</summary>
+          <pre id="rawPre">—</pre>
+        </details>
+      </div>
+    </div>
+
+    <div class="small" style="margin-top:14px">
+      Endpoint usato: <span style="font-family:var(--mono)" id="urlUsed">—</span>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const PROXY = 'https://ogame-api-proxy.matiasquiroz87.workers.dev/?apiid=';
+  const $ = (id) => document.getElementById(id);
+
+  const fmt = (n) => {
+    if (n === null || n === undefined || n === '' || Number.isNaN(Number(n))) return '—';
+    try { return Number(n).toLocaleString('it-IT'); } catch { return String(n); }
+  };
+
+  function setStatus(type, txt){
+    const pill = $('statusPill');
+    pill.textContent = txt;
+    pill.classList.remove('ok','bad');
+    if(type==='ok') pill.classList.add('ok');
+    if(type==='bad') pill.classList.add('bad');
+  }
+
+  function setConvStatus(type, txt){
+    const pill = $('convPill');
+    pill.textContent = txt;
+    pill.classList.remove('ok','bad');
+    if(type==='ok') pill.classList.add('ok');
+    if(type==='bad') pill.classList.add('bad');
+  }
+
+  function setRawStatus(type, txt){
+    const pill = $('rawPill');
+    pill.textContent = txt;
+    pill.classList.remove('ok','bad');
+    if(type==='ok') pill.classList.add('ok');
+    if(type==='bad') pill.classList.add('bad');
+  }
+
+  function extractConvertedFromHtml(htmlText){
+    const idx = htmlText.indexOf('General Information:');
+    if(idx !== -1){
+      const tail = htmlText.slice(idx);
+      const cleaned = tail
+        .replace(/<br\\s*\\/?>/gi, '\\n')
+        .replace(/<\\/(p|div|h\\d|li|tr|td|th)>/gi, '\\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\\n{3,}/g, '\\n\\n')
+        .trim();
+      return cleaned;
+    }
+    return '';
+  }
+
+  function extractPreFromHtml(htmlText){
+    const m = htmlText.match(/<pre[^>]*>([\\s\\S]*?)<\\/pre>/i);
+    if(!m) return '';
+    const txt = m[1]
+      .replace(/&lt;/g,'<')
+      .replace(/&gt;/g,'>')
+      .replace(/&amp;/g,'&')
+      .replace(/&#039;/g,\"'\")
+      .replace(/&quot;/g,'\"');
+    return txt.trim();
+  }
+
+  function parseRawStdClass(raw){
+    const res = { coord:null, debrisMetal:null, debrisCrystal:null, attackers:[] };
+
+    const coord = raw.match(/\\[combat_coordinates\\]\\s*=>\\s*([0-9:]+)/) ||
+                  raw.match(/\\[combat_coordinates\\]\\s*=>\\s*([0-9]+:[0-9]+:[0-9]+)/) ||
+                  raw.match(/\\[combat_coordinates\\]\\s*=>\\s*([^\\s\\)]+)/);
+    if(coord) res.coord = coord[1].trim();
+
+    const dm = raw.match(/\\[debris_metal_total\\]\\s*=>\\s*(\\d+)/) ||
+               raw.match(/\\[debris_metal\\]\\s*=>\\s*(\\d+)/);
+    const dc = raw.match(/\\[debris_crystal_total\\]\\s*=>\\s*(\\d+)/) ||
+               raw.match(/\\[debris_crystal\\]\\s*=>\\s*(\\d+)/);
+    if(dm) res.debrisMetal = dm[1];
+    if(dc) res.debrisCrystal = dc[1];
+
+    let atkBlock = '';
+    const aStart = raw.indexOf('[attackers]');
+    if(aStart !== -1){
+      const dStart = raw.indexOf('[defenders]', aStart);
+      atkBlock = raw.slice(aStart, dStart !== -1 ? dStart : raw.length);
+    } else {
+      atkBlock = raw;
+    }
+
+    const owners = [...atkBlock.matchAll(/\\[fleet_owner\\]\\s*=>\\s*([^\\n\\r\\)]+)/g)].map(m => m[1].trim());
+    const seen = new Set();
+    for(const o of owners){
+      const name = o.replace(/\\s+$/,'');
+      if(!seen.has(name)){
+        seen.add(name);
+        res.attackers.push({name});
+      }
+    }
+    return res;
+  }
+
+  function renderSummary(data){
+    $('kCoord').textContent = data.coord ? data.coord : '—';
+    $('kDM').textContent = data.debrisMetal ? fmt(data.debrisMetal) : '—';
+    $('kDC').textContent = data.debrisCrystal ? fmt(data.debrisCrystal) : '—';
+
+    const list = $('atkList');
+    list.innerHTML = '';
+    $('atkCount').textContent = data.attackers?.length ? `${data.attackers.length} giocatori` : '—';
+
+    if(data.attackers?.length){
+      data.attackers.forEach((a, i) => {
+        const el = document.createElement('div');
+        el.className = 'li';
+        el.innerHTML = `<div><div class="name">${escapeHtml(a.name)}</div><div class="meta">#${i+1}</div></div>`;
+        list.appendChild(el);
+      });
+    } else {
+      const el = document.createElement('div');
+      el.className = 'small';
+      el.textContent = 'Nessun attaccante trovato nel RAW.';
+      list.appendChild(el);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#039;'}[c]));
+  }
+
+  async function loadCR(apiid){
+    apiid = (apiid || '').trim();
+    if(!apiid){
+      setStatus('bad','inserisci API-ID');
+      return;
+    }
+
+    const url = PROXY + encodeURIComponent(apiid);
+    $('urlUsed').textContent = url;
+
+    setStatus('', 'caricamento…');
+    setConvStatus('', 'caricamento…');
+    setRawStatus('', 'caricamento…');
+    $('notes').textContent = '';
+    $('convertedBox').value = '';
+    $('rawPre').textContent = '…';
+
+    try{
+      const resp = await fetch(url, {method:'GET', cache:'no-store'});
+      const text = await resp.text();
+
+      if(!resp.ok){
+        setStatus('bad', `errore HTTP ${resp.status}`);
+        setConvStatus('bad', '—');
+        setRawStatus('bad', '—');
+        $('rawPre').textContent = text.slice(0, 2000);
+        return;
+      }
+
+      const conv = extractConvertedFromHtml(text);
+      if(conv){
+        $('convertedBox').value = conv;
+        setConvStatus('ok', 'trovato');
+      } else {
+        setConvStatus('bad', 'non presente');
+      }
+
+      const raw = extractPreFromHtml(text) || text;
+      $('rawPre').textContent = raw;
+      setRawStatus('ok', `len ${raw.length.toLocaleString('it-IT')}`);
+
+      const parsed = parseRawStdClass(raw);
+      renderSummary(parsed);
+
+      const hasAtk = parsed.attackers && parsed.attackers.length > 0;
+      const hasDf = parsed.debrisMetal || parsed.debrisCrystal;
+      if(hasAtk || hasDf){
+        setStatus('ok','OK');
+      } else {
+        setStatus('bad','parsing parziale');
+      }
+
+      const notes = [];
+      if(!conv) notes.push(\"Nessun 'General Information' trovato: probabilmente il reader ha restituito solo RAW.\");
+      if(!hasDf) notes.push(\"Debris field non trovato nel RAW (chiavi: debris_metal_total / debris_crystal_total).\");
+      if(!hasAtk) notes.push(\"Attaccanti non trovati nel RAW (chiave: fleet_owner).\");
+      $('notes').textContent = notes.join(' ');
+
+    } catch(err){
+      setStatus('bad','errore fetch');
+      setConvStatus('bad','—');
+      setRawStatus('bad','—');
+      $('rawPre').textContent = String(err);
+    }
+  }
+
+  $('loadBtn').addEventListener('click', () => loadCR($('apiid').value));
+  $('demoBtn').addEventListener('click', () => {
+    $('apiid').value = 'cr-it-269-99ac041223643141081dcf46c909523a0684d4b0';
+    loadCR($('apiid').value);
+  });
+})();
+</script>
+</body>
+</html>
