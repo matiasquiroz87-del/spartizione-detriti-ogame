@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Spartizione Detriti OGame - CR (testo) + RR (API)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* OGame-ish palette */
+    --bg:#050a10;
+    --panel:#0b1320;
+    --panel2:#07101b;
+    --text:#dbe7ff;
+    --muted:#93a6c7;
+    --line:rgba(120,160,220,.25);
+    --accent:#4da3ff;      /* orange */
+    --accent2:#2dd4ff;     /* cyan */
+    --good:#39d98a;
+    --bad:#ff5c5c;
+    --warn:#ff5c5c;
+    --font-ui: "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+    --font-title: "Orbitron", "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(124,240,255,.10), transparent 55%),
+      radial-gradient(900px 600px at 110% 10%, rgba(255,179,77,.10), transparent 55%),
+      radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.9), transparent 60%),
+      radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,.75), transparent 60%),
+      radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,.7), transparent 60%),
+      radial-gradient(1px 1px at 85% 80%, rgba(255,255,255,.65), transparent 60%),
+      radial-gradient(1px 1px at 10% 85%, rgba(255,255,255,.6), transparent 60%),
+      radial-gradient(1px 1px at 95% 45%, rgba(255,255,255,.55), transparent 60%),
+      linear-gradient(180deg, rgba(15,25,40,.65), rgba(5,10,16,1));
+    filter:saturate(1.05) contrast(1.05);
+  }
+  header{position:sticky;top:0;z-index:5;background:linear-gradient(180deg, rgba(7,12,18,.92), rgba(7,12,18,.65));backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px 14px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .title{display:flex;align-items:center;gap:10px;min-width:0;}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+  .badge{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:999px;background:rgba(16,26,46,.6)}
+  h1{font-family:var(--font-title);font-size:16px;margin:0;letter-spacing:.8px;text-transform:uppercase}
+  .tabs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .tabbtn{border:1px solid var(--line);background:rgba(16,26,46,.6);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer}
+  .tabbtn.active{border-color:rgba(242,169,0,.8);box-shadow:0 0 0 2px rgba(242,169,0,.18) inset;background:rgba(242,169,0,.07)}
+  .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+  @media (min-width: 980px){ .grid{grid-template-columns: 1fr 1fr;} }
+  .card{border:1px solid var(--line);background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .card h2{margin:0 0 8px 0;font-size:14px;color:var(--text)}
+  textarea,input{width:100%;background:rgba(8,12,20,.65);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px;font-size:13px;outline:none}
+  textarea{min-height:240px;resize:vertical;line-height:1.25}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .row > *{flex:1}
+  button{border:1px solid rgba(88,166,255,.65);background:rgba(88,166,255,.15);color:var(--text);
+    padding:9px 12px;border-radius:12px;cursor:pointer;font-weight:600}
+  button:hover{background:rgba(88,166,255,.22)}
+  .ghost{border-color:var(--line);background:rgba(16,26,46,.5);font-weight:600}
+  .ghost:hover{background:rgba(16,26,46,.75)}
+  .mini{font-size:12px;color:var(--muted)}
+  .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:rgba(16,26,46,.5)}
+  .pill input{width:auto}
+  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .kpi .box{border:1px solid var(--line);background:rgba(8,12,20,.35);border-radius:12px;padding:10px}
+  .kpi .box .v{font-size:14px;font-weight:800}
+  .kpi .box .l{font-size:12px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
+  th,td{padding:8px 8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
+  th{text-align:right;color:var(--muted);font-weight:700;background:rgba(16,26,46,.55)}
+  th:first-child, td:first-child{text-align:left}
+  tr:last-child td{border-bottom:none}
+  .good{color:var(--good)}
+  .bad{color:var(--bad)}
+  .warn{color:var(--warn)}
+  details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
+  summary{cursor:pointer;color:var(--muted);font-weight:700}
+  pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
+
+.ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
+
+.advanced{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">
+        <h1>Spartizione Detriti OGame</h1>
+        <span class="badge">CR testo + RR API • logica foglio di calcolo</span>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="btnShare" type="button" title="Copia un link con la configurazione"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16a3 3 0 0 0-2.24 1.02L8.91 13.7a3.2 3.2 0 0 0 0-3.4l6.85-3.32A3 3 0 1 0 15 5a2.98 2.98 0 0 0 .07.63L8.22 8.95A3 3 0 1 0 9 12a2.98 2.98 0 0 0-.07-.63l6.85 3.32A3 3 0 1 0 18 16Z"/></svg>Condividi</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tabbtn active" data-tab="cr">CR (testo)</button>
+      <button class="tabbtn" data-tab="rr">RR (API via nomoreangel/proxy)</button>
+      <button class="tabbtn" data-tab="risultati">Risultati</button>
+      <button class="tabbtn" data-tab="log">Log</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="tab-cr" class="tab">
+    <div class="grid">
+      <div class="card">
+        <h2>Incolla qui il Combat Report (formato classico IT/EN)</h2>
+        <textarea id="crText" placeholder="Incolla il CR qui..."></textarea>
+        <div class="row" style="margin-top:10px">
+          <button id="btnParseCR">Analizza CR</button>
+          <button id="btnCRDemo" class="ghost">Demo</button>
+        </div>
+        <div class="mini" style="margin-top:8px">
+          Estrae: attaccanti, difensore, coordinate, loot, perdite, DF (float).
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Opzioni di spartizione</h2>
+        <div class="row">
+          <label class="pill"><input type="radio" name="mode" value="paritaria" checked> Paritaria</label>
+          <label class="pill"><input type="radio" name="mode" value="equa"> Equa (peso flotta in campo)</label>
+        </div>
+        <div class="kpi" id="kpiCR"></div>
+
+        <details style="margin-top:10px" open>
+          <summary>Costi navi / difese (come foglio)</summary>
+          <div class="mini" style="margin-top:8px">
+            I calcoli usano questi costi base. Se il tuo universo ha costi diversi, dimmelo e li rendiamo editabili.
+          </div>
+          <div id="costsTable" style="margin-top:8px"></div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-rr" class="tab" style="display:none">
+    <div class="grid">
+      <div class="card">
+        <h2>Carica RR tramite API ID</h2>
+        <div class="row advanced">
+          <div style="flex:2">
+            <label class="mini">Proxy base URL</label>
+            <input id="proxyBase" value="https://ogame-api-proxy.matiasquiroz87.workers.dev/?apiid=" />
+          </div>
+          <div>
+            <label class="mini">Timeout (ms)</label>
+            <input id="timeoutMs" value="12000" />
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <label class="mini">Inserisci uno o più RR apiid (uno per riga)</label>
+          <textarea id="rrIds" placeholder="rr-it-269-...."></textarea>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="btnLoadRR">Carica RR</button>
+          <button id="btnClearRR" class="ghost">Pulisci</button>
+        </div>
+        <div class="mini" style="margin-top:8px">
+          Il tool somma automaticamente le raccolte per giocatore (owner_name) e per risorsa.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Raccolte lette</h2>
+        <div id="rrTable"></div>
+        <details style="margin-top:10px">
+          <summary>Dettagli RR (debug)</summary>
+          <pre id="rrRaw"></pre>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-risultati" class="tab" style="display:none">
+    <div class="card">
+      <h2>Risultati (logica del foglio)</h2>
+      <div class="mini">
+        Formula (per risorsa): <b>quota = perdite_i + (gain_totale × peso_i) − raccolto_i</b><br/>
+        dove <b>gain_totale = raccolto_totale − perdite_totali</b>. La somma delle quote = 0 (trasferimenti tra alleati).
+      </div>
+      <div style="margin-top:10px" id="resultsTables"></div>
+
+      <details style="margin-top:12px" open>
+        <summary>Trasporti finali suggeriti</summary>
+        <div class="mini" style="margin-top:8px">
+          Elenco di trasferimenti minimi tra chi deve inviare (negativo) e chi deve ricevere (positivo).
+        </div>
+        <div id="transports"></div>
+      </details>
+    </div>
+  </div>
+
+  <div id="tab-log" class="tab" style="display:none">
+    <div class="card">
+      <h2>Log</h2>
+      <pre id="logBox"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+const COSTS = {"Cargo leggero": [2000, 2000, 0], "Cargo Pesante": [6000, 6000, 0], "Caccia Leggero": [3000, 1000, 0], "Caccia Pesante": [6000, 4000, 0], "Incrociatore": [20000, 7000, 2000], "Nave da battaglia": [45000, 15000, 0], "Bombardiere": [50000, 25000, 15000], "Corazzata": [60000, 50000, 15000], "Incrociatore da Battaglia": [30000, 40000, 15000], "Reaper": [85000, 55000, 20000], "Pathfinder": [8000, 15000, 8000], "Riciclatrice": [10000, 6000, 2000], "Colonizzatrice": [10000, 20000, 10000], "Sonda spia": [0, 1000, 0], "Satellite Solare": [0, 2000, 500], "Crawler": [2000, 2000, 1000], "Morte Nera": [5000000, 4000000, 1000000], "Lanciamissili": [2000, 0, 0], "Laser leggero": [1500, 500, 0], "Laser pesante": [6000, 2000, 0], "Cannone Gauss": [20000, 15000, 2000], "Cannone ionico": [2000, 6000, 0], "Cannone al Plasma": [50000, 50000, 30000], "Cupola scudo piccola": [10000, 10000, 0], "Cupola scudo potenziata": [50000, 50000, 0]};
+
+function fmt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '-';
+  return Math.round(n).toLocaleString('it-IT');
+}
+function parseNum(str) {
+  if (str === null || str === undefined) return 0;
+  const s = String(str).replace(/\./g,'').replace(/,/g,'').replace(/\s+/g,'').trim();
+  const n = Number(s);
+  return isNaN(n) ? 0 : n;
+}
+const LOG = [];
+function log(msg, level="info") {
+  const t = new Date().toLocaleTimeString();
+  const line = `[${t}] ${msg}`;
+  LOG.push(line);
+  const el = document.getElementById('logBox');
+  if (el) el.textContent = LOG.join("\n");
+}
+
+function setTab(name) {
+  document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
+  document.getElementById('tab-'+name).style.display = 'block';
+}
+
+document.querySelectorAll('.tabbtn').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
+
+function renderCosts() {
+  const rows = Object.entries(COSTS).map(([k,v]) => {
+    const [m,c,d]=v;
+    const g=m+c+d;
+    return `<tr><td>${k}</td><td>${fmt(m)}</td><td>${fmt(c)}</td><td>${fmt(d)}</td><td>${fmt(g)}</td></tr>`;
+  }).join('');
+  document.getElementById('costsTable').innerHTML = `
+    <table>
+      <thead><tr><th>Unità</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>Globale</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+renderCosts();
+
+// -------- CR PARSER (testo classico) --------
+const STATE = {
+  cr: null, // parsed CR
+  rr: {}  // per player totals: {player: {m,c,d, list:[]}}
+};
+
+
+function parseCRText(text){
+  // Supports:
+  // 1) "Italian narrative" CR (our custom format) -> existing parser path
+  // 2) NoMoreAngel API-Reader "engOut" output (markdown/text from tables) -> NMA parser path
+  const raw = (text || '').replace(/\r/g,'').trim();
+  if(!raw) return {date:'', time:'', coords:'', df:{m:0,c:0,d:0}, loot:{m:0,c:0,d:0}, attackers:{}, defenders:{}, repairedDefense:{}, wreckfield:{}};
+
+  // Heuristic: NMA converted output contains "General Information:" and "Combat Report:" and "Attacker ["
+  const looksNMA = /General Information:/i.test(raw) && /Combat Report:/i.test(raw) && /Attacker\s*\[\d+:\d+:\d+\]/i.test(raw);
+
+  if(looksNMA){
+    return parseCRText_NMA(raw);
+  }
+
+  // --- Legacy Italian narrative parser (kept) ---
+  const out = {date:'', time:'', coords:'', df:{m:0,c:0,d:0}, loot:{m:0,c:0,d:0}, attackers:{}, defenders:{}, repairedDefense:{}, wreckfield:{}};
+
+  // date line
+  const dateM = raw.match(/Il\s+(\d{2}-\d{2}-\d{4})/i);
+  if(dateM) out.date = dateM[1];
+
+  // coords
+  const coordsM = raw.match(/coordinate\s+(\d+:\d+:\d+)/i) || raw.match(/Combat coordinates:\s*([0-9:]+)/i);
+  if(coordsM) out.coords = coordsM[1];
+
+  // loot
+  const lootM = raw.match(/saccheggia:\s*([\d\.\,]+)\s*Metallo,\s*([\d\.\,]+)\s*Cristallo\s*e\s*([\d\.\,]+)\s*Deuterio/i);
+  if(lootM){
+    out.loot.m = parseNum(lootM[1]); out.loot.c = parseNum(lootM[2]); out.loot.d = parseNum(lootM[3]);
+  }
+
+  // debris
+  const dfM = raw.match(/float\s+([\d\.\,]+)\s*metal,\s*([\d\.\,]+)\s*crystal\s+and\s*([\d\.\,]+)\s*deuterium/i)
+          || raw.match(/campo detriti.*?([\d\.\,]+)\s*metallo,\s*([\d\.\,]+)\s*cristallo\s+e\s*([\d\.\,]+)\s*deuterio/i);
+  if(dfM){
+    out.df.m = parseNum(dfM[1]); out.df.c = parseNum(dfM[2]); out.df.d = parseNum(dfM[3]);
+  }else{
+    // fallback: only M/C
+    const dfM2 = raw.match(/float\s+([\d\.\,]+)\s*metal,\s*([\d\.\,]+)\s*crystal/i);
+    if(dfM2){ out.df.m=parseNum(dfM2[1]); out.df.c=parseNum(dfM2[2]); }
+  }
+
+  // attacker/defender blocks (Italian narrative)
+  function parseSideBlocks(label){
+    const blocks = {};
+    const re = new RegExp(label + String.raw`\s+([^\[]+)\s+\[([^\]]+)\][\s\S]*?_________________________________________`, 'gi');
+    let mm;
+    while((mm = re.exec(raw))){
+      const name = (mm[1]||'').trim();
+      const tag = (mm[2]||'').trim();
+      const blockText = mm[0];
+      const shipLines = blockText.split('\n').map(s=>s.trim()).filter(Boolean);
+      const ships = {};
+      for(const line of shipLines){
+        // "Caccia Leggero 1.818.333" or "Caccia Leggero 1.667.447 ( -150.886 )"
+        const m = line.match(/^([A-Za-zÀ-ÿ' ]+)\s+([\d\.\,]+)(?:\s*\(\s*-\s*([\d\.\,]+)\s*\))?$/);
+        if(!m) continue;
+        const shipName = m[1].trim();
+        const count = parseNum(m[2]);
+        const lostInline = m[3] ? parseNum(m[3]) : null;
+        ships[shipName] = {count, lostInline};
+      }
+      if(!blocks[name]) blocks[name] = {name, tag, shipsInitial:{}, shipsFinal:{}, lostByShip:{}};
+      // Determine if this is "Dopo la battaglia" section
+      const isAfter = /Dopo la battaglia/i.test(raw.slice(0, mm.index)) && /Dopo la battaglia/i.test(blockText) === false ? false : /Dopo la battaglia/i.test(raw.slice(mm.index-200, mm.index+200));
+      // simpler: if line contains "( -" then it's after-battle
+      const after = /\(\s*-\s*[\d\.\,]+\s*\)/.test(blockText);
+      for(const [ship, data] of Object.entries(ships)){
+        if(after){
+          blocks[name].shipsFinal[ship] = data.count;
+          if(data.lostInline!=null) blocks[name].lostByShip[ship] = (blocks[name].lostByShip[ship]||0)+data.lostInline;
+        }else{
+          blocks[name].shipsInitial[ship] = (blocks[name].shipsInitial[ship]||0) + data.count;
+        }
+      }
+    }
+    return blocks;
+  }
+
+  out.attackers = parseSideBlocks('Attaccante');
+  out.defenders = parseSideBlocks('Difensore');
+
+  return out;
+}
+
+// ----------------- NMA (NoMoreAngel API-Reader) parser -----------------
+function parseCRText_NMA(raw){
+  const out = {date:'', time:'', coords:'', df:{m:0,c:0,d:0}, loot:{m:0,c:0,d:0}, attackers:{}, defenders:{}, repairedDefense:{}, wreckfield:{}};
+
+  // Map EN -> IT (fallback if not already defined globally)
+  const shipNameMap = (typeof shipNameMapEN2IT !== 'undefined') ? shipNameMapEN2IT : {
+    "Small Cargo":"Cargo leggero",
+    "Large Cargo":"Cargo Pesante",
+    "Light Fighter":"Caccia Leggero",
+    "Heavy Fighter":"Caccia Pesante",
+    "Cruiser":"Incrociatore",
+    "Battleship":"Nave da battaglia",
+    "Colony Ship":"Colonizzatrice",
+    "Recycler":"Riciclatrice",
+    "Espionage Probe":"Sonda spia",
+    "Bomber":"Bombardiere",
+    "Solar Satellite":"Satellite Solare",
+    "Destroyer":"Corazzata",
+    "Deathstar":"Morte Nera",
+    "Battlecruiser":"Incrociatore da Battaglia",
+    "Crawler":"Crawler",
+    "Reaper":"Reaper",
+    "Pathfinder":"Pathfinder",
+    "Rocket Launcher":"Lanciamissili",
+    "Light Laser":"Laser leggero",
+    "Heavy Laser":"Laser pesante",
+    "Gauss Cannon":"Cannone Gauss",
+    "Ion Cannon":"Cannone ionico",
+    "Plasma Turret":"Cannone al Plasma",
+    "Small Shield Dome":"Cupola scudo piccola",
+    "Large Shield Dome":"Cupola scudo potenziata"
+  };
+
+
+  // General Information section (works both for HTML->text and markdown)
+  const gi = raw.split(/###\s*Repaired defense:|Repaired defense:/i)[0];
+  const dateM = gi.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i);
+  if(dateM) out.date = dateM[1];
+  const timeM = gi.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i);
+  if(timeM) out.time = timeM[1];
+  const coordsM = gi.match(/Combat coordinates:\s*([0-9:]+)/i);
+  if(coordsM) out.coords = coordsM[1];
+  const lootM = gi.match(/Metal loot:\s*([\d\.\,]+)/i);
+  if(lootM) out.loot.m = parseNum(lootM[1]);
+  const lootC = gi.match(/Crystal loot:\s*([\d\.\,]+)/i);
+  if(lootC) out.loot.c = parseNum(lootC[1]);
+  const lootD = gi.match(/Deuterium loot:\s*([\d\.\,]+)/i);
+  if(lootD) out.loot.d = parseNum(lootD[1]);
+  const dfM = gi.match(/Metal to debrisfield:\s*([\d\.\,]+)/i);
+  if(dfM) out.df.m = parseNum(dfM[1]);
+  const dfC = gi.match(/Crystal to debrisfield:\s*([\d\.\,]+)/i);
+  if(dfC) out.df.c = parseNum(dfC[1]);
+
+  // Repaired defense
+  const repSec = (raw.match(/###\s*Repaired defense:[\s\S]*?(?=###\s*Wreckfield:|###\s*Combat Report:|Wreckfield:|Combat Report:|$)/i) || [])[0];
+  if(repSec){
+    out.repairedDefense = parsePairsSection(repSec);
+  }
+  // Wreckfield
+  const wfSec = (raw.match(/###\s*Wreckfield:[\s\S]*?(?=###\s*Combat Report:|Combat Report:|$)/i) || [])[0];
+  if(wfSec){
+    out.wreckfield = parsePairsSection(wfSec);
+  }
+
+  // Combat report blocks
+  // Build regex for ship names (EN) from map
+  const enNames = Object.keys(shipNameMap).sort((a,b)=>b.length-a.length);
+  const enRegex = new RegExp(enNames.map(escapeRegExp).join('|'), 'g');
+
+  function ensurePlayer(side, name, tag){
+    const target = side === 'attacker' ? out.attackers : out.defenders;
+    if(!target[name]) target[name] = {name, tag: tag||'', shipsInitial:{}, shipsFinal:{}, lostByShip:{}};
+    if(tag && !target[name].tag) target[name].tag = tag;
+    return target[name];
+  }
+
+  // Parse initial fleets (before first Round)
+  const initSec = (raw.match(/####\s*Initial:[\s\S]*?(?=####\s*Round\s*1|Round\s*1|$)/i) || [])[0] || '';
+  parseInitialSide(initSec, 'attacker');
+  parseInitialSide(initSec, 'defender');
+
+  function parseInitialSide(section, side){
+    if(!section) return;
+    const re = side === 'attacker'
+      ? /Attacker\s*\[\d+:\d+:\d+\]\s*([^\[]+?)\s*\[([^\]]+)\]/gi
+      : /Defender\s*\[\d+:\d+:\d+\]\s*([^\[]+?)\s*\[([^\]]+)\]/gi;
+
+    let m;
+    const matches = [];
+    while((m=re.exec(section))){
+      matches.push({idx:m.index, name:m[1].trim(), tag:(m[2]||'').trim()});
+    }
+    for(let i=0;i<matches.length;i++){
+      const cur = matches[i];
+      const end = (i+1<matches.length) ? matches[i+1].idx : section.length;
+      const chunk = section.slice(cur.idx, end);
+      const player = ensurePlayer(side, cur.name, cur.tag);
+      const typeLine = (chunk.match(/Type\s+([\s\S]*?)\s+Count\s+/i) || [])[1];
+      const countLine = (chunk.match(/Count\s+([\s\S]*?)(?:\s+Weapon|\s+Shield|\s+Armor|$)/i) || [])[1];
+      if(!typeLine || !countLine) continue;
+      const types = extractShipNames(typeLine, enRegex);
+      const counts = extractNumbers(countLine);
+      for(let j=0;j<Math.min(types.length, counts.length);j++){
+        const it = shipNameMap[types[j]] || types[j];
+        player.shipsInitial[it] = (player.shipsInitial[it]||0) + counts[j];
+      }
+    }
+  }
+
+  // Parse per-round losses (sum Lost values across rounds)
+  const roundRe = /####\s*Round\s*(\d+)|\bRound\s*(\d+)\b/ig;
+  const roundIdx = [];
+  let rm;
+  while((rm=roundRe.exec(raw))){
+    roundIdx.push({idx: rm.index, n: parseInt(rm[1]||rm[2]||'0',10)});
+  }
+  for(let i=0;i<roundIdx.length;i++){
+    const start = roundIdx[i].idx;
+    const end = (i+1<roundIdx.length) ? roundIdx[i+1].idx : raw.length;
+    const sec = raw.slice(start, end);
+    parseRoundLosses(sec, 'attacker');
+    parseRoundLosses(sec, 'defender');
+  }
+
+  function parseRoundLosses(section, side){
+    const re = side === 'attacker'
+      ? /Attacker\s+([A-Za-z0-9_\-]+)\s+([\s\S]*?)\s+Count\s+([\s\S]*?)\s+Lost\s+([\s\S]*?)(?=Attacker\s+|Defender\s+|####\s*Round|Round\s+\d+|$)/gi
+      : /Defender\s+([A-Za-z0-9_\-]+)\s+([\s\S]*?)\s+Count\s+([\s\S]*?)\s+Lost\s+([\s\S]*?)(?=Attacker\s+|Defender\s+|####\s*Round|Round\s+\d+|$)/gi;
+
+    let m;
+    while((m=re.exec(section))){
+      const name = m[1].trim();
+      const typePart = (m[2]||'').trim();
+      const lostLine = (m[4]||'').trim();
+      if(!name) continue;
+      const player = ensurePlayer(side, name, '');
+      const types = extractShipNames(typePart, enRegex);
+      const losts = extractNumbers(lostLine);
+      for(let j=0;j<Math.min(types.length, losts.length);j++){
+        const it = shipNameMap[types[j]] || types[j];
+        player.lostByShip[it] = (player.lostByShip[it]||0) + losts[j];
+      }
+    }
+  }
+
+  // Build shipsFinal if possible (initial - losses)
+  for(const side of ['attackers','defenders']){
+    for(const p of Object.values(out[side])){
+      for(const [ship, ini] of Object.entries(p.shipsInitial)){
+        const lost = p.lostByShip[ship] || 0;
+        p.shipsFinal[ship] = Math.max(0, ini - lost);
+      }
+    }
+  }
+
+  return out;
+
+  // --- helpers ---
+  function parsePairsSection(sec){
+    const lines = sec.split('\n').map(s=>s.trim()).filter(Boolean);
+    const outp = {};
+    for(const line of lines){
+      const m = line.match(/^([A-Za-zÀ-ÿ ]+):\s*([\d\.\,]+)/);
+      if(m){
+        const k = m[1].trim();
+        outp[k] = parseNum(m[2]);
+      }
+    }
+    return outp;
+  }
+
+  function extractNumbers(s){
+    return (s||'').match(/[\d][\d\.\,]*/g)?.map(parseNum) || [];
+  }
+
+  function extractShipNames(s, regex){
+    const names = [];
+    const clean = (s||'').replace(/\s+/g,' ').trim();
+    let m;
+    while((m = regex.exec(clean))){
+      names.push(m[0]);
+    }
+    regex.lastIndex = 0;
+    return names;
+  }
+
+  function escapeRegExp(str){
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+}
+
+
+function computeFromSheetLogic(cr, rrTotals, mode) {
+  const players = Object.keys(cr.attackers);
+  const n = players.length || 1;
+
+  // 1) losses per player by ship diffs
+  const losses = {};
+  const fleetValue = {};
+  players.forEach(name => {
+    const p = cr.attackers[name];
+    losses[name] = {m:0,c:0,d:0, units:0};
+    fleetValue[name] = 0;
+    // Fleet in campo (initial) value
+    for (const [ship, cnt] of Object.entries(p.initial)) {
+      const cost = COSTS[ship];
+      if (cost) {
+        const g = (cost[0]+cost[1]+cost[2]) * cnt;
+        fleetValue[name] += g;
+      }
+    }
+    // losses
+    const ships = new Set([...Object.keys(p.initial), ...Object.keys(p.final)]);
+    ships.forEach(ship => {
+      const ini = p.initial[ship] || 0;
+      const fin = p.final[ship] || 0;
+      const lostCnt = Math.max(0, ini - fin);
+      if (lostCnt<=0) return;
+      losses[name].units += lostCnt;
+      const cost = COSTS[ship];
+      if (!cost) return; // ignore unknown ships
+      losses[name].m += cost[0] * lostCnt;
+      losses[name].c += cost[1] * lostCnt;
+      losses[name].d += cost[2] * lostCnt;
+    });
+  });
+
+  const totLoss = players.reduce((a,nm)=>({
+    m:a.m+losses[nm].m, c:a.c+losses[nm].c, d:a.d+losses[nm].d
+  }), {m:0,c:0,d:0});
+
+  // 2) total recycled from RR
+  const totRec = players.reduce((a,nm)=>{
+    const r = rrTotals[nm] || {m:0,c:0,d:0};
+    return {m:a.m+r.m, c:a.c+r.c, d:a.d+r.d};
+  }, {m:0,c:0,d:0});
+
+  // 3) gain = recycled - losses (per resource)
+  const gain = {m: totRec.m - totLoss.m, c: totRec.c - totLoss.c, d: totRec.d - totLoss.d};
+
+  // 4) weights
+  const weights = {};
+  if (mode === 'paritaria') {
+    players.forEach(nm => weights[nm] = 1/n);
+  } else {
+    const totFleet = players.reduce((s,nm)=> s + (fleetValue[nm]||0), 0) || 1;
+    players.forEach(nm => weights[nm] = (fleetValue[nm]||0)/totFleet);
+  }
+
+  // 5) quota (= due): losses + gain*weight - collected
+  const quota = {};
+  players.forEach(nm => {
+    const r = rrTotals[nm] || {m:0,c:0,d:0};
+    quota[nm] = {
+      m: losses[nm].m + gain.m * weights[nm] - r.m,
+      c: losses[nm].c + gain.c * weights[nm] - r.c,
+      d: losses[nm].d + gain.d * weights[nm] - r.d,
+      w: weights[nm],
+      fleet: fleetValue[nm],
+      lost: losses[nm],
+      rec: r
+    };
+  });
+
+  return {players, losses, fleetValue, weights, totLoss, totRec, gain, quota};
+}
+
+function buildTransfers(players, quota, resKey) {
+  const recv = [];
+  const send = [];
+  players.forEach(p => {
+    const v = quota[p][resKey];
+    if (v > 0.5) recv.push([p, v]);
+    else if (v < -0.5) send.push([p, -v]);
+  });
+  recv.sort((a,b)=>b[1]-a[1]);
+  send.sort((a,b)=>b[1]-a[1]);
+  const moves = [];
+  let i=0,j=0;
+  while (i<send.length && j<recv.length) {
+    const [sp, sv] = send[i];
+    const [rp, rv] = recv[j];
+    const x = Math.min(sv, rv);
+    if (x>0.5) moves.push({from: sp, to: rp, amount: x});
+    send[i][1] -= x;
+    recv[j][1] -= x;
+    if (send[i][1] <= 0.5) i++;
+    if (recv[j][1] <= 0.5) j++;
+  }
+  return moves;
+}
+
+function renderKPI(cr) {
+  const el = document.getElementById('kpiCR');
+  if (!cr) { el.innerHTML = ""; return; }
+  const attackers = Object.keys(cr.attackers).length;
+  const defenders = Object.keys(cr.defenders).length;
+  el.innerHTML = `
+    <div class="box"><div class="v">${cr.coords || '-'}</div><div class="l">Coordinate</div></div>
+    <div class="box"><div class="v">${attackers} / ${defenders}</div><div class="l">Attaccanti / Difensori</div></div>
+    <div class="box"><div class="v">${cr.moonChance!==null ? (cr.moonChance+'%') : '-'}</div><div class="l">Chance Luna</div></div>
+    <div class="box"><div class="v">${fmt(cr.df_float.m)}</div><div class="l">DF float M</div></div>
+    <div class="box"><div class="v">${fmt(cr.df_float.c)}</div><div class="l">DF float C</div></div>
+    <div class="box"><div class="v">${fmt(cr.df_float.d)}</div><div class="l">DF float D</div></div>
+  `;
+}
+
+function renderRRTable(rrTotals) {
+  const entries = Object.entries(rrTotals);
+  if (entries.length===0) {
+    document.getElementById('rrTable').innerHTML = '<div class="mini">Nessun RR caricato.</div>';
+    return;
+  }
+  const rows = entries.map(([p,v]) => `
+    <tr><td>${p}</td><td>${fmt(v.m)}</td><td>${fmt(v.c)}</td><td>${fmt(v.d)}</td><td>${v.count||0}</td></tr>
+  `).join('');
+  document.getElementById('rrTable').innerHTML = `
+    <table>
+      <thead><tr><th>Giocatore</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>RR</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderResults(computed) {
+  const {players, totLoss, totRec, gain, quota} = computed;
+
+  const header = `
+    <div class="kpi">
+      <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
+      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite totali (M/C/D)</div></div>
+      <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain da dividere (M/C/D)</div></div>
+    </div>`;
+
+  const rows = players.map(p => {
+    const q = quota[p];
+    const mClass = q.m>=0 ? 'good':'bad';
+    const cClass = q.c>=0 ? 'good':'bad';
+    const dClass = q.d>=0 ? 'good':'bad';
+    return `
+      <tr>
+        <td>${p} <span class="mini">[${(q.w*100).toFixed(2)}%]</span></td>
+        <td>${fmt(q.lost.m)}</td><td>${fmt(q.lost.c)}</td><td>${fmt(q.lost.d)}</td>
+        <td>${fmt(q.rec.m)}</td><td>${fmt(q.rec.c)}</td><td>${fmt(q.rec.d)}</td>
+        <td class="${mClass}">${fmt(q.m)}</td>
+        <td class="${cClass}">${fmt(q.c)}</td>
+        <td class="${dClass}">${fmt(q.d)}</td>
+      </tr>`;
+  }).join('');
+
+  const table = `
+    <table style="margin-top:10px">
+      <thead>
+        <tr>
+          <th>Giocatore</th>
+          <th>Perse M</th><th>Perse C</th><th>Perse D</th>
+          <th>Raccolto M</th><th>Raccolto C</th><th>Raccolto D</th>
+          <th>Quota M</th><th>Quota C</th><th>Quota D</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="mini" style="margin-top:8px">
+      Quota positiva = deve ricevere. Quota negativa = deve inviare.
+    </div>`;
+
+  document.getElementById('resultsTables').innerHTML = header + table;
+
+  // transports
+  const mt = buildTransfers(players, quota, 'm');
+  const ct = buildTransfers(players, quota, 'c');
+  const dt = buildTransfers(players, quota, 'd');
+
+  function renderMoveList(label, moves) {
+    if (!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato).</div>`;
+    const r = moves.map(m => `<tr><td>${m.from}</td><td>${m.to}</td><td>${fmt(m.amount)}</td></tr>`).join('');
+    return `
+      <div style="margin-top:10px">
+        <div class="mini" style="margin:6px 0"><b>${label}</b></div>
+        <table>
+          <thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead>
+          <tbody>${r}</tbody>
+        </table>
+      </div>`;
+  }
+  document.getElementById('transports').innerHTML =
+    renderMoveList('Metallo', mt) + renderMoveList('Cristallo', ct) + renderMoveList('Deuterio', dt);
+}
+
+function recomputeAndRender() {
+  if (!STATE.cr) {
+    log("⚠️ Nessun CR caricato.");
+    return;
+  }
+  const mode = document.querySelector('input[name="mode"]:checked')?.value || 'paritaria';
+  const rrTotals = STATE.rr || {};
+  const computed = computeFromSheetLogic(STATE.cr, rrTotals, mode);
+  renderResults(computed);
+}
+
+document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', () => {
+  log("Modalità: " + document.querySelector('input[name="mode"]:checked').value);
+  recomputeAndRender();
+}));
+
+document.getElementById('btnParseCR').addEventListener('click', () => {
+  try {
+    const text = document.getElementById('crText').value || '';
+    const cr = parseCRText(text);
+    STATE.cr = cr;
+    renderKPI(cr);
+    log(`✅ CR caricato. Attaccanti: ${Object.keys(cr.attackers).length} • Difensori: ${Object.keys(cr.defenders).length} • Coord: ${cr.coords||'-'}`);
+    recomputeAndRender();
+    setTab('risultati');
+  } catch (e) {
+    log("❌ Errore parsing CR: " + (e?.message || e));
+    console.error(e);
+    setTab('log');
+  }
+});
+
+document.getElementById('btnCRDemo').addEventListener('click', () => {
+  const demo = `Il 28-01-2026 --:--:--, le seguenti flotte si scontrano in combattimento:
+
+Attaccante Abubu [U E]
+________________________________________________
+Cargo Pesante 1
+Caccia Leggero 3.226.909
+Caccia Pesante 177.230
+Incrociatore 557.550
+Nave da battaglia 151.773
+Corazzata 89.802
+Incrociatore da Battaglia 462.085
+Reaper 129.700
+Pathfinder 96.320
+_________________________________________
+
+Difensore Bartok [SoV]
+________________________________________________
+Cargo leggero 515.205
+Cargo Pesante 96.004
+Caccia Leggero 487.861
+_________________________________________
+
+Dopo la battaglia...
+
+Attaccante Abubu [U E]
+________________________________________________
+Cargo Pesante 1 ( -0 )
+Caccia Leggero 2.961.733 ( -265.176 )
+Caccia Pesante 167.384 ( -9.846 )
+Incrociatore 544.263 ( -13.287 )
+Nave da battaglia 150.566 ( -1.207 )
+Corazzata 89.649 ( -153 )
+Incrociatore da Battaglia 459.127 ( -2.958 )
+Reaper 129.496 ( -204 )
+Pathfinder 93.760 ( -2.560 )
+_________________________________________
+
+Difensore Bartok [SoV]
+________________________________________________
+Distrutto!
+_________________________________________
+
+L'attaccante saccheggia:
+471.166.157 Metallo, 125.714.491 Cristallo e 21.863.628 Deuterio
+
+L'attaccante ha perso un totale di 6.842.469.000 unità.
+Il difensore ha perso un totale di 66.020.471.000 unità.
+At these space coordinates now float 8.451.301.052 metal, 6.135.502.953 crystal and 1.725.266.027 deuterium.
+La possibilità che si formi una luna dai detriti era del 22%.`;
+  document.getElementById('crText').value = demo;
+  log("Demo CR inserito.");
+});
+
+// -------- RR LOADER (API) --------
+function abortableFetch(url, timeoutMs) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, {signal: controller.signal}).finally(() => clearTimeout(id));
+}
+
+function extractPre(html) {
+  const m = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+  if (!m) return null;
+  const txt = m[1]
+    .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&')
+    .replace(/&#039;/g,"'").replace(/&quot;/g,'"');
+  return txt;
+}
+
+function parseRRFromPre(pre) {
+  // regex extraction from stdClass print_r
+  const owner = (pre.match(/\[owner_name\]\s*=>\s*([^\r\n]+)/) || [])[1];
+  if (!owner) return null;
+  const m = parseNum((pre.match(/\[metal_retrieved\]\s*=>\s*([\d\.,]+)/) || [])[1]);
+  const c = parseNum((pre.match(/\[crystal_retrieved\]\s*=>\s*([\d\.,]+)/) || [])[1]);
+  const d = parseNum((pre.match(/\[deuterium_retrieved\]\s*=>\s*([\d\.,]+)/) || [])[1]);
+  const coords = (pre.match(/\[coordinates\]\s*=>\s*([^\r\n]+)/) || [])[1] || '';
+  const rrid = (pre.match(/\[rr_id\]\s*=>\s*([^\r\n]+)/) || [])[1] || '';
+  return {owner: owner.trim(), m, c, d, coords: coords.trim(), rrid: rrid.trim()};
+}
+
+document.getElementById('btnLoadRR').addEventListener('click', async () => {
+  const base = (document.getElementById('proxyBase').value || '').trim();
+  const timeoutMs = parseNum(document.getElementById('timeoutMs').value) || 12000;
+  const ids = (document.getElementById('rrIds').value || '').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if (!ids.length) {
+    log("⚠️ Nessun RR apiid inserito.");
+    return;
+  }
+  log(`Carico ${ids.length} RR...`);
+  const rawLog = [];
+  for (const id of ids) {
+    const url = base + encodeURIComponent(id);
+    try {
+      const res = await abortableFetch(url, timeoutMs);
+      const text = await res.text();
+      rawLog.push(`--- ${id} status=${res.status} ok=${res.ok} url=${url} ---\n` + text.slice(0,1200));
+      const pre = extractPre(text) || text;
+      const parsed = parseRRFromPre(pre);
+      if (!parsed) {
+        log(`❌ RR non parsato: ${id} (owner_name non trovato)`);
+        continue;
+      }
+      const p = parsed.owner;
+      if (!STATE.rr[p]) STATE.rr[p] = {m:0,c:0,d:0,count:0, list:[]};
+      STATE.rr[p].m += parsed.m;
+      STATE.rr[p].c += parsed.c;
+      STATE.rr[p].d += parsed.d;
+      STATE.rr[p].count += 1;
+      STATE.rr[p].list.push(parsed);
+      log(`✅ RR: ${p} +${fmt(parsed.m)}M +${fmt(parsed.c)}C +${fmt(parsed.d)}D (${parsed.coords})`);
+    } catch (e) {
+      log(`❌ Errore fetch RR ${id}: ${e?.message || e}`);
+    }
+  }
+  document.getElementById('rrRaw').textContent = rawLog.join("\n\n");
+  renderRRTable(STATE.rr);
+  recomputeAndRender();
+  setTab('risultati');
+});
+
+document.getElementById('btnClearRR').addEventListener('click', () => {
+  STATE.rr = {};
+  document.getElementById('rrRaw').textContent = '';
+  renderRRTable(STATE.rr);
+  recomputeAndRender();
+  log("RR puliti.");
+});
+
+// ----------------- Condivisione (link con stato) -----------------
+function encodeShareState(obj){
+  // base64(url-safe) di JSON UTF-8
+  const json = JSON.stringify(obj);
+  const b64 = btoa(unescape(encodeURIComponent(json)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  return b64;
+}
+function decodeShareState(b64){
+  const pad = '==='.slice((b64.length + 3) % 4);
+  const s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const json = decodeURIComponent(escape(atob(s)));
+  return JSON.parse(json);
+}
+function collectShareState(){
+  return {
+    v: 1,
+    crText: (document.getElementById('crText').value || '').trim(),
+    proxyBase: (document.getElementById('proxyBase').value || '').trim(),
+    timeoutMs: parseNum(document.getElementById('timeoutMs').value) || 12000,
+    rrIds: (document.getElementById('rrIds').value || '').trim(),
+    // per comodità: se hai già caricato RR, includiamo anche il totale per player
+    rrTotals: STATE.rr || {},
+  };
+}
+function applyShareState(st){
+  if (!st || typeof st !== 'object') return;
+  if (typeof st.proxyBase === 'string' && st.proxyBase.trim()) document.getElementById('proxyBase').value = st.proxyBase.trim();
+  if (st.timeoutMs) document.getElementById('timeoutMs').value = String(st.timeoutMs);
+  if (typeof st.rrIds === 'string') document.getElementById('rrIds').value = st.rrIds;
+  if (typeof st.crText === 'string') document.getElementById('crText').value = st.crText;
+
+  // Se abbiamo già totals, possiamo renderizzarli subito senza rifetch.
+  if (st.rrTotals && typeof st.rrTotals === 'object' && Object.keys(st.rrTotals).length){
+    STATE.rr = st.rrTotals;
+    renderRRTable(STATE.rr);
+  }
+  // Analizza CR (se presente)
+  if ((document.getElementById('crText').value || '').trim()) {
+    try { parseCRText(); } catch(e){ log('Errore analisi CR da link: ' + (e?.message||e)); }
+  }
+  recomputeAndRender();
+}
+function shareLink(){
+  const st = collectShareState();
+  const token = encodeShareState(st);
+  const url = `${location.origin}${location.pathname}#s=${token}`;
+  return url;
+}
+async function doShare(){
+  const url = shareLink();
+  const title = 'Spartizione Detriti OGame';
+  const text = 'Link con CR/RR precompilati';
+  try {
+    if (navigator.share) {
+      await navigator.share({title, text, url});
+      log('✅ Link condiviso.');
+      return;
+    }
+  } catch (e) {
+    // se l'utente annulla, non è un errore grave
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    log('✅ Link copiato negli appunti.');
+  } catch (e) {
+    // fallback
+    prompt('Copia questo link:', url);
+    log('ℹ️ Link mostrato in prompt (clipboard non disponibile).');
+  }
+}
+
+document.getElementById('btnShare').addEventListener('click', () => {
+  doShare();
+});
+
+// Carica stato da hash (se presente)
+(() => {
+  const m = (location.hash || '').match(/#s=([A-Za-z0-9\-_]+)/);
+  if (!m) return;
+  try {
+    const st = decodeShareState(m[1]);
+    applyShareState(st);
+    setTab('cr');
+    log('🔗 Stato caricato dal link.');
+  } catch (e) {
+    log('⚠️ Hash di condivisione non valido: ' + (e?.message || e));
+  }
+})();
+
+// Initial
+log("Pronto. 1) Incolla CR (testo) e Analizza. 2) Carica RR (API) per sommare raccolte. 3) Vedi Risultati.");
+</script>
+</body>
+</html>
