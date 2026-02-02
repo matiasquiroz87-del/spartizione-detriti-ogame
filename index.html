@@ -787,16 +787,33 @@ function parseRound3FinalAttackers(md){
   const res = {};
   for(const p0 of parts){
     const p = 'Attacker' + p0;
-    const head = p.match(/^Attacker\s+([^\n]+?)\s+([A-Z][a-z]+\s+[A-Z][a-z]+|Large Cargo|Small Cargo|Light Fighter|Heavy Fighter|Cruiser|Battleship|Colony Ship|Recycler|Espionage Probe|Bomber|Solar Satellite|Destroyer|Deathstar|Battlecruiser|Crawler|Reaper|Pathfinder)\b/i);
-    // In markdown "Attacker NAME Type ..." – prendiamo NAME prima di Type
-    const head2 = p.match(/^Attacker\s+([^\n]+?)\s+\b(Type)\b/i);
-    const name = (head2 ? head2[1] : (p.match(/^Attacker\s+([^\n]+?)\bCount\b/i)||[])[1] || '').trim();
+    // NoMoreAngel Round blocks are like:
+    // "Attacker NAME Ship1 Ship2 ... Count n1 n2 ... Lost l1 l2 ..."
+    // (no "Type" word). We compute remaining after Round 3 as (Count - Lost).
+    const head = p.match(/^Attacker\s+([^\n]+?)\s+(Large Cargo|Small Cargo|Light Fighter|Heavy Fighter|Cruiser|Battleship|Colony Ship|Recycler|Espionage Probe|Bomber|Solar Satellite|Destroyer|Deathstar|Battlecruiser|Crawler|Reaper|Pathfinder)\b/i);
+    const name = (head ? head[1] : '').trim();
     if(!name) continue;
-    const typePart = (p.match(/\bType\b([\s\S]*?)\bCount\b/i)||[])[1] || '';
-    const countPart = (p.match(/\bCount\b([\s\S]*?)\bLost\b/i)||[])[1] || '';
-    if(!typePart || !countPart) continue;
+
+    const idxCount = p.search(/\bCount\b/i);
+    const idxLost  = p.search(/\bLost\b/i);
+    if(idxCount < 0 || idxLost < 0 || idxLost <= idxCount) continue;
+
+    // types string starts at first ship type (head[2]) and ends at "Count"
+    const idxTypes = head ? (p.toLowerCase().indexOf(head[2].toLowerCase())) : -1;
+    const typePart = idxTypes >= 0 ? p.slice(idxTypes, idxCount) : '';
+    const countPart = p.slice(idxCount + 5, idxLost); // after 'Count'
+    const lostPart  = p.slice(idxLost + 4);           // after 'Lost'
+    if(!typePart.trim() || !countPart.trim()) continue;
+
+    const counts = parseTypesAndCounts(typePart, countPart);
+    const losts  = parseTypesAndCounts(typePart, lostPart);
+    const remaining = {};
+    for(const [ship, n] of Object.entries(counts)){
+      const l = losts[ship] || 0;
+      remaining[ship] = Math.max(0, (n||0) - (l||0));
+    }
     if(!res[name]) res[name] = {ships:{}};
-    mergeShips(res[name].ships, parseTypesAndCounts(typePart, countPart));
+    mergeShips(res[name].ships, remaining);
   }
   return res;
 }
