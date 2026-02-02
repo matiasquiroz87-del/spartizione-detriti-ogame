@@ -851,49 +851,42 @@ function parseInitialAttackers(md){
   return res;
 }
 
-function parseRound3FinalAttackers(md){
-  const m = md.match(/####\s*Round\s*3[\s\S]*/i);
-  if(!m) return {};
-  const section = m[0];
-  const parts = section.split(/\bAttacker\b/i).slice(1);
-  const res = {};
-  for(const p0 of parts){
-    const p = 'Attacker' + p0;
-    // NoMoreAngel Round blocks are like:
-    // "Attacker NAME Ship1 Ship2 ... Count n1 n2 ... Lost l1 l2 ..."
-    // (no "Type" word). We compute remaining after Round 3 as (Count - Lost).
-    const head = p.match(/^Attacker\s+([^\n]+?)\s+(Large Cargo|Small Cargo|Light Fighter|Heavy Fighter|Cruiser|Battleship|Colony Ship|Recycler|Espionage Probe|Bomber|Solar Satellite|Destroyer|Deathstar|Battlecruiser|Crawler|Reaper|Pathfinder)\b/i);
-    const name = (head ? head[1] : '').trim();
-    if(!name) continue;
+function parseFinalAttackersFromLastRound(md){
+  // NoMoreAngel "Round X" blocks list remaining "Count" after that round.
+  // We take the LAST round present (max 6) and use its Count values directly (no extra subtraction).
+  const rounds = Array.from(md.matchAll(/####\s*Round\s+(\d+)/gi)).map(m=>parseInt(m[1],10)).filter(n=>!isNaN(n));
+  if(!rounds.length) return {};
+  const last = Math.min(6, Math.max(...rounds)); // safeguard
+  const reRound = new RegExp('####\\\\s*Round\\\\s+'+last+'\\\\b([\\\\s\\\\S]*?)(?=####\\\\s*Round\\\\s+\\\\d+|$)','i');
+  const secM = md.match(reRound);
+  if(!secM) return {};
+  const sec = secM[1];
 
-    const idxCount = p.search(/\bCount\b/i);
-    const idxLost  = p.search(/\bLost\b/i);
-    if(idxCount < 0 || idxLost < 0 || idxLost <= idxCount) continue;
-
-    // types string starts at first ship type (head[2]) and ends at "Count"
-    const idxTypes = head ? (p.toLowerCase().indexOf(head[2].toLowerCase())) : -1;
-    const typePart = idxTypes >= 0 ? p.slice(idxTypes, idxCount) : '';
-    const countPart = p.slice(idxCount + 5, idxLost); // after 'Count'
-    const lostPart  = p.slice(idxLost + 4);           // after 'Lost'
-    if(!typePart.trim() || !countPart.trim()) continue;
-
-    const counts = parseTypesAndCounts(typePart, countPart);
-    const losts  = parseTypesAndCounts(typePart, lostPart);
-    const remaining = {};
-    for(const [ship, n] of Object.entries(counts)){
-      const l = losts[ship] || 0;
-      remaining[ship] = Math.max(0, (n||0) - (l||0));
+  const out = {};
+  // Matches: Attacker NAME ... Count <nums> Lost <nums>
+  const re = /Attacker\s+([A-Za-z0-9_]+)\s+([\s\S]*?)\s+Count\s+([\d\.,\s]+?)\s+Lost\s+([\d\.,\s]+?)(?=Attacker\s+[A-Za-z0-9_]+|Defender\s+|$)/gi;
+  let m;
+  while((m=re.exec(sec))!==null){
+    const name = m[1].trim();
+    const shipPart = m[2] || '';
+    const countPart = m[3] || '';
+    const pairs = parseTypesAndCounts(shipPart, countPart);
+    const ships = {};
+    for(const [type, cnt] of pairs){
+      if(!type) continue;
+      const n = parseNum(cnt);
+      if(n>0) ships[type]=n;
+      else if(n===0) ships[type]=0;
     }
-    if(!res[name]) res[name] = {ships:{}};
-    mergeShips(res[name].ships, remaining);
+    out[name]=ships;
   }
-  return res;
+  return out;
 }
 
 function buildOgameTextFromNma(md){
   const gi = parseNmaGeneralInfo(md);
   const initial = parseInitialAttackers(md);
-  const finals = parseRound3FinalAttackers(md);
+  const finals = parseFinalAttackersFromLastRound(md);
 
   const attackerNames = Object.keys(initial);
   const defenderName = (md.match(/\bDefender\s+\[[^\]]+\]\s+([^\[]+)\s+\[([^\]]+)\]/i)||[])[1]?.trim() || 'Difensore';
@@ -930,7 +923,7 @@ function buildOgameTextFromNma(md){
     out += `\n\nAttaccante ${name}${tag?` [${tag}]`:''}\n________________________________________________\n\n`;
     const ini = initial[name].ships;
     const fin = (finals[name] && finals[name].ships) ? finals[name].ships : {};
-    const allShips = new Set([...Object.keys(ini), ...Object.keys(fin)]);
+    const allShips = new Set([...Object.keys(ini), ...Object.keys(fin)].filter(k=>k && !/^\d+$/.test(k)));
     for(const ship of allShips){
       const i = ini[ship]||0;
       const f = fin[ship]||0;
