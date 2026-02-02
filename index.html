@@ -11,7 +11,6 @@ body{
     color:#d8e0ff;
     font-family:Arial,Helvetica,sans-serif;
     margin:0;
-    padding:0;
 }
 header{
     background:#121a2b;
@@ -23,10 +22,8 @@ header h1{
     font-size:20px;
     color:#8fb1ff;
 }
-main{
-    padding:20px;
-}
-textarea,input,button{
+main{ padding:20px; }
+textarea,button,input{
     background:#0f172a;
     color:#e5ecff;
     border:1px solid #2a3a5e;
@@ -34,17 +31,9 @@ textarea,input,button{
     padding:8px;
     font-size:14px;
 }
-textarea{
-    width:100%;
-    min-height:220px;
-    resize:vertical;
-}
-button{
-    cursor:pointer;
-}
-button:hover{
-    background:#162040;
-}
+textarea{ width:100%; min-height:260px; resize:vertical; }
+button{ cursor:pointer; }
+button:hover{ background:#162040; }
 .section{
     margin-bottom:25px;
     padding:15px;
@@ -64,7 +53,7 @@ button:hover{
     font-family:monospace;
     font-size:13px;
     white-space:pre-wrap;
-    max-height:200px;
+    max-height:220px;
     overflow:auto;
 }
 table{
@@ -77,12 +66,8 @@ th,td{
     padding:6px;
     text-align:right;
 }
-th{
-    background:#121a2b;
-}
-td:first-child,th:first-child{
-    text-align:left;
-}
+th{ background:#121a2b; }
+td:first-child,th:first-child{ text-align:left; }
 .footer{
     text-align:center;
     font-size:12px;
@@ -101,24 +86,31 @@ td:first-child,th:first-child{
 <main>
 
 <div class="section">
-<h2>1️⃣ Incolla Combat Report (testo)</h2>
-<textarea id="crText" placeholder="Incolla qui il CR testuale OGame..."></textarea>
+<h2>1️⃣ Carica CR da API</h2>
+<input id="crApiId" style="width:100%" placeholder="cr-it-XXX-xxxxxxxxxxxxxxxx">
+<br><br>
+<button onclick="loadCRFromApi()">Carica CR da API</button>
+</div>
+
+<div class="section">
+<h2>2️⃣ Combat Report (testo)</h2>
+<textarea id="crText" placeholder="Qui viene incollato il CR oppure puoi inserirlo a mano"></textarea>
 <br><br>
 <button onclick="analyzeCR()">Analizza CR</button>
 </div>
 
 <div class="section">
-<h2>2️⃣ Log</h2>
+<h2>📜 Log</h2>
 <div id="logBox" class="log"></div>
 </div>
 
 <div class="section">
-<h2>3️⃣ Risultati (debug)</h2>
+<h2>📊 Attaccanti (blocchi sommati)</h2>
 <div id="results"></div>
 </div>
 
 <div class="footer">
-Tool offline – nessun dato inviato a server esterni
+Versione stabile con lettore API CR
 </div>
 
 </main>
@@ -136,25 +128,64 @@ function parseNum(v){
     return Number(String(v).replace(/\./g,'').replace(/,/g,''));
 }
 
+/* ===== LETTORE API CR (stessa logica RR) ===== */
+async function loadCRFromApi(){
+    const apiId=document.getElementById('crApiId').value.trim();
+    if(!apiId){
+        log("❌ Inserisci un API ID CR");
+        return;
+    }
+
+    const url=`https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
+    log(`CR API: richiesta NoMoreAngel per ${apiId}...`);
+
+    try{
+        const res=await fetch(url);
+        const html=await res.text();
+
+        const preMatch=html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+        if(!preMatch){
+            log("❌ CR API: nessun <pre> trovato. Incolla manualmente.");
+            return;
+        }
+
+        const text=preMatch[1]
+            .replace(/&lt;/g,'<')
+            .replace(/&gt;/g,'>')
+            .replace(/&amp;/g,'&');
+
+        document.getElementById('crText').value=text.trim();
+        log("✅ CR convertito (API) incollato nel box");
+    }catch(e){
+        log("❌ Errore fetch CR API: "+e.message);
+    }
+}
+
+/* ===== PARSER CR (patch blocchi sommati) ===== */
 function analyzeCR(){
-    LOG.length=0;
     document.getElementById('results').innerHTML='';
     const txt=document.getElementById('crText').value;
     if(!txt.trim()){
-        log("❌ Nessun CR inserito");
+        log("❌ Nessun CR da analizzare");
         return;
     }
 
     log("Analisi CR avviata");
 
     const attackers={};
-    const re=/Attaccante\s+([^\[]+)\s+\[([^\]]+)\][\s\S]*?Type([\s\S]*?)(?=Attaccante|Difensore|Dopo la battaglia|$)/gi;
+    const re=/Attaccante\s+([^\[\n]+)[\s\S]*?Type([\s\S]*?)(?=Attaccante|Difensore|Dopo la battaglia|$)/gi;
     let m;
 
     while((m=re.exec(txt))!==null){
         const name=m[1].trim();
-        const block=m[0];
-        if(!attackers[name]) attackers[name]={ships:{}};
+        const block=m[2];
+
+        if(!attackers[name]){
+            attackers[name]={ ships:{} };
+            log(`➕ Attaccante: ${name}`);
+        }else{
+            log(`🔁 Blocco aggiuntivo per ${name}`);
+        }
 
         const shipRe=/([A-Za-zÀ-ÿ ]+)\s+([\d\.]+)/g;
         let s;
@@ -165,21 +196,22 @@ function analyzeCR(){
         }
     }
 
-    const keys=Object.keys(attackers);
-    log(`Attaccanti trovati: ${keys.length}`);
+    const names=Object.keys(attackers);
+    log(`Attaccanti rilevati: ${names.length}`);
 
-    let html='<table><tr><th>Attaccante</th><th>Navi totali (debug)</th></tr>';
-    keys.forEach(k=>{
-        const total=Object.values(attackers[k].ships).reduce((a,b)=>a+b,0);
-        html+=`<tr><td>${k}</td><td>${total.toLocaleString('it-IT')}</td></tr>`;
+    let html='<table><tr><th>Attaccante</th><th>Navi totali</th></tr>';
+    names.forEach(n=>{
+        const tot=Object.values(attackers[n].ships)
+            .reduce((a,b)=>a+b,0);
+        html+=`<tr><td>${n}</td><td>${tot.toLocaleString('it-IT')}</td></tr>`;
     });
     html+='</table>';
 
     document.getElementById('results').innerHTML=html;
-    log("Analisi completata");
+    log("✅ Analisi completata");
 }
 
-log("Pronto. Incolla il CR e premi Analizza.");
+log("Pronto. Carica CR via API o incolla manualmente.");
 </script>
 
 </body>
