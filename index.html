@@ -74,6 +74,10 @@ td:first-child,th:first-child{ text-align:left; }
     color:#7f8bb3;
     margin-top:30px;
 }
+.small{
+  font-size:12px;
+  color:#aab6e6;
+}
 </style>
 </head>
 
@@ -90,6 +94,9 @@ td:first-child,th:first-child{ text-align:left; }
 <input id="crApiId" style="width:100%" placeholder="cr-it-XXX-xxxxxxxxxxxxxxxx">
 <br><br>
 <button onclick="loadCRFromApi()">Carica CR da API</button>
+<div class="small" style="margin-top:8px;">
+Usa NoMoreAngel (engOut=on). Se il browser blocca il fetch, apri il link e incolla manualmente.
+</div>
 </div>
 
 <div class="section">
@@ -116,19 +123,54 @@ Versione stabile con lettore API CR
 </main>
 
 <script>
+/* ===================== UTIL ===================== */
 const LOG=[];
 function log(msg){
-    const t=new Date().toLocaleTimeString();
-    LOG.push(`[${t}] ${msg}`);
-    document.getElementById('logBox').textContent=LOG.join("\n");
+  const t=new Date().toLocaleTimeString();
+  LOG.push(`[${t}] ${msg}`);
+  document.getElementById('logBox').textContent=LOG.join("\n");
 }
 
 function parseNum(v){
-    if(!v) return 0;
-    return Number(String(v).replace(/\./g,'').replace(/,/g,''));
+  if(v === null || v === undefined) return 0;
+  const s = String(v).replace(/[^\d]/g,''); // tiene solo cifre (toglie . , spazi)
+  const n = Number(s);
+  return isNaN(n) ? 0 : n;
 }
 
-/* ===== LETTORE API CR (stessa logica RR) ===== */
+function decodeEntities(s){
+  const ta = document.createElement('textarea');
+  ta.innerHTML = s;
+  return ta.value;
+}
+
+async function abortableFetch(url, timeoutMs=12000){
+  const controller = new AbortController();
+  const t = setTimeout(()=>controller.abort(), timeoutMs);
+  try{
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function fetchTextWithFallback(url, timeoutMs=12000){
+  // 1) Direct (spesso bloccato da CORS)
+  try{
+    const res = await abortableFetch(url, timeoutMs);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    return await res.text();
+  }catch(e1){
+    // 2) Jina proxy (bypassa CORS per molte pagine)
+    const clean = url.replace(/^https?:\/\//i,'');
+    const jinaUrl = "https://r.jina.ai/http://" + clean; // proxy testuale
+    const res2 = await abortableFetch(jinaUrl, timeoutMs);
+    if(!res2.ok) throw new Error('HTTP '+res2.status);
+    return await res2.text();
+  }
+}
+
+/* ===================== API CR ===================== */
 async function loadCRFromApi(){
   const apiId = document.getElementById('crApiId').value.trim();
   if(!apiId){
@@ -149,18 +191,13 @@ async function loadCRFromApi(){
       crText = decodeEntities(preMatch[1]).trim();
     }
 
-    // 2) altrimenti: estrai la parte tra "General Information" e fine pagina (testo r.jina.ai)
+    // 2) altrimenti: nel testo (jina) troviamo da "General Information" o "Combat Report" in poi
     if(!crText){
-      // quando arriva da r.jina.ai spesso è già testo “markdownizzato”
-      // quindi cerchiamo le sezioni testuali
       const idxGI = html.search(/General Information/i);
       const idxCR = html.search(/Combat Report/i);
-
-      if(idxGI >= 0){
-        crText = html.slice(idxGI).trim();
-      } else if(idxCR >= 0){
-        crText = html.slice(idxCR).trim();
-      }
+      if(idxGI >= 0) crText = html.slice(idxGI).trim();
+      else if(idxCR >= 0) crText = html.slice(idxCR).trim();
+      else crText = html.trim();
     }
 
     if(!crText || crText.length < 50){
@@ -173,89 +210,166 @@ async function loadCRFromApi(){
   }catch(e){
     log("❌ Errore fetch CR API: " + (e?.message || e));
   }
-    async function abortableFetch(url, timeoutMs=12000){
-  const controller = new AbortController();
-  const t = setTimeout(()=>controller.abort(), timeoutMs);
-  try{
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(t);
+}
+
+/* ===================== PARSER CR (NoMoreAngel engOut) ===================== */
+
+// elenco ship EN (per ricomporre i Type multi-parola)
+const KNOWN_SHIPS = [
+  "Small Cargo","Large Cargo","Light Fighter","Heavy Fighter","Cruiser","Battleship",
+  "Colony Ship","Recycler","Espionage Probe","Bomber","Solar Satellite","Destroyer",
+  "Deathstar","Battlecruiser","Crawler","Reaper","Pathfinder",
+  "Rocket Launcher","Light Laser","Heavy Laser","Gauss Cannon","Ion Cannon","Plasma Turret",
+  "Small Shield Dome","Large Shield Dome"
+];
+
+// precompute set (lowercase)
+const KNOWN_SET = new Map(KNOWN_SHIPS.map(s => [s.toLowerCase(), s]));
+
+// segmentazione greedy (max 3 parole) per ricostruire "Light Fighter" ecc.
+function splitShips(typePart){
+  const words = typePart.trim().split(/\s+/).filter(Boolean);
+  const ships = [];
+  let i = 0;
+  while(i < words.length){
+    let found = null;
+    // prova 3, 2, 1 parole
+    for(let len=3; len>=1; len--){
+      if(i+len > words.length) continue;
+      const cand = words.slice(i, i+len).join(" ");
+      const key = cand.toLowerCase();
+      if(KNOWN_SET.has(key)){
+        found = KNOWN_SET.get(key);
+        i += len;
+        ships.push(found);
+        break;
+      }
+    }
+    if(!found){
+      // fallback: prendi parola singola (evita loop)
+      ships.push(words[i]);
+      i++;
+    }
+  }
+  return ships;
+}
+
+// estrae tutte le coppie Type..Count.. dentro un blocco
+function parseTypeCountPairs(blockText){
+  const fleets = [];
+  const re = /Type\s+([\s\S]*?)\s+Count\s+([\d\.\s]+)/gi;
+  let m;
+  while((m = re.exec(blockText)) !== null){
+    const typePart = m[1].replace(/\s+/g,' ').trim();
+    const countPart = m[2].replace(/\s+/g,' ').trim();
+
+    const shipNames = splitShips(typePart);
+    const counts = countPart.split(/\s+/).map(parseNum);
+
+    const fleet = {};
+    for(let i=0; i<shipNames.length; i++){
+      const ship = shipNames[i];
+      const qty = counts[i] || 0;
+      if(!qty) continue;
+      fleet[ship] = (fleet[ship] || 0) + qty;
+    }
+    fleets.push(fleet);
+  }
+  return fleets;
+}
+
+function mergeFleet(targetShips, fleet){
+  for(const ship in fleet){
+    targetShips[ship] = (targetShips[ship] || 0) + (fleet[ship] || 0);
   }
 }
 
-async function fetchTextWithFallback(url, timeoutMs=12000){
-  // 1) Direct
-  try{
-    const res = await abortableFetch(url, timeoutMs);
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    return await res.text();
-  }catch(e1){
-    // 2) Jina proxy (bypass CORS su molte pagine)
-    const clean = url.replace(/^https?:\/\//i,'');
-    const jinaUrl = "https://r.jina.ai/http://" + clean; // http:// va bene anche per https target
-    const res2 = await abortableFetch(jinaUrl, timeoutMs);
-    if(!res2.ok) throw new Error('HTTP '+res2.status);
-    return await res2.text();
-  }
-}
-
-function decodeEntities(s){
-  const ta = document.createElement('textarea');
-  ta.innerHTML = s;
-  return ta.value;
-}
-
-}
-
-
-/* ===== PARSER CR (patch blocchi sommati) ===== */
-function analyzeCR(){
-    document.getElementById('results').innerHTML='';
-    const txt=document.getElementById('crText').value;
-    if(!txt.trim()){
-        log("❌ Nessun CR da analizzare");
-        return;
-    }
-
-    log("Analisi CR avviata");
-
-    const attackers={};
-    const re=/Attaccante\s+([^\[\n]+)[\s\S]*?Type([\s\S]*?)(?=Attaccante|Difensore|Dopo la battaglia|$)/gi;
-    let m;
-
-    while((m=re.exec(txt))!==null){
-        const name=m[1].trim();
-        const block=m[2];
-
-        if(!attackers[name]){
-            attackers[name]={ ships:{} };
-            log(`➕ Attaccante: ${name}`);
-        }else{
-            log(`🔁 Blocco aggiuntivo per ${name}`);
-        }
-
-        const shipRe=/([A-Za-zÀ-ÿ ]+)\s+([\d\.]+)/g;
-        let s;
-        while((s=shipRe.exec(block))!==null){
-            const ship=s[1].trim();
-            const qty=parseNum(s[2]);
-            attackers[name].ships[ship]=(attackers[name].ships[ship]||0)+qty;
-        }
-    }
-
-    const names=Object.keys(attackers);
-    log(`Attaccanti rilevati: ${names.length}`);
-
-    let html='<table><tr><th>Attaccante</th><th>Navi totali</th></tr>';
-    names.forEach(n=>{
-        const tot=Object.values(attackers[n].ships)
-            .reduce((a,b)=>a+b,0);
-        html+=`<tr><td>${n}</td><td>${tot.toLocaleString('it-IT')}</td></tr>`;
+// estrae blocchi Attacker/Defender (eng) o Attaccante/Difensore (it)
+// pattern: "Attacker [2:..] NAME [TAG] .... (fino a prossimo Attacker/Defender/Round/fine)"
+function extractPlayerBlocks(txt){
+  const blocks = [];
+  const re = /(Attacker|Defender|Attaccante|Difensore)\s+\[[^\]]+\]\s+([^\[]+?)\s+\[[^\]]*\]([\s\S]*?)(?=(Attacker|Defender|Attaccante|Difensore)\s+\[|####\s*Round|Round\s+\d|$)/gi;
+  let m;
+  while((m = re.exec(txt)) !== null){
+    blocks.push({
+      role: m[1].toLowerCase().startsWith('att') ? 'attacker' : 'defender',
+      name: (m[2] || '').trim(),
+      body: (m[0] || '') // blocco completo
     });
-    html+='</table>';
+  }
+  return blocks;
+}
 
-    document.getElementById('results').innerHTML=html;
-    log("✅ Analisi completata");
+function analyzeCR(){
+  document.getElementById('results').innerHTML='';
+  const txt = document.getElementById('crText').value || '';
+  if(!txt.trim()){
+    log("❌ Nessun CR da analizzare");
+    return;
+  }
+
+  log("Analisi CR avviata (NoMoreAngel / testo)");
+
+  const attackers = {}; // {name:{ships:{}}}
+  const defenders = {};
+
+  const blocks = extractPlayerBlocks(txt);
+  if(!blocks.length){
+    log("❌ Non ho trovato blocchi Attacker/Defender nel testo. Controlla che sia engOut=on oppure incolla il CR completo.");
+    return;
+  }
+
+  for(const b of blocks){
+    const name = b.name || '(sconosciuto)';
+    const dict = (b.role === 'attacker') ? attackers : defenders;
+
+    if(!dict[name]){
+      dict[name] = { ships:{} };
+      log(`➕ ${b.role === 'attacker' ? 'Attaccante' : 'Difensore'}: ${name}`);
+    }else{
+      log(`🔁 Blocco aggiuntivo per ${name} (${b.role})`);
+    }
+
+    // estrai tutte le coppie Type/Count nel blocco e mergia
+    const fleets = parseTypeCountPairs(b.body);
+    for(const fleet of fleets){
+      mergeFleet(dict[name].ships, fleet);
+    }
+  }
+
+  const names = Object.keys(attackers);
+  log(`Attaccanti rilevati: ${names.length}`);
+
+  // tabella risultati (attaccanti)
+  let html = '<table><tr><th>Attaccante</th><th>Navi totali</th><th>Dettaglio</th></tr>';
+  for(const n of names){
+    const ships = attackers[n].ships;
+    const tot = Object.values(ships).reduce((a,b)=>a+b,0);
+
+    // dettaglio compatto (top 8)
+    const entries = Object.entries(ships).sort((a,b)=>b[1]-a[1]);
+    const top = entries.slice(0,8).map(([k,v]) => `${k}: ${v.toLocaleString('it-IT')}`).join(' • ');
+    const more = entries.length > 8 ? ` (+${entries.length-8} altri)` : '';
+
+    html += `<tr>
+      <td>${escapeHtml(n)}</td>
+      <td>${tot.toLocaleString('it-IT')}</td>
+      <td style="text-align:left">${escapeHtml(top + more)}</td>
+    </tr>`;
+  }
+  html += '</table>';
+
+  document.getElementById('results').innerHTML = html;
+  log("✅ Analisi completata");
+}
+
+function escapeHtml(s){
+  return String(s)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 }
 
 log("Pronto. Carica CR via API o incolla manualmente.");
