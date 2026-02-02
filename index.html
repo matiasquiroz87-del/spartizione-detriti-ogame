@@ -216,6 +216,7 @@
 </div>
 
 <script>
+const DF_RATE = 0.30; // 30% anche Deuterio
 const COSTS = {"Cargo leggero": [2000, 2000, 0], "Cargo Pesante": [6000, 6000, 0], "Caccia Leggero": [3000, 1000, 0], "Caccia Pesante": [6000, 4000, 0], "Incrociatore": [20000, 7000, 2000], "Nave da battaglia": [45000, 15000, 0], "Bombardiere": [50000, 25000, 15000], "Corazzata": [60000, 50000, 15000], "Incrociatore da Battaglia": [30000, 40000, 15000], "Reaper": [85000, 55000, 20000], "Pathfinder": [8000, 15000, 8000], "Riciclatrice": [10000, 6000, 2000], "Colonizzatrice": [10000, 20000, 10000], "Sonda spia": [0, 1000, 0], "Satellite Solare": [0, 2000, 500], "Crawler": [2000, 2000, 1000], "Morte Nera": [5000000, 4000000, 1000000], "Lanciamissili": [2000, 0, 0], "Laser leggero": [1500, 500, 0], "Laser pesante": [6000, 2000, 0], "Cannone Gauss": [20000, 15000, 2000], "Cannone ionico": [2000, 6000, 0], "Cannone al Plasma": [50000, 50000, 30000], "Cupola scudo piccola": [10000, 10000, 0], "Cupola scudo potenziata": [50000, 50000, 0]};
 
 function fmt(n) {
@@ -361,7 +362,39 @@ function parseCRText(text) {
     if (!p.final || Object.keys(p.final).length===0) p.final = JSON.parse(JSON.stringify(p.initial));
   });
 
-  return out;
+  
+function computeDebrisFromCR(cr){
+  // Totale detriti stimato dalle perdite di attaccanti + difensori
+  // DF_RATE (30%) applicato a metallo/cristallo/deuterio dei costi base (come richiesto).
+  const sum = {m:0,c:0,d:0};
+  if(!cr) return sum;
+
+  function addLossesFromSide(sideObj, isDef=false){
+    for(const [name, p] of Object.entries(sideObj||{})){
+      const ini = p.initial || {};
+      const fin = (p.final && Object.keys(p.final).length) ? p.final : {}; // se difensore distrutto, fin è vuoto => 0
+      const ships = new Set([...Object.keys(ini), ...Object.keys(fin)]);
+      for(const ship of ships){
+        const a0 = ini[ship] || 0;
+        const a1 = fin[ship] || 0;
+        const lost = Math.max(0, a0 - a1);
+        if(!lost) continue;
+        const cost = COSTS[ship];
+        if(!cost) continue;
+        sum.m += cost[0] * lost * DF_RATE;
+        sum.c += cost[1] * lost * DF_RATE;
+        sum.d += cost[2] * lost * DF_RATE;
+      }
+    }
+  }
+
+  addLossesFromSide(cr.attackers, false);
+  addLossesFromSide(cr.defenders, true);
+
+  return sum;
+}
+
+return out;
 }
 
 function computeFromSheetLogic(cr, rrTotals, mode) {
@@ -476,7 +509,16 @@ function renderKPI(cr) {
     <div class="box"><div class="v">${fmt(cr.df_float.m)}</div><div class="l">DF float M</div></div>
     <div class="box"><div class="v">${fmt(cr.df_float.c)}</div><div class="l">DF float C</div></div>
     <div class="box"><div class="v">${fmt(cr.df_float.d)}</div><div class="l">DF float D</div></div>
+  
+${(() => {
+  const df = computeDebrisFromCR(cr);
+  return `
+  <div class="box"><div class="v">${fmt(df.m)}</div><div class="l">DF calcolato M (30%)</div></div>
+  <div class="box"><div class="v">${fmt(df.c)}</div><div class="l">DF calcolato C (30%)</div></div>
+  <div class="box"><div class="v">${fmt(df.d)}</div><div class="l">DF calcolato D (30%)</div></div>
   `;
+})()}
+`;
 }
 
 function renderRRTable(rrTotals) {
@@ -503,7 +545,10 @@ function renderResults(computed) {
       <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
       <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite totali (M/C/D)</div></div>
       <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain da dividere (M/C/D)</div></div>
-    </div>`;
+    
+
+<div class="box"><div class="v">${(() => { const df = computeDebrisFromCR(STATE.cr); return `${fmt(df.m)} / ${fmt(df.c)} / ${fmt(df.d)}`; })()}</div><div class="l">DF calcolato (30%) M/C/D</div></div>
+</div>`;
 
   const rows = players.map(p => {
     const q = quota[p];
@@ -842,7 +887,7 @@ function parseNmaApiReaderToClassic(raw){
     lines.push(`Attaccante ${k}`);
     lines.push('________________________________________________');
     lines.push('');
-    for(const [ship,qty] of Object.entries(initial.attackers[k])){
+    for(const [ship,qty] of Object.entries(initial.attackers[k]).sort((a,b)=>a[0].localeCompare(b[0],'it'))){
       lines.push(`${ship} ${fmt(qty)}`.replace(/\./g,'.'));
     }
     lines.push('_________________________________________');
@@ -854,7 +899,7 @@ function parseNmaApiReaderToClassic(raw){
     lines.push(`Difensore ${k}`);
     lines.push('________________________________________________');
     lines.push('');
-    for(const [ship,qty] of Object.entries(initial.defenders[k])){
+    for(const [ship,qty] of Object.entries(initial.defenders[k]).sort((a,b)=>a[0].localeCompare(b[0],'it'))){
       lines.push(`${ship} ${fmt(qty)}`.replace(/\./g,'.'));
     }
     lines.push('_________________________________________');
@@ -873,7 +918,7 @@ function parseNmaApiReaderToClassic(raw){
     const initShips = initial.attackers[k] || {};
     const finShips = final.attackers[k] || {};
     const shipSet = new Set([...Object.keys(initShips), ...Object.keys(finShips)]);
-    for(const ship of shipSet){
+    for(const ship of Array.from(shipSet).sort((a,b)=>a.localeCompare(b,'it'))){
       const a0 = initShips[ship] || 0;
       const a1 = finShips[ship] || 0;
       const lost = Math.max(0, a0 - a1);
@@ -1055,7 +1100,7 @@ function applyShareState(st){
   }
   // Analizza CR (se presente)
   if ((document.getElementById('crText').value || '').trim()) {
-    try { parseCRText(); } catch(e){ log('Errore analisi CR da link: ' + (e?.message||e)); }
+    try { document.getElementById('btnParseCR')?.click(); } catch(e){ log('Errore analisi CR da link: ' + (e?.message||e)); }
   }
   recomputeAndRender();
 }
