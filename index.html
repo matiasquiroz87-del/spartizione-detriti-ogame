@@ -753,7 +753,12 @@ function parseTypesAndCounts(typePart, countPart){
 }
 
 function mergeShips(target, listPairs){
-  for(const [en, qty] of listPairs){
+  if(!listPairs) return;
+  // Accept either an array of [ship,qty] pairs OR an object {ship:qty}
+  const iterable = (typeof listPairs[Symbol.iterator] === 'function')
+    ? listPairs
+    : Object.entries(listPairs);
+  for (const [en, qty] of iterable){
     const it = EN2IT[en] || en;
     if(!it) continue;
     target[it] = (target[it]||0) + (qty||0);
