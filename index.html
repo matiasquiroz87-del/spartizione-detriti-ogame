@@ -130,36 +130,83 @@ function parseNum(v){
 
 /* ===== LETTORE API CR (stessa logica RR) ===== */
 async function loadCRFromApi(){
-    const apiId=document.getElementById('crApiId').value.trim();
-    if(!apiId){
-        log("❌ Inserisci un API ID CR");
-        return;
+  const apiId = document.getElementById('crApiId').value.trim();
+  if(!apiId){
+    log("❌ Inserisci un API ID CR");
+    return;
+  }
+
+  const url = `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
+  log(`CR API: richiesta NoMoreAngel per ${apiId}...`);
+
+  try{
+    const html = await fetchTextWithFallback(url, 15000);
+
+    // 1) se c'è <pre> usiamo quello
+    let crText = null;
+    const preMatch = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+    if(preMatch){
+      crText = decodeEntities(preMatch[1]).trim();
     }
 
-    const url=`https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
-    log(`CR API: richiesta NoMoreAngel per ${apiId}...`);
+    // 2) altrimenti: estrai la parte tra "General Information" e fine pagina (testo r.jina.ai)
+    if(!crText){
+      // quando arriva da r.jina.ai spesso è già testo “markdownizzato”
+      // quindi cerchiamo le sezioni testuali
+      const idxGI = html.search(/General Information/i);
+      const idxCR = html.search(/Combat Report/i);
 
-    try{
-        const res=await fetch(url);
-        const html=await res.text();
-
-        const preMatch=html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
-        if(!preMatch){
-            log("❌ CR API: nessun <pre> trovato. Incolla manualmente.");
-            return;
-        }
-
-        const text=preMatch[1]
-            .replace(/&lt;/g,'<')
-            .replace(/&gt;/g,'>')
-            .replace(/&amp;/g,'&');
-
-        document.getElementById('crText').value=text.trim();
-        log("✅ CR convertito (API) incollato nel box");
-    }catch(e){
-        log("❌ Errore fetch CR API: "+e.message);
+      if(idxGI >= 0){
+        crText = html.slice(idxGI).trim();
+      } else if(idxCR >= 0){
+        crText = html.slice(idxCR).trim();
+      }
     }
+
+    if(!crText || crText.length < 50){
+      log("❌ CR API: non sono riuscito a estrarre testo utile. Apri il link e incolla manualmente.");
+      return;
+    }
+
+    document.getElementById('crText').value = crText;
+    log("✅ CR convertito (API) incollato nel box");
+  }catch(e){
+    log("❌ Errore fetch CR API: " + (e?.message || e));
+  }
+    async function abortableFetch(url, timeoutMs=12000){
+  const controller = new AbortController();
+  const t = setTimeout(()=>controller.abort(), timeoutMs);
+  try{
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+  }
 }
+
+async function fetchTextWithFallback(url, timeoutMs=12000){
+  // 1) Direct
+  try{
+    const res = await abortableFetch(url, timeoutMs);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    return await res.text();
+  }catch(e1){
+    // 2) Jina proxy (bypass CORS su molte pagine)
+    const clean = url.replace(/^https?:\/\//i,'');
+    const jinaUrl = "https://r.jina.ai/http://" + clean; // http:// va bene anche per https target
+    const res2 = await abortableFetch(jinaUrl, timeoutMs);
+    if(!res2.ok) throw new Error('HTTP '+res2.status);
+    return await res2.text();
+  }
+}
+
+function decodeEntities(s){
+  const ta = document.createElement('textarea');
+  ta.innerHTML = s;
+  return ta.value;
+}
+
+}
+
 
 /* ===== PARSER CR (patch blocchi sommati) ===== */
 function analyzeCR(){
