@@ -363,6 +363,12 @@ function parseCRText(text) {
   });
 
   
+  // calcolo DF da perdite (M/C e anche D al 30%)
+  out.df_calc = computeDebrisFromCR(out);
+
+  return out;
+}
+
 function computeDebrisFromCR(cr){
   // Totale detriti stimato dalle perdite di attaccanti + difensori
   // DF_RATE (30%) applicato a metallo/cristallo/deuterio dei costi base (come richiesto).
@@ -392,9 +398,6 @@ function computeDebrisFromCR(cr){
   addLossesFromSide(cr.defenders, true);
 
   return sum;
-}
-
-return out;
 }
 
 function computeFromSheetLogic(cr, rrTotals, mode) {
