@@ -389,36 +389,37 @@ function parseCRText(text) {
 
 function computeDebrisFromCR(cr){
   // Totale detriti stimato dalle perdite di attaccanti + difensori
-  // DF_RATE (30%) applicato a metallo/cristallo/deuterio dei costi base (come richiesto).
-  const sum = {m:0,c:0,d:0};
-  if(!cr) return sum;
+  // DF_RATE applicato a metallo / cristallo / deuterio
+  const sum = { m: 0, c: 0, d: 0 };
+  if (!cr) return sum;
 
-  function addLossesFromSide(sideObj, isDef=false){
-    for(const [name, p] of Object.entries(sideObj||{})){
+  function addLossesFromSide(sideObj){
+    for (const p of Object.values(sideObj || {})) {
       const ini = p.initial || {};
-      const fin = (p.final && Object.keys(p.final).length) ? p.final : {}; // se difensore distrutto, fin è vuoto => 0
+      const fin = (p.final && Object.keys(p.final).length) ? p.final : {};
       const ships = new Set([...Object.keys(ini), ...Object.keys(fin)]);
-      for(const ship of ships){
+
+      for (const ship of ships) {
         const a0 = ini[ship] || 0;
         const a1 = fin[ship] || 0;
         const lost = Math.max(0, a0 - a1);
-        if(!lost) continue;
+        if (!lost) continue;
+
         const cost = COSTS[ship];
-        if (!cost) return;
+        if (!cost) continue;
 
-// ❌ difese NON fanno DF
-        if (!DF_ALLOWED.has(ship)) return;
+        // ❌ difese NON fanno DF (eccetto crawler e satelliti)
+        if (!DF_ALLOWED.has(ship)) continue;
 
-df.m += cost[0] * lostCnt * 0.3;
-df.c += cost[1] * lostCnt * 0.3;
-df.d += cost[2] * lostCnt * 0.3;
-
+        sum.m += cost[0] * lost * DF_RATE;
+        sum.c += cost[1] * lost * DF_RATE;
+        sum.d += cost[2] * lost * DF_RATE;
       }
     }
   }
 
-  addLossesFromSide(cr.attackers, false);
-  addLossesFromSide(cr.defenders, true);
+  addLossesFromSide(cr.attackers);
+  addLossesFromSide(cr.defenders);
 
   return sum;
 }
