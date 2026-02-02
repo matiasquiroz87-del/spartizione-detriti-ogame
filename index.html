@@ -116,15 +116,12 @@
     <div class="grid">
       <div class="card">
         <h2>Incolla qui il Combat Report (formato classico IT/EN)</h2>
-        <div class="row" style="gap:10px; align-items:center; margin-bottom:10px;">
-  <input id="crApiId" class="input" style="flex:1" placeholder="CR API ID (es: cr-it-269-...)" />
-  <button id="btnLoadCRApi" class="btn">Carica da API</button>
-</div>
-<div class="muted" style="margin-bottom:8px;">
-  Usa l'API-ID del CR: proverò a convertirlo e incollarlo qui sotto automaticamente.
-</div>
-
-        <textarea id="crText" placeholder="Incolla il CR qui..."></textarea>
+        
+        <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+          <input id="crApiId" placeholder="API ID CR (es. cr-it-269-... oppure link api-reader)" style="flex:1; min-width:260px;">
+          <button id="btnLoadCRApi" class="primary">Carica CR da API</button>
+        </div>
+<textarea id="crText" placeholder="Incolla il CR qui..."></textarea>
         <div class="row" style="margin-top:10px">
           <button id="btnParseCR">Analizza CR</button>
           <button id="btnCRDemo" class="ghost">Demo</button>
@@ -363,73 +360,6 @@ function parseCRText(text) {
   Object.values(out.attackers).forEach(p => {
     if (!p.final || Object.keys(p.final).length===0) p.final = JSON.parse(JSON.stringify(p.initial));
   });
-
-
-  // If API conversion is NoMoreAngel markdown (Round tables), the "Dopo la battaglia" section
-  // might be missing or not in the same language. In that case we reconstruct FINAL fleets
-  // from the last available Round (max 6), then compute losses as initial-final.
-  function parseFinalFromNmaRounds(fullText){
-    const shipRegex = /(Small Cargo|Large Cargo|Light Fighter|Heavy Fighter|Cruiser|Battleship|Colony Ship|Recycler|Espionage Probe|Bomber|Solar Satellite|Destroyer|Deathstar|Battlecruiser|Crawler|Reaper|Pathfinder)/g;
-    const roundRe = /\bRound\s+(\d+)\b/ig;
-    const rounds = [];
-    let rm;
-    while((rm = roundRe.exec(fullText))!==null){
-      rounds.push({n: parseInt(rm[1],10)||0, idx: rm.index});
-    }
-    if(!rounds.length) return null;
-    // Only consider up to 6 rounds, and pick the last one present
-    rounds.sort((a,b)=>a.idx-b.idx);
-    const last = rounds.filter(r=>r.n>=1 && r.n<=6).pop() || rounds[rounds.length-1];
-    const start = last.idx;
-    const end = (rounds.find(r=>r.idx>start)?.idx) || fullText.length;
-    const chunk = fullText.slice(start, end);
-
-    const res = {}; // attacker -> {shipIT: count}
-    // Pattern like: "Attacker Name ... Count ... Lost ..."
-    const atkRe = /\bAttacker\s+([^\n\r]+?)\s+([\s\S]*?)\bCount\b\s+([\s\S]*?)(?:\bLost\b|\bDefender\b|$)/ig;
-    let am;
-    while((am = atkRe.exec(chunk))!==null){
-      const attacker = (am[1]||'').trim().split(/\s{2,}|\t/)[0].trim();
-      if(!attacker) continue;
-      const shipsPart = (am[2]||'');
-      const countsPart = (am[3]||'');
-      const ships = [];
-      let sm;
-      while((sm = shipRegex.exec(shipsPart))!==null){
-        ships.push(sm[1]);
-      }
-      if(!ships.length) continue;
-      const nums = (countsPart.match(/[\d\.]+/g) || []).map(parseNum);
-      if(!nums.length) continue;
-      if(!res[attacker]) res[attacker] = {};
-      for(let i=0;i<ships.length && i<nums.length;i++){
-        const en = ships[i];
-        const it = shipNameMapEN2IT[en] || en;
-        res[attacker][it] = (res[attacker][it]||0) + nums[i];
-      }
-    }
-    return res;
-  }
-
-  // Apply reconstructed finals only when our parsed finals are "all zero" but initials aren't.
-  const nmaFinal = parseFinalFromNmaRounds(text);
-  if(nmaFinal){
-    Object.entries(out.attackers).forEach(([name, p])=>{
-      const initSum = Object.values(p.initial||{}).reduce((a,b)=>a+b,0);
-      const finSum  = Object.values(p.final||{}).reduce((a,b)=>a+b,0);
-      if(initSum>0 && finSum===0 && nmaFinal[name]){
-        p.final = nmaFinal[name];
-      }
-    });
-    Object.entries(out.defenders).forEach(([name, p])=>{
-      const initSum = Object.values(p.initial||{}).reduce((a,b)=>a+b,0);
-      const finSum  = Object.values(p.final||{}).reduce((a,b)=>a+b,0);
-      if(initSum>0 && finSum===0 && nmaFinal[name]){
-        p.final = nmaFinal[name];
-      }
-    });
-  }
-
 
   return out;
 }
@@ -723,56 +653,30 @@ function abortableFetch(url, timeoutMs) {
   return fetch(url, {signal: controller.signal}).finally(() => clearTimeout(id));
 }
 
-
-// --- CR via NoMoreAngel API-Reader (con fallback anti-CORS) ---
-function decodeEntities(s){
+// ----------------- CR API (NoMoreAngel api-reader) -----------------
+function decodeEntities(html){
   const ta = document.createElement('textarea');
-  ta.innerHTML = s == null ? '' : String(s);
+  ta.innerHTML = html || '';
   return ta.value;
 }
 
-async function fetchTextWithFallbackCR(url, timeoutMs=12000){
-  // 1) Direct
+async function fetchTextWithFallback(url, timeoutMs=12000){
+  // 1) direct
   try{
     const res = await abortableFetch(url, timeoutMs);
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
     return await res.text();
   }catch(e1){
-    // 2) Jina AI text proxy (spesso bypassa CORS)
-    const clean = url.replace(/^https?:\/\//i,'');
+    // 2) Jina AI text proxy (bypasses CORS on many sites)
+    const clean = String(url).replace(/^https?:\/\//i,'');
     const jinaUrl = "https://r.jina.ai/http://" + clean;
     const res2 = await abortableFetch(jinaUrl, timeoutMs);
-    if(!res2.ok) throw new Error('HTTP '+res2.status);
+    if(!res2.ok) throw new Error('HTTP ' + res2.status);
     return await res2.text();
   }
 }
 
-function extractMarkdownContentFromJina(text){
-  // Se arriva da r.jina.ai può essere "Title/URL/Markdown Content:".
-  const idx = String(text||'').indexOf('Markdown Content:');
-  if(idx >= 0) return String(text).slice(idx + 'Markdown Content:'.length).trim();
-  return String(text||'');
-}
-
-function parseNmaGeneralInfo(md){
-  const out = {};
-  const get = (re) => (md.match(re)||[])[1];
-  out.date = get(/\bDate:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i) || '';
-  out.time = get(/\bTime:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i) || '';
-  out.tz = get(/\bTimezone:\s*([+-][0-9]{2}:[0-9]{2})/i) || '';
-  out.coords = get(/\bCombat coordinates:\s*([0-9]+:[0-9]+:[0-9]+)/i) || '';
-  out.lootM = parseNum(get(/\bMetal loot:\s*([0-9\.,]+)/i));
-  out.lootC = parseNum(get(/\bCrystal loot:\s*([0-9\.,]+)/i));
-  out.lootD = parseNum(get(/\bDeuterium loot:\s*([0-9\.,]+)/i));
-  out.lostA = parseNum(get(/\bUnits attacker lost:\s*([0-9\.,]+)/i));
-  out.lostD = parseNum(get(/\bUnits defender lost:\s*([0-9\.,]+)/i));
-  out.dfM = parseNum(get(/\bMetal to debrisfield:\s*([0-9\.,]+)/i));
-  out.dfC = parseNum(get(/\bCrystal to debrisfield:\s*([0-9\.,]+)/i));
-  out.moonChance = parseNum(get(/\bMoon chance:\s*([0-9\.,]+)/i));
-  return out;
-}
-
-const EN2IT = {
+const shipNameMapEN2IT = {
   "Small Cargo":"Cargo leggero",
   "Large Cargo":"Cargo Pesante",
   "Light Fighter":"Caccia Leggero",
@@ -800,173 +704,246 @@ const EN2IT = {
   "Large Shield Dome":"Cupola scudo potenziata"
 };
 
-const EN_NAMES = Object.keys(EN2IT);
+const knownShipNamesEN = Object.keys(shipNameMapEN2IT).sort((a,b)=>b.length-a.length);
 
-function parseTypesAndCounts(typePart, countPart){
-  const hits = [];
-  const t = String(typePart||'');
-  for(const name of EN_NAMES){
-    const idx = t.indexOf(name);
-    if(idx >= 0) hits.push({name, idx});
-  }
-  hits.sort((a,b)=>a.idx-b.idx);
-  const types = hits.map(h=>h.name);
-  const counts = (String(countPart||'').match(/[0-9][0-9\.]*/g) || []).map(parseNum);
+function mapShipToIT(name){
+  const n = (name || '').trim();
+  return shipNameMapEN2IT[n] || n;
+}
+
+function matchKnownShipsEN(text){
   const out = [];
-  for(let i=0;i<types.length;i++){
-    out.push([types[i], counts[i]||0]);
-  }
-  return out;
-}
-
-function mergeShips(target, listPairs){
-  if(!listPairs) return;
-  // Accept either an array of [ship,qty] pairs OR an object {ship:qty}
-  const iterable = (typeof listPairs[Symbol.iterator] === 'function')
-    ? listPairs
-    : Object.entries(listPairs);
-  for (const [en, qty] of iterable){
-    const it = EN2IT[en] || en;
-    if(!it) continue;
-    target[it] = (target[it]||0) + (qty||0);
-  }
-}
-
-function parseInitialAttackers(md){
-  const res = {};
-  const section = (md.split(/####\s*Round\s*1/i)[0] || md);
-  const parts = section.split(/\bAttacker\b/i).slice(1);
-  for(const p0 of parts){
-    const p = 'Attacker' + p0;
-    const head = p.match(/^Attacker\s+\[[^\]]+\]\s+([^\[]+)\s+\[([^\]]+)\]/i);
-    if(!head) continue;
-    const name = head[1].trim();
-    const tag = head[2].trim();
-    const typePart = (p.match(/\bType\b([\s\S]*?)\bCount\b/i)||[])[1] || '';
-    const countPart = (p.match(/\bCount\b([\s\S]*?)\bWeapon\b/i)||[])[1] || '';
-    if(!typePart || !countPart) continue;
-    if(!res[name]) res[name] = {tag, ships:{}};
-    mergeShips(res[name].ships, parseTypesAndCounts(typePart, countPart));
-  }
-  return res;
-}
-
-function parseFinalAttackersFromLastRound(md){
-  // NoMoreAngel "Round X" blocks list remaining "Count" after that round.
-  // We take the LAST round present (max 6) and use its Count values directly (no extra subtraction).
-  const rounds = Array.from(md.matchAll(/####\s*Round\s+(\d+)/gi)).map(m=>parseInt(m[1],10)).filter(n=>!isNaN(n));
-  if(!rounds.length) return {};
-  const last = Math.min(6, Math.max(...rounds)); // safeguard
-  const reRound = new RegExp('####\\\\s*Round\\\\s+'+last+'\\\\b([\\\\s\\\\S]*?)(?=####\\\\s*Round\\\\s+\\\\d+|$)','i');
-  const secM = md.match(reRound);
-  if(!secM) return {};
-  const sec = secM[1];
-
-  const out = {};
-  // Matches: Attacker NAME ... Count <nums> Lost <nums>
-  const re = /Attacker\s+([A-Za-z0-9_]+)\s+([\s\S]*?)\s+Count\s+([\d\.,\s]+?)\s+Lost\s+([\d\.,\s]+?)(?=Attacker\s+[A-Za-z0-9_]+|Defender\s+|$)/gi;
+  const src = text || '';
+  const esc = knownShipNamesEN.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const re = new RegExp(`\\b(${esc.join('|')})\\b`, 'g');
   let m;
-  while((m=re.exec(sec))!==null){
-    const name = m[1].trim();
-    const shipPart = m[2] || '';
-    const countPart = m[3] || '';
-    const pairs = parseTypesAndCounts(shipPart, countPart);
-    const ships = {};
-    for(const [type, cnt] of pairs){
-      if(!type) continue;
-      const n = parseNum(cnt);
-      if(n>0) ships[type]=n;
-      else if(n===0) ships[type]=0;
-    }
-    out[name]=ships;
+  while((m = re.exec(src)) !== null){
+    out.push(m[1]);
   }
   return out;
 }
 
-function buildOgameTextFromNma(md){
-  const gi = parseNmaGeneralInfo(md);
-  const initial = parseInitialAttackers(md);
-  const finals = parseFinalAttackersFromLastRound(md);
+function extractNums(text){
+  return (String(text||'').match(/[\d\.,]+/g) || []);
+}
 
-  const attackerNames = Object.keys(initial);
-  const defenderName = (md.match(/\bDefender\s+\[[^\]]+\]\s+([^\[]+)\s+\[([^\]]+)\]/i)||[])[1]?.trim() || 'Difensore';
-  const defenderTag = (md.match(/\bDefender\s+\[[^\]]+\]\s+([^\[]+)\s+\[([^\]]+)\]/i)||[])[2]?.trim() || '';
+function parseNmaApiReaderToClassic(raw){
+  if(!raw) return null;
 
-  // Defender initial ships (una sola tabellona)
-  const defTypePart = (md.match(/\bDefender[\s\S]*?\bType\b([\s\S]*?)\bCount\b/i)||[])[1] || '';
-  const defCountPart = (md.match(/\bDefender[\s\S]*?\bCount\b([\s\S]*?)\bWeapon\b/i)||[])[1] || '';
-  const defenderShips = {};
-  if(defTypePart && defCountPart) mergeShips(defenderShips, parseTypesAndCounts(defTypePart, defCountPart));
+  let t = raw;
+  const mdIdx = t.indexOf('Markdown Content:');
+  if(mdIdx >= 0) t = t.slice(mdIdx + 'Markdown Content:'.length);
 
-  let out = '';
-  const dt = (gi.date || '??-??-????') + ' ' + (gi.time || '--:--:--');
-  out += `Il ${dt}, le seguenti flotte si scontrano in combattimento:\n\n`;
+  const date = ((t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i) || [])[1]) || '--:--:--';
+  const time = ((t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i) || [])[1]) || '--:--:--';
 
-  for(const name of attackerNames){
-    const tag = initial[name].tag || '';
-    out += `\n\nAttaccante ${name}${tag?` [${tag}]`:''}\n________________________________________________\n\n`;
-    const ships = initial[name].ships;
-    for(const [ship, qty] of Object.entries(ships)){
-      if(qty>0) out += `${ship} ${fmt(qty)}\n`;
+  const idxInit = t.search(/####\s*Initial\s*:/i);
+  if(idxInit < 0) return null;
+
+  // max 6 turns
+  let maxRound = 0;
+  const roundRe = /####\s*Round\s+(\d+)/gi;
+  let rm;
+  while((rm = roundRe.exec(t)) !== null){
+    const r = parseInt(rm[1],10);
+    if(!isNaN(r)) maxRound = Math.min(6, Math.max(maxRound, r));
+  }
+  if(maxRound < 1) maxRound = 1;
+
+  const idxR1 = t.search(/####\s*Round\s+1/i);
+  const initEnd = idxR1 >= 0 ? idxR1 : t.length;
+  const initTxt = t.slice(idxInit, initEnd);
+
+  const initial = { attackers:{}, defenders:{} };
+  const nameToTag = {};
+
+  const initEntityRe = /(Attacker|Defender)\s+\[[0-9:]+\]\s+([^\[]+?)\s+\[([^\]]+)\][\s\S]*?Type\s+([\s\S]*?)\s+Count\s+([\s\S]*?)(?=Weapon\s*:|Weapon\s|Shield\s*:|Shield\s|Armor\s*:|Armor\s|Attacker\s+\[|Defender\s+\[|$)/gi;
+  let em;
+  while((em = initEntityRe.exec(initTxt)) !== null){
+    const side = em[1].toLowerCase();
+    const name = (em[2]||'').trim();
+    const tag = (em[3]||'').trim();
+    const key = `${name} [${tag}]`;
+    const typePart = em[4] || '';
+    const countPart = em[5] || '';
+    const shipsEN = matchKnownShipsEN(typePart);
+    const nums = extractNums(countPart).map(parseNum);
+    if(!shipsEN.length || !nums.length) continue;
+    const target = side === 'attacker' ? initial.attackers : initial.defenders;
+    if(!target[key]) target[key] = {};
+    nameToTag[name] = tag;
+    for(let i=0;i<Math.min(shipsEN.length, nums.length);i++){
+      const itName = mapShipToIT(shipsEN[i]);
+      target[key][itName] = (target[key][itName]||0) + nums[i];
     }
-    out += `_________________________________________\n`;
   }
 
-  out += `\n\nDifensore ${defenderName}${defenderTag?` [${defenderTag}]`:''}\n________________________________________________\n\n`;
-  for(const [ship, qty] of Object.entries(defenderShips)){
-    if(qty>0) out += `${ship} ${fmt(qty)}\n`;
-  }
-  out += `_________________________________________\n\n\nDopo la battaglia...\n`;
+  const idxRound = t.search(new RegExp(`####\\s*Round\\s+${maxRound}\\b`, 'i'));
+  if(idxRound < 0) return null;
+  const afterRound = t.slice(idxRound);
+  const nextAfter = afterRound.slice(12).search(/####\s*Round\s+\d+/i);
+  const endRound = nextAfter >= 0 ? (12 + nextAfter) : afterRound.length;
+  const roundTxt = afterRound.slice(0, endRound);
 
-  for(const name of attackerNames){
-    const tag = initial[name].tag || '';
-    out += `\n\nAttaccante ${name}${tag?` [${tag}]`:''}\n________________________________________________\n\n`;
-    const ini = initial[name].ships;
-    const fin = (finals[name] && finals[name].ships) ? finals[name].ships : {};
-    const allShips = new Set([...Object.keys(ini), ...Object.keys(fin)].filter(k=>k && !/^\d+$/.test(k)));
-    for(const ship of allShips){
-      const i = ini[ship]||0;
-      const f = fin[ship]||0;
-      const lost = Math.max(0, i - f);
-      out += `${ship} ${fmt(f)} ( -${fmt(lost)} )\n`;
+  const final = { attackers:{}, defenders:{} };
+
+  const chunkRe = /Attacker\s+([A-Za-z0-9_À-ÿ]+)\s+([\s\S]*?)(?=Attacker\s+[A-Za-z0-9_À-ÿ]+|Defender\s+|$)/g;
+  let cm;
+  while((cm = chunkRe.exec(roundTxt)) !== null){
+    const shortName = (cm[1]||'').trim();
+    const body = (cm[2]||'');
+    const idxCount = body.search(/\bCount\b/i);
+    if(idxCount < 0) continue;
+    const beforeCount = body.slice(0, idxCount);
+    const afterCount = body.slice(idxCount);
+    const idxLost = afterCount.search(/\bLost\b/i);
+    const countsPart = idxLost >= 0 ? afterCount.slice(0, idxLost) : afterCount;
+    const shipsEN = matchKnownShipsEN(beforeCount);
+    const nums = extractNums(countsPart).map(parseNum);
+    if(!shipsEN.length || !nums.length) continue;
+    const tag = nameToTag[shortName];
+    const key = tag ? `${shortName} [${tag}]` : shortName;
+    if(!final.attackers[key]) final.attackers[key] = {};
+    for(let i=0;i<Math.min(shipsEN.length, nums.length);i++){
+      const itName = mapShipToIT(shipsEN[i]);
+      final.attackers[key][itName] = (final.attackers[key][itName]||0) + nums[i];
     }
-    out += `_________________________________________\n`;
   }
 
-  out += `\n\nDifensore ${defenderName}${defenderTag?` [${defenderTag}]`:''}\n________________________________________________\n\nDistrutto!\n_________________________________________\n\n`;
-  out += `\n\nL'attaccante ha vinto la battaglia!\n\n`;
-  out += `L'attaccante saccheggia:\n${fmt(gi.lootM)} Metallo, ${fmt(gi.lootC)} Cristallo e ${fmt(gi.lootD)} Deuterio\n\n`;
-  out += `L'attaccante ha perso un totale di ${fmt(gi.lostA)} unità.\n`;
-  out += `Il difensore ha perso un totale di ${fmt(gi.lostD)} unità.\n`;
-  if(gi.dfM || gi.dfC){
-    out += `At these space coordinates now float ${fmt(gi.dfM)} metal, ${fmt(gi.dfC)} crystal and 0 deuterium.\n`;
+  const defChunkRe = /Defender\s+([A-Za-z0-9_À-ÿ]+)\s+([\s\S]*?)(?=Attacker\s+|$)/g;
+  let dm;
+  while((dm = defChunkRe.exec(roundTxt)) !== null){
+    const shortName = (dm[1]||'').trim();
+    const body = (dm[2]||'');
+    const idxCount = body.search(/\bCount\b/i);
+    if(idxCount < 0) continue;
+    const beforeCount = body.slice(0, idxCount);
+    const afterCount = body.slice(idxCount);
+    const idxLost = afterCount.search(/\bLost\b/i);
+    const countsPart = idxLost >= 0 ? afterCount.slice(0, idxLost) : afterCount;
+    const shipsEN = matchKnownShipsEN(beforeCount);
+    const nums = extractNums(countsPart).map(parseNum);
+    const tag = nameToTag[shortName];
+    const key = tag ? `${shortName} [${tag}]` : shortName;
+    if(!final.defenders[key]) final.defenders[key] = {};
+    for(let i=0;i<Math.min(shipsEN.length, nums.length);i++){
+      const itName = mapShipToIT(shipsEN[i]);
+      final.defenders[key][itName] = (final.defenders[key][itName]||0) + nums[i];
+    }
   }
-  if(gi.moonChance){
-    out += `La possibilità che si formi una luna dai detriti era del ${fmt(gi.moonChance)}%.\n`;
+
+  // Build classic IT CR (initial + after battle)
+  const lines = [];
+  lines.push(`Il ${date} ${time}, le seguenti flotte si scontrano in combattimento:`);
+  lines.push('');
+  const atkKeys = Object.keys(initial.attackers);
+  for(const k of atkKeys){
+    lines.push('');
+    lines.push(`Attaccante ${k}`);
+    lines.push('________________________________________________');
+    lines.push('');
+    for(const [ship,qty] of Object.entries(initial.attackers[k])){
+      lines.push(`${ship} ${fmt(qty)}`.replace(/\./g,'.'));
+    }
+    lines.push('_________________________________________');
+    lines.push('');
   }
-  return out;
+  const defKeys = Object.keys(initial.defenders);
+  for(const k of defKeys){
+    lines.push('');
+    lines.push(`Difensore ${k}`);
+    lines.push('________________________________________________');
+    lines.push('');
+    for(const [ship,qty] of Object.entries(initial.defenders[k])){
+      lines.push(`${ship} ${fmt(qty)}`.replace(/\./g,'.'));
+    }
+    lines.push('_________________________________________');
+    lines.push('');
+  }
+
+  lines.push('');
+  lines.push('Dopo la battaglia...');
+  lines.push('');
+
+  for(const k of atkKeys){
+    lines.push('');
+    lines.push(`Attaccante ${k}`);
+    lines.push('________________________________________________');
+    lines.push('');
+    const initShips = initial.attackers[k] || {};
+    const finShips = final.attackers[k] || {};
+    const shipSet = new Set([...Object.keys(initShips), ...Object.keys(finShips)]);
+    for(const ship of shipSet){
+      const a0 = initShips[ship] || 0;
+      const a1 = finShips[ship] || 0;
+      const lost = Math.max(0, a0 - a1);
+      lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
+    }
+    lines.push('_________________________________________');
+    lines.push('');
+  }
+
+  for(const k of defKeys){
+    lines.push('');
+    lines.push(`Difensore ${k}`);
+    lines.push('________________________________________________');
+    lines.push('');
+    lines.push('Distrutto!');
+    lines.push('_________________________________________');
+    lines.push('');
+  }
+
+  // keep loot + debris if present
+  const lootM = (t.match(/Metal loot:\s*([\d\.,]+)/i) || [])[1];
+  const lootC = (t.match(/Crystal loot:\s*([\d\.,]+)/i) || [])[1];
+  const lootD = (t.match(/Deuterium loot:\s*([\d\.,]+)/i) || [])[1];
+  if(lootM || lootC || lootD){
+    lines.push('');
+    lines.push("L'attaccante saccheggia:");
+    lines.push(`${lootM||'0'} Metallo, ${lootC||'0'} Cristallo e ${lootD||'0'} Deuterio`);
+  }
+  const dfM = (t.match(/Metal to debrisfield:\s*([\d\.,]+)/i) || [])[1];
+  const dfC = (t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i) || [])[1];
+  const dfD = (t.match(/Deuterium to debrisfield:\s*([\d\.,]+)/i) || [])[1];
+  if(dfM || dfC || dfD){
+    lines.push('');
+    lines.push(`At these space coordinates now float ${dfM||'0'} metal, ${dfC||'0'} crystal and ${dfD||'0'} deuterium.`);
+  }
+
+  return lines.join('\n');
 }
 
 document.getElementById('btnLoadCRApi')?.addEventListener('click', async () => {
   const apiId = (document.getElementById('crApiId')?.value || '').trim();
-  if(!apiId){ toast('Inserisci un API ID CR', 'error'); return; }
-  const url = `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
-  const timeoutMs = parseNum(document.getElementById('timeoutMs')?.value) || 12000;
+  if(!apiId){
+    log("⚠️ Inserisci un API ID CR.");
+    return;
+  }
+  const timeoutMs = parseNum(document.getElementById('timeoutMs')?.value) || 15000;
+  const url = /^https?:\/\//i.test(apiId)
+    ? apiId
+    : `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
+
   log(`CR API: richiesta NoMoreAngel per ${apiId}...`);
   try{
-    const htmlRaw = await fetchTextWithFallbackCR(url, timeoutMs);
-    let md = extractMarkdownContentFromJina(htmlRaw);
-    md = decodeEntities(md);
-    const ogameText = buildOgameTextFromNma(md);
-    if(!ogameText || ogameText.length < 200) throw new Error('Conversione CR fallita (testo troppo corto)');
-    document.getElementById('crText').value = ogameText;
-    log('✅ CR convertito (NoMoreAngel) incollato nel box. Ora analizzo...');
+    const raw = await fetchTextWithFallback(url, timeoutMs);
+    const classic = parseNmaApiReaderToClassic(raw);
+    if(!classic){
+      log("❌ CR API: non sono riuscito a convertire la pagina (manca sezione Initial/Round). Incolla manualmente il CR.");
+      setTab('log');
+      return;
+    }
+    document.getElementById('crText').value = classic;
+    log("✅ CR convertito (NoMoreAngel) incollato nel box. Ora analizzo...");
     document.getElementById('btnParseCR')?.click();
+    setTab('risultati');
   }catch(e){
-    log('❌ Errore fetch CR API: ' + (e?.message || e));
+    log("❌ Errore fetch CR API: " + (e?.message || e));
     setTab('log');
   }
 });
+// ------------------------------------------------------------------
+
 
 function extractPre(html) {
   const m = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
