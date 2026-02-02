@@ -547,6 +547,15 @@ ${(() => {
 })()}
 `;
 }
+  const dfNew = computeDebrisFromCR(STATE.cr);
+const dfLeft = STATE.cr?.df_float || {m:0,c:0,d:0};
+
+const dfSucked = {
+  m: dfNew.m - dfLeft.m,
+  c: dfNew.c - dfLeft.c,
+  d: dfNew.d - dfLeft.d
+};
+
 
 function renderRRTable(rrTotals) {
   const entries = Object.entries(rrTotals);
