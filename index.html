@@ -399,22 +399,31 @@ function computeDebrisFromCR(cr){
       const fin = (p.final && Object.keys(p.final).length) ? p.final : {};
       const ships = new Set([...Object.keys(ini), ...Object.keys(fin)]);
 
-      for (const ship of ships) {
-        const a0 = ini[ship] || 0;
-        const a1 = fin[ship] || 0;
-        const lost = Math.max(0, a0 - a1);
-        if (!lost) continue;
+     for (const ship of ships) {
+  const a0 = ini[ship] || 0;
+  const a1 = fin[ship] || 0;
+  const lost = Math.max(0, a0 - a1);
+  if (!lost) continue;
 
-        const cost = COSTS[ship];
-        if (!cost) continue;
+  const cost = COSTS[ship];
 
-        // ❌ difese NON fanno DF (eccetto crawler e satelliti)
-        if (!DF_ALLOWED.has(ship)) continue;
+  // 🔎 DEBUG: nave non mappata
+  if (!cost) {
+    log(`⚠️ DF skip: "${ship}" (${lost}) → costo NON trovato`);
+    continue;
+  }
 
-        sum.m += cost[0] * lost * DF_RATE;
-        sum.c += cost[1] * lost * DF_RATE;
-        sum.d += cost[2] * lost * DF_RATE;
-      }
+  // 🔎 DEBUG: nave/difesa esclusa dal DF
+  if (!DF_ALLOWED.has(ship)) {
+    log(`ℹ️ DF skip: "${ship}" (${lost}) → esclusa da DF_ALLOWED`);
+    continue;
+  }
+
+  sum.m += cost[0] * lost * DF_RATE;
+  sum.c += cost[1] * lost * DF_RATE;
+  sum.d += cost[2] * lost * DF_RATE;
+}
+
     }
   }
 
