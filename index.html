@@ -364,6 +364,73 @@ function parseCRText(text) {
     if (!p.final || Object.keys(p.final).length===0) p.final = JSON.parse(JSON.stringify(p.initial));
   });
 
+
+  // If API conversion is NoMoreAngel markdown (Round tables), the "Dopo la battaglia" section
+  // might be missing or not in the same language. In that case we reconstruct FINAL fleets
+  // from the last available Round (max 6), then compute losses as initial-final.
+  function parseFinalFromNmaRounds(fullText){
+    const shipRegex = /(Small Cargo|Large Cargo|Light Fighter|Heavy Fighter|Cruiser|Battleship|Colony Ship|Recycler|Espionage Probe|Bomber|Solar Satellite|Destroyer|Deathstar|Battlecruiser|Crawler|Reaper|Pathfinder)/g;
+    const roundRe = /\bRound\s+(\d+)\b/ig;
+    const rounds = [];
+    let rm;
+    while((rm = roundRe.exec(fullText))!==null){
+      rounds.push({n: parseInt(rm[1],10)||0, idx: rm.index});
+    }
+    if(!rounds.length) return null;
+    // Only consider up to 6 rounds, and pick the last one present
+    rounds.sort((a,b)=>a.idx-b.idx);
+    const last = rounds.filter(r=>r.n>=1 && r.n<=6).pop() || rounds[rounds.length-1];
+    const start = last.idx;
+    const end = (rounds.find(r=>r.idx>start)?.idx) || fullText.length;
+    const chunk = fullText.slice(start, end);
+
+    const res = {}; // attacker -> {shipIT: count}
+    // Pattern like: "Attacker Name ... Count ... Lost ..."
+    const atkRe = /\bAttacker\s+([^\n\r]+?)\s+([\s\S]*?)\bCount\b\s+([\s\S]*?)(?:\bLost\b|\bDefender\b|$)/ig;
+    let am;
+    while((am = atkRe.exec(chunk))!==null){
+      const attacker = (am[1]||'').trim().split(/\s{2,}|\t/)[0].trim();
+      if(!attacker) continue;
+      const shipsPart = (am[2]||'');
+      const countsPart = (am[3]||'');
+      const ships = [];
+      let sm;
+      while((sm = shipRegex.exec(shipsPart))!==null){
+        ships.push(sm[1]);
+      }
+      if(!ships.length) continue;
+      const nums = (countsPart.match(/[\d\.]+/g) || []).map(parseNum);
+      if(!nums.length) continue;
+      if(!res[attacker]) res[attacker] = {};
+      for(let i=0;i<ships.length && i<nums.length;i++){
+        const en = ships[i];
+        const it = shipNameMapEN2IT[en] || en;
+        res[attacker][it] = (res[attacker][it]||0) + nums[i];
+      }
+    }
+    return res;
+  }
+
+  // Apply reconstructed finals only when our parsed finals are "all zero" but initials aren't.
+  const nmaFinal = parseFinalFromNmaRounds(text);
+  if(nmaFinal){
+    Object.entries(out.attackers).forEach(([name, p])=>{
+      const initSum = Object.values(p.initial||{}).reduce((a,b)=>a+b,0);
+      const finSum  = Object.values(p.final||{}).reduce((a,b)=>a+b,0);
+      if(initSum>0 && finSum===0 && nmaFinal[name]){
+        p.final = nmaFinal[name];
+      }
+    });
+    Object.entries(out.defenders).forEach(([name, p])=>{
+      const initSum = Object.values(p.initial||{}).reduce((a,b)=>a+b,0);
+      const finSum  = Object.values(p.final||{}).reduce((a,b)=>a+b,0);
+      if(initSum>0 && finSum===0 && nmaFinal[name]){
+        p.final = nmaFinal[name];
+      }
+    });
+  }
+
+
   return out;
 }
 
