@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Spartizione Detriti OGame</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+    background:#0b0f16;
+    color:#d8e0ff;
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:0;
+}
+header{
+    background:#121a2b;
+    border-bottom:2px solid #1f2a44;
+    padding:12px 20px;
+}
+header h1{
+    margin:0;
+    font-size:20px;
+    color:#8fb1ff;
+}
+main{
+    padding:20px;
+}
+textarea,input,button{
+    background:#0f172a;
+    color:#e5ecff;
+    border:1px solid #2a3a5e;
+    border-radius:4px;
+    padding:8px;
+    font-size:14px;
+}
+textarea{
+    width:100%;
+    min-height:220px;
+    resize:vertical;
+}
+button{
+    cursor:pointer;
+}
+button:hover{
+    background:#162040;
+}
+.section{
+    margin-bottom:25px;
+    padding:15px;
+    background:#0f172a;
+    border:1px solid #1f2a44;
+    border-radius:6px;
+}
+.section h2{
+    margin-top:0;
+    font-size:16px;
+    color:#9db7ff;
+}
+.log{
+    background:#05080f;
+    border:1px solid #1f2a44;
+    padding:10px;
+    font-family:monospace;
+    font-size:13px;
+    white-space:pre-wrap;
+    max-height:200px;
+    overflow:auto;
+}
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+}
+th,td{
+    border:1px solid #1f2a44;
+    padding:6px;
+    text-align:right;
+}
+th{
+    background:#121a2b;
+}
+td:first-child,th:first-child{
+    text-align:left;
+}
+.footer{
+    text-align:center;
+    font-size:12px;
+    color:#7f8bb3;
+    margin-top:30px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>🛰️ Spartizione Detriti – OGame</h1>
+</header>
+
+<main>
+
+<div class="section">
+<h2>1️⃣ Incolla Combat Report (testo)</h2>
+<textarea id="crText" placeholder="Incolla qui il CR testuale OGame..."></textarea>
+<br><br>
+<button onclick="analyzeCR()">Analizza CR</button>
+</div>
+
+<div class="section">
+<h2>2️⃣ Log</h2>
+<div id="logBox" class="log"></div>
+</div>
+
+<div class="section">
+<h2>3️⃣ Risultati (debug)</h2>
+<div id="results"></div>
+</div>
+
+<div class="footer">
+Tool offline – nessun dato inviato a server esterni
+</div>
+
+</main>
+
+<script>
+const LOG=[];
+function log(msg){
+    const t=new Date().toLocaleTimeString();
+    LOG.push(`[${t}] ${msg}`);
+    document.getElementById('logBox').textContent=LOG.join("\n");
+}
+
+function parseNum(v){
+    if(!v) return 0;
+    return Number(String(v).replace(/\./g,'').replace(/,/g,''));
+}
+
+function analyzeCR(){
+    LOG.length=0;
+    document.getElementById('results').innerHTML='';
+    const txt=document.getElementById('crText').value;
+    if(!txt.trim()){
+        log("❌ Nessun CR inserito");
+        return;
+    }
+
+    log("Analisi CR avviata");
+
+    const attackers={};
+    const re=/Attaccante\s+([^\[]+)\s+\[([^\]]+)\][\s\S]*?Type([\s\S]*?)(?=Attaccante|Difensore|Dopo la battaglia|$)/gi;
+    let m;
+
+    while((m=re.exec(txt))!==null){
+        const name=m[1].trim();
+        const block=m[0];
+        if(!attackers[name]) attackers[name]={ships:{}};
+
+        const shipRe=/([A-Za-zÀ-ÿ ]+)\s+([\d\.]+)/g;
+        let s;
+        while((s=shipRe.exec(block))!==null){
+            const ship=s[1].trim();
+            const qty=parseNum(s[2]);
+            attackers[name].ships[ship]=(attackers[name].ships[ship]||0)+qty;
+        }
+    }
+
+    const keys=Object.keys(attackers);
+    log(`Attaccanti trovati: ${keys.length}`);
+
+    let html='<table><tr><th>Attaccante</th><th>Navi totali (debug)</th></tr>';
+    keys.forEach(k=>{
+        const total=Object.values(attackers[k].ships).reduce((a,b)=>a+b,0);
+        html+=`<tr><td>${k}</td><td>${total.toLocaleString('it-IT')}</td></tr>`;
+    });
+    html+='</table>';
+
+    document.getElementById('results').innerHTML=html;
+    log("Analisi completata");
+}
+
+log("Pronto. Incolla il CR e premi Analizza.");
+</script>
+
+</body>
+</html>
