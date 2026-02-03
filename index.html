@@ -113,12 +113,26 @@
 #logBox{
   min-height:220px; /* puoi aumentare/diminuire */
 }
-  /* --- CENTRATURA STAGE 1 --- */
+  /* --- CENTRATURA STAGE 1 (header dinamico) --- */
+:root{ --header-h: 72px; } /* fallback */
+
 #stage1{
-  min-height: calc(100vh - 72px); /* 72px circa header; va bene anche 80 se preferisci */
-  display: flex;
-  align-items: center;   /* centro verticale */
-  justify-content: center; /* centro orizzontale */
+  min-height: calc(100vh - var(--header-h));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 24px 0;              /* respiro sopra/sotto */
+}
+
+#stage1 .grid{
+  width:100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* Se apri il LOG e l’altezza supera lo schermo, invece di tagliare: scorre */
+@media (max-height: 700px){
+  #stage1{ align-items:flex-start; }
 }
 
 /* limita larghezza della card in stage1 e la centra bene */
