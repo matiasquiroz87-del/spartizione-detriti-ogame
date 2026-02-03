@@ -124,16 +124,8 @@ pre{white-space:pre-wrap;font-size:12px}
 </div>
 
 </div>
-
 <script>
-/* 🔴 LOGICA JS IDENTICA AL TUO CODICE FUNZIONANTE 🔴 */
-/* ho solo rimosso riferimenti a:
-   - btnCRDemo
-   - finalRoundText
-   - btnBack
-   - extractFinalRoundFromCRText
-*/
-
+/* ================= LOG ================= */
 const LOG=[];
 function log(m){
   const t=new Date().toLocaleTimeString();
@@ -141,16 +133,131 @@ function log(m){
   document.getElementById('logBox').textContent=LOG.join("\n");
 }
 
+/* ================= STAGES ================= */
 function showStage(n){
   document.getElementById('stage1').classList.toggle('hidden',n!==1);
   document.getElementById('stage2').classList.toggle('hidden',n!==2);
 }
 
-/* === EVENTI PRINCIPALI === */
+/* ================= FETCH HELPERS ================= */
+function abortableFetch(url, timeoutMs=15000){
+  const controller = new AbortController();
+  const id = setTimeout(()=>controller.abort(), timeoutMs);
+  return fetch(url,{signal:controller.signal})
+    .finally(()=>clearTimeout(id));
+}
+
+async function fetchTextWithFallback(url, timeoutMs=15000){
+  try{
+    const r = await abortableFetch(url, timeoutMs);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return await r.text();
+  }catch(e){
+    const clean = url.replace(/^https?:\/\//i,'');
+    const jina = "https://r.jina.ai/http://" + clean;
+    const r2 = await abortableFetch(jina, timeoutMs);
+    if(!r2.ok) throw new Error("HTTP "+r2.status);
+    return await r2.text();
+  }
+}
+
+/* ================= CONVERTER NMA → CLASSICO ================= */
+/* VERSIONE MINIMA, TESTATA */
+function parseNmaApiReaderToClassic(raw){
+  if(!raw) return null;
+  let t = raw;
+  const md = t.indexOf('Markdown Content:');
+  if(md>=0) t = t.slice(md+17);
+
+  if(!/####\s*Initial/i.test(t)) return null;
+
+  const lines=[];
+  const date = (t.match(/Date:\s*([0-9\-]+)/)||[])[1]||'--';
+  const time = (t.match(/Time:\s*([0-9:]+)/)||[])[1]||'--';
+
+  lines.push(`Il ${date} ${time}, le seguenti flotte si scontrano in combattimento:\n`);
+
+  function block(title, body){
+    lines.push(title);
+    lines.push("________________________________________________");
+    lines.push("");
+    body.forEach(l=>lines.push(l));
+    lines.push("_________________________________________\n");
+  }
+
+  const init = t.split(/####\s*Round\s+1/i)[0];
+  const atkRe = /Attacker\s+\[[^\]]+\]\s+([^\[]+?)\s+\[([^\]]+)\][\s\S]*?Type\s+([\s\S]*?)\s+Count\s+([\s\S]*?)(?=Weapon|Attacker|Defender|$)/gi;
+
+  let m;
+  while((m=atkRe.exec(init))!==null){
+    const name = m[1].trim()+" ["+m[2].trim()+"]";
+    const ships = m[3].match(/[A-Za-z ]+/g)||[];
+    const nums  = m[4].match(/[\d\.]+/g)||[];
+    const out=[];
+    for(let i=0;i<Math.min(ships.length,nums.length);i++){
+      out.push(`${ships[i].trim()} ${nums[i]}`);
+    }
+    block("Attaccante "+name,out);
+  }
+
+  lines.push("\nDopo la battaglia...\n");
+
+  const lastRound = t.match(/####\s*Round\s+(\d+)/gi)?.pop();
+  if(!lastRound) return lines.join("\n");
+
+  const roundTxt = t.slice(t.lastIndexOf(lastRound));
+  const finRe = /Attacker\s+([A-Za-z0-9_]+)[\s\S]*?Count\s+([\s\S]*?)Lost\s+([\s\S]*?)(?=Attacker|Defender|$)/gi;
+
+  while((m=finRe.exec(roundTxt))!==null){
+    const name = m[1].trim();
+    const ships = m[2].match(/[A-Za-z ]+/g)||[];
+    const left  = m[2].match(/[\d\.]+/g)||[];
+    const lost  = m[3].match(/[\d\.]+/g)||[];
+    const out=[];
+    for(let i=0;i<Math.min(ships.length,left.length,lost.length);i++){
+      out.push(`${ships[i].trim()} ${left[i]} ( -${lost[i]} )`);
+    }
+    block("Attaccante "+name,out);
+  }
+
+  return lines.join("\n");
+}
+
+/* ================= EVENTI ================= */
 document.getElementById('btnParseCR').onclick=()=>{
-  if(!crText.value.trim()){log("⚠️ CR vuoto");return;}
+  if(!crText.value.trim()){
+    log("⚠️ CR vuoto");
+    return;
+  }
   showStage(2);
   log("✅ CR analizzato");
+};
+
+document.getElementById('btnLoadCRApi').onclick = async ()=>{
+  const apiId = crApiId.value.trim();
+  if(!apiId){
+    log("⚠️ Inserisci un API ID CR");
+    return;
+  }
+
+  const url = /^https?:\/\//i.test(apiId)
+    ? apiId
+    : `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
+
+  log(`CR API: richiesta NoMoreAngel per ${apiId}...`);
+
+  try{
+    const raw = await fetchTextWithFallback(url,15000);
+    const classic = parseNmaApiReaderToClassic(raw);
+    if(!classic){
+      log("❌ Conversione CR fallita, incolla manualmente.");
+      return;
+    }
+    crText.value = classic;
+    log("✅ CR caricato e convertito.");
+  }catch(e){
+    log("❌ Errore fetch CR API: "+(e.message||e));
+  }
 };
 
 document.getElementById('btnShare').onclick=()=>{
@@ -160,5 +267,6 @@ document.getElementById('btnShare').onclick=()=>{
 
 log("Pronto. 1) Incolla/Carica CR  2) Inserisci RR  3) Vedi risultati.");
 </script>
+
 </body>
 </html>
