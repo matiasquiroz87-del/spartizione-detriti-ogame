@@ -209,6 +209,44 @@ document.getElementById('btnShare').onclick=()=>{
 };
 
 log("Pronto. 1) Incolla/Carica CR e Analizza. 2) Inserisci RR. 3) Vedi risultati.");
+  document.getElementById('btnLoadCRApi')?.addEventListener('click', async () => {
+  const apiId = (document.getElementById('crApiId')?.value || '').trim();
+  if (!apiId) {
+    log("⚠️ Inserisci un API ID CR.");
+    return;
+  }
+
+  log(`CR API: richiesta NoMoreAngel per ${apiId}...`);
+
+  try {
+    const url = /^https?:\/\//i.test(apiId)
+      ? apiId
+      : `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const raw = await res.text();
+
+    if (typeof parseNmaApiReaderToClassic !== "function") {
+      throw new Error("Parser CR API non disponibile");
+    }
+
+    const classic = parseNmaApiReaderToClassic(raw);
+    if (!classic) {
+      log("❌ Conversione CR fallita. Incolla manualmente il CR.");
+      return;
+    }
+
+    document.getElementById('crText').value = classic;
+    log("✅ CR caricato da API e convertito.");
+    document.getElementById('btnParseCR').click();
+
+  } catch (e) {
+    log("❌ Errore caricamento CR API: " + (e.message || e));
+  }
+});
+
 </script>
 
 </body>
