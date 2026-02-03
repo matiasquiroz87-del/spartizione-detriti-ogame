@@ -113,6 +113,20 @@
 #logBox{
   min-height:220px; /* puoi aumentare/diminuire */
 }
+  /* --- CENTRATURA STAGE 1 --- */
+#stage1{
+  min-height: calc(100vh - 72px); /* 72px circa header; va bene anche 80 se preferisci */
+  display: flex;
+  align-items: center;   /* centro verticale */
+  justify-content: center; /* centro orizzontale */
+}
+
+/* limita larghezza della card in stage1 e la centra bene */
+#stage1 .grid{
+  width: 100%;
+  max-width: 860px;  /* scegli tu: 760/860/920 */
+  margin: 0 auto;
+}
 </style>
 </head>
 
