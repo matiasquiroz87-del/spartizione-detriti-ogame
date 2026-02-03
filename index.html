@@ -545,30 +545,48 @@ function renderKPI(cr) {
   const attackers = Object.keys(cr.attackers).length;
   const defenders = Object.keys(cr.defenders).length;
 
-  const dfNew = computeDebrisFromCR(cr);                 // DF generato (navi only)
-  const dfLeft = cr.df_float || {m:0,c:0,d:0};           // DF rimasto "now float"
-  const dfSucked = {                                    // DF raccolto in fight
-    m: dfNew.m - dfLeft.m,
-    c: dfNew.c - dfLeft.c,
-    d: dfNew.d - dfLeft.d
+  // DF "prima del passaggio Reaper" (stimato da perdite)
+  const df = computeDebrisFromCR(cr); // {m,c,d}
+
+  // RR raccolto (somma di tutti i player)
+  const rrTotals = STATE.rr || {};
+  const rrSum = Object.values(rrTotals).reduce((a,v)=>({
+    m: a.m + (v.m||0),
+    c: a.c + (v.c||0),
+    d: a.d + (v.d||0)
+  }), {m:0,c:0,d:0});
+
+  // Rimasto dopo RR
+  const left = {
+    m: df.m - rrSum.m,
+    c: df.c - rrSum.c,
+    d: df.d - rrSum.d
   };
+
+  const dfTot = df.m + df.c + df.d;
+  const rrTot = rrSum.m + rrSum.c + rrSum.d;
+  const leftTot = left.m + left.c + left.d;
 
   el.innerHTML = `
     <div class="box"><div class="v">${cr.coords || '-'}</div><div class="l">Coordinate</div></div>
     <div class="box"><div class="v">${attackers} / ${defenders}</div><div class="l">Attaccanti / Difensori</div></div>
     <div class="box"><div class="v">${cr.moonChance!==null ? (cr.moonChance+'%') : '-'}</div><div class="l">Chance Luna</div></div>
 
-    <div class="box"><div class="v">${fmt(dfNew.m)}</div><div class="l">DF generato M (30%)</div></div>
-    <div class="box"><div class="v">${fmt(dfNew.c)}</div><div class="l">DF generato C (30%)</div></div>
-    <div class="box"><div class="v">${fmt(dfNew.d)}</div><div class="l">DF generato D (30%)</div></div>
+    <div class="box"><div class="v">${fmt(df.m)}</div><div class="l">DF totale M (30%)</div></div>
+    <div class="box"><div class="v">${fmt(df.c)}</div><div class="l">DF totale C (30%)</div></div>
+    <div class="box"><div class="v">${fmt(df.d)}</div><div class="l">DF totale D (30%)</div></div>
 
-    <div class="box"><div class="v">${fmt(dfLeft.m)}</div><div class="l">DF rimasto M (float)</div></div>
-    <div class="box"><div class="v">${fmt(dfLeft.c)}</div><div class="l">DF rimasto C (float)</div></div>
-    <div class="box"><div class="v">${fmt(dfLeft.d)}</div><div class="l">DF rimasto D (float)</div></div>
+    <div class="box"><div class="v">${fmt(rrSum.m)}</div><div class="l">RR raccolto M</div></div>
+    <div class="box"><div class="v">${fmt(rrSum.c)}</div><div class="l">RR raccolto C</div></div>
+    <div class="box"><div class="v">${fmt(rrSum.d)}</div><div class="l">RR raccolto D</div></div>
 
-    <div class="box"><div class="v">${fmt(dfSucked.m)}</div><div class="l">DF raccolto in-fight M</div></div>
-    <div class="box"><div class="v">${fmt(dfSucked.c)}</div><div class="l">DF raccolto in-fight C</div></div>
-    <div class="box"><div class="v">${fmt(dfSucked.d)}</div><div class="l">DF raccolto in-fight D</div></div>
+    <div class="box"><div class="v">${fmt(left.m)}</div><div class="l">DF rimasto M (stim.)</div></div>
+    <div class="box"><div class="v">${fmt(left.c)}</div><div class="l">DF rimasto C (stim.)</div></div>
+    <div class="box"><div class="v">${fmt(left.d)}</div><div class="l">DF rimasto D (stim.)</div></div>
+
+    <div class="box"><div class="v">${fmt(dfTot)}</div><div class="l">DF totale complessivo</div></div>
+    <div class="box"><div class="v">${fmt(rrTot)}</div><div class="l">RR complessivo</div></div>
+    <div class="box"><div class="v">${fmt(leftTot)}</div><div class="l">Rimasto complessivo (stim.)</div></div>
   `;
 }
 
@@ -1098,6 +1116,7 @@ document.getElementById('btnLoadRR').addEventListener('click', async () => {
   }
   document.getElementById('rrRaw').textContent = rawLog.join("\n\n");
   renderRRTable(STATE.rr);
+  renderKPI(STATE.cr);
   recomputeAndRender();
   setTab('risultati');
 });
