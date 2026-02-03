@@ -144,6 +144,18 @@
   max-width: 860px;  /* scegli tu: 760/860/920 */
   margin: 0 auto;
 }
+  /* Stage 1: sempre 1 colonna (evita effetto 2 colonne su desktop) */
+#stage1 .grid{
+  grid-template-columns: 1fr !important;
+  justify-items: center; /* centra la card dentro la griglia */
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+#stage1 .card{
+  width: 100%;
+  max-width: 860px; /* stessa misura della griglia */
+}
 </style>
 </head>
 
