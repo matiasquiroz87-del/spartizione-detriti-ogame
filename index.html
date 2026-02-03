@@ -324,6 +324,16 @@ function parseCRText(text) {
     out.df_float.c = parseNum(dfM[2]);
     out.df_float.d = parseNum(dfM[3]);
   }
+  const dfLine = text.match(
+  /(At these space coordinates now float|Alle coordinate.*fluttuano|A queste coordinate.*fluttuano)[^\d]*([\d\.,]+)[^\d]+(metal|metallo)[^\d]+([\d\.,]+)[^\d]+(crystal|cristallo)(?:[^\d]+([\d\.,]+)[^\d]+(deuterium|deuterio))?/i
+);
+
+if (dfLine) {
+  out.df_float.m = parseNum(dfLine[2]);
+  out.df_float.c = parseNum(dfLine[4]);
+  out.df_float.d = parseNum(dfLine[6] || 0);
+}
+
 
   // Split pre/post battle (robusto: "Dopo la battaglia..." può variare)
   let pre = text;
