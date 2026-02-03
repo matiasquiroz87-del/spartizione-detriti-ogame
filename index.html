@@ -3,33 +3,23 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Spartizione Detriti OGame - CR (testo) + RR (API)</title>
+<title>Spartizione Detriti OGame - CR (API) + RR (API)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:#050a10;
-    --panel:#0b1320;
-    --panel2:#07101b;
-    --text:#dbe7ff;
-    --muted:#93a6c7;
-    --line:rgba(120,160,220,.25);
-    --accent:#4da3ff;
-    --accent2:#2dd4ff;
-    --good:#39d98a;
-    --bad:#ff5c5c;
-    --warn:#ff5c5c;
-    --font-ui: "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
-    --font-title: "Orbitron", "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+    --bg:#050a10; --panel:#0b1320; --panel2:#07101b;
+    --text:#dbe7ff; --muted:#93a6c7; --line:rgba(120,160,220,.25);
+    --accent:#4da3ff; --accent2:#2dd4ff;
+    --good:#39d98a; --bad:#ff5c5c; --warn:#ff5c5c;
+    --font-ui:"Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+    --font-title:"Orbitron","Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
   body::before{
-    content:"";
-    position:fixed;
-    inset:0;
-    z-index:-1;
+    content:"";position:fixed;inset:0;z-index:-1;
     background:
       radial-gradient(1200px 700px at 15% -10%, rgba(124,240,255,.10), transparent 55%),
       radial-gradient(900px 600px at 110% 10%, rgba(255,179,77,.10), transparent 55%),
@@ -48,7 +38,7 @@
     backdrop-filter:blur(10px);
     border-bottom:1px solid var(--line);
   }
-  .wrap{max-width:1100px;margin:0 auto;padding:14px 14px;}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px;}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .title{display:flex;align-items:center;gap:10px;min-width:0;}
   .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
@@ -81,7 +71,6 @@
   tr:last-child td{border-bottom:none}
   .good{color:var(--good)}
   .bad{color:var(--bad)}
-  .warn{color:var(--warn)}
   details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
   summary{cursor:pointer;color:var(--muted);font-weight:700}
   pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
@@ -94,17 +83,18 @@
   .stage.fadein.show{opacity:1;transform:none}
   .min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
 
-  /* ✅ CR textarea nascosto (ma resta nel DOM per il parser/share) */
+  /* textarea CR nascosto (ma serve per parser/share) */
   .cr-hidden { display:none !important; }
 </style>
 </head>
+
 <body>
 <header>
   <div class="wrap">
     <div class="topbar">
       <div class="title">
         <h1>Spartizione Detriti OGame</h1>
-        <span class="badge">CR testo + RR API • logica foglio di calcolo</span>
+        <span class="badge">CR API + RR API • logica foglio di calcolo</span>
       </div>
       <div class="actions">
         <button class="ghost" id="btnShare" type="button" title="Copia un link con la configurazione">
@@ -131,15 +121,11 @@
           <button id="btnLoadCRApi" type="button">Carica CR da API</button>
         </div>
 
-        <!-- ✅ rimosso visivamente: textarea CR (resta nascosto per parser/share) -->
+        <!-- CR nascosto -->
         <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
 
-        <div class="row" style="margin-top:10px">
-          <button id="btnParseCR" type="button">Analizza CR</button>
-        </div>
-
         <div class="mini" style="margin-top:8px">
-          Carica il CR da API e analizza. Dopo l’analisi compariranno RR e risultati.
+          Premi “Carica CR da API”: il CR viene convertito e analizzato automaticamente.
         </div>
       </div>
 
@@ -242,7 +228,6 @@ function showStage(id){
     s1.classList.remove('hidden','fadeout');
     return;
   }
-
   s1.classList.add('fadeout');
   setTimeout(()=>{
     s1.classList.add('hidden');
@@ -256,15 +241,7 @@ const STATE = { cr:null, rr:{} };
 
 /* ===================== CR PARSER ===================== */
 function parseCRText(text){
-  const out = {
-    attackers:{},
-    defenders:{},
-    coords:null,
-    loot:{m:0,c:0,d:0},
-    df_float:{m:0,c:0,d:0},
-    moonChance:null,
-    lossesUnits:{att:0,def:0},
-  };
+  const out = { attackers:{}, defenders:{}, coords:null, loot:{m:0,c:0,d:0}, df_float:{m:0,c:0,d:0}, moonChance:null, lossesUnits:{att:0,def:0} };
 
   const coordM = text.match(/\b\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/);
   if(coordM) out.coords = (coordM[1]||coordM[2]||null);
@@ -272,52 +249,36 @@ function parseCRText(text){
   const moonM = text.match(/possibilit[aà].*?luna.*?(\d+)%/i);
   if(moonM) out.moonChance = parseNum(moonM[1]);
 
-  const attLost = text.match(/attaccante ha perso un totale di\s*([\d\.,]+)\s*unit/i);
-  const defLost = text.match(/difensore ha perso un totale di\s*([\d\.,]+)\s*unit/i);
-  if(attLost) out.lossesUnits.att = parseNum(attLost[1]);
-  if(defLost) out.lossesUnits.def = parseNum(defLost[1]);
-
   const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
-  if(lootM){
-    out.loot.m = parseNum(lootM[1]);
-    out.loot.c = parseNum(lootM[2]);
-    out.loot.d = parseNum(lootM[3]);
-  }
+  if(lootM){ out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]); }
 
   const dfLine = text.match(/(At these space coordinates now float|Alle coordinate.*fluttuano|A queste coordinate.*fluttuano)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)/i);
   if(dfLine){
-    out.df_float.m = parseNum(dfLine[2]);
-    out.df_float.c = parseNum(dfLine[3]);
-    out.df_float.d = parseNum(dfLine[4]);
-    log(`DF float parsed: M=${fmt(out.df_float.m)} C=${fmt(out.df_float.c)} D=${fmt(out.df_float.d)}`);
+    out.df_float.m=parseNum(dfLine[2]); out.df_float.c=parseNum(dfLine[3]); out.df_float.d=parseNum(dfLine[4]);
   }
 
   let pre=text, post="";
-  const idx = text.search(/\bDopo\s+la\s+battaglia\b/i);
+  const idx=text.search(/\bDopo\s+la\s+battaglia\b/i);
   if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
 
   function parseSideBlocks(blockText, phase){
-    const lines = blockText.split(/\r?\n/);
-    let current=null;
-    let currentSide=null;
+    const lines=blockText.split(/\r?\n/);
+    let current=null, currentSide=null;
 
     for(const raw of lines){
-      const line = raw.trim();
+      const line=raw.trim();
       if(!line) continue;
 
-      const h = line.match(/^(Attaccante|Difensore)\s+(.+?)\s+\[(.+?)\]\s*$/i);
+      const h=line.match(/^(Attaccante|Difensore)\s+(.+?)\s+\[(.+?)\]\s*$/i);
       if(h){
-        currentSide = h[1].toLowerCase().startsWith("att") ? "att" : "def";
-        const name = h[2].trim();
-        const tag  = h[3].trim();
+        currentSide=h[1].toLowerCase().startsWith("att")?"att":"def";
+        const name=h[2].trim(), tag=h[3].trim();
         if(currentSide==="att"){
           if(!out.attackers[name]) out.attackers[name]={tag,initial:{},final:{}};
-          out.attackers[name].tag=tag;
-          current=out.attackers[name];
+          out.attackers[name].tag=tag; current=out.attackers[name];
         }else{
           if(!out.defenders[name]) out.defenders[name]={tag,initial:{},final:{}};
-          out.defenders[name].tag=tag;
-          current=out.defenders[name];
+          out.defenders[name].tag=tag; current=out.defenders[name];
         }
         continue;
       }
@@ -326,10 +287,10 @@ function parseCRText(text){
       if(line.startsWith("_")) continue;
       if(line.toLowerCase().includes("distrutto")) continue;
 
-      const m = line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-[\d\.,]+\s*\))?\s*$/);
+      const m=line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-[\d\.,]+\s*\))?\s*$/);
       if(m){
-        const ship = m[1].trim();
-        const count = parseNum(m[2]);
+        const ship=m[1].trim();
+        const count=parseNum(m[2]);
         if(phase==="initial") current.initial[ship]=(current.initial[ship]||0)+count;
         else current.final[ship]=(current.final[ship]||0)+count;
       }
@@ -340,7 +301,7 @@ function parseCRText(text){
   if(post) parseSideBlocks(post,"final");
 
   Object.values(out.attackers).forEach(p=>{
-    if(!p.final || Object.keys(p.final).length===0) p.final = JSON.parse(JSON.stringify(p.initial));
+    if(!p.final || Object.keys(p.final).length===0) p.final=JSON.parse(JSON.stringify(p.initial));
   });
 
   out.df_calc = computeDebrisFromCR(out);
@@ -349,17 +310,13 @@ function parseCRText(text){
 
 function computeDebrisFromCR(cr){
   const sum={m:0,c:0,d:0};
-  if(!cr) return sum;
-
-  function addLossesFromSide(sideObj){
+  function add(sideObj){
     for(const p of Object.values(sideObj||{})){
       const ini=p.initial||{};
-      const fin=(p.final && Object.keys(p.final).length) ? p.final : {};
-      const ships = new Set([...Object.keys(ini),...Object.keys(fin)]);
+      const fin=(p.final && Object.keys(p.final).length)?p.final:{};
+      const ships=new Set([...Object.keys(ini),...Object.keys(fin)]);
       for(const ship of ships){
-        const a0=ini[ship]||0;
-        const a1=fin[ship]||0;
-        const lost=Math.max(0,a0-a1);
+        const lost=Math.max(0,(ini[ship]||0)-(fin[ship]||0));
         if(!lost) continue;
         const cost=COSTS[ship];
         if(!cost) continue;
@@ -370,53 +327,46 @@ function computeDebrisFromCR(cr){
       }
     }
   }
-
-  addLossesFromSide(cr.attackers);
-  addLossesFromSide(cr.defenders);
+  add(cr.attackers); add(cr.defenders);
   return sum;
 }
 
 /* ===================== SHEET LOGIC ===================== */
 function computeFromSheetLogic(cr, rrTotals, mode){
-  const players = Object.keys(cr.attackers);
-  const n = players.length || 1;
+  const players=Object.keys(cr.attackers);
+  const n=players.length||1;
 
   const losses={}, fleetValue={};
-
   players.forEach(name=>{
-    const p = cr.attackers[name];
+    const p=cr.attackers[name];
     losses[name]={m:0,c:0,d:0,units:0};
     fleetValue[name]=0;
 
     for(const [ship,cnt] of Object.entries(p.initial)){
       const cost=COSTS[ship];
-      if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2])*cnt;
+      if(cost) fleetValue[name]+=(cost[0]+cost[1]+cost[2])*cnt;
     }
 
     const ships=new Set([...Object.keys(p.initial),...Object.keys(p.final)]);
     for(const ship of ships){
-      const ini=p.initial[ship]||0;
-      const fin=p.final[ship]||0;
-      const lostCnt=Math.max(0,ini-fin);
+      const lostCnt=Math.max(0,(p.initial[ship]||0)-(p.final[ship]||0));
       if(lostCnt<=0) continue;
-      losses[name].units += lostCnt;
       const cost=COSTS[ship];
       if(!cost) continue;
-      losses[name].m += cost[0]*lostCnt;
-      losses[name].c += cost[1]*lostCnt;
-      losses[name].d += cost[2]*lostCnt;
+      losses[name].m+=cost[0]*lostCnt;
+      losses[name].c+=cost[1]*lostCnt;
+      losses[name].d+=cost[2]*lostCnt;
     }
   });
 
-  const totLoss = players.reduce((a,nm)=>({m:a.m+losses[nm].m,c:a.c+losses[nm].c,d:a.d+losses[nm].d}),{m:0,c:0,d:0});
-  const totRec = players.reduce((a,nm)=>{const r=rrTotals[nm]||{m:0,c:0,d:0}; return {m:a.m+r.m,c:a.c+r.c,d:a.d+r.d};},{m:0,c:0,d:0});
-  const gain = {m:totRec.m-totLoss.m, c:totRec.c-totLoss.c, d:totRec.d-totLoss.d};
+  const totLoss=players.reduce((a,nm)=>({m:a.m+losses[nm].m,c:a.c+losses[nm].c,d:a.d+losses[nm].d}),{m:0,c:0,d:0});
+  const totRec=players.reduce((a,nm)=>{const r=rrTotals[nm]||{m:0,c:0,d:0};return {m:a.m+r.m,c:a.c+r.c,d:a.d+r.d};},{m:0,c:0,d:0});
+  const gain={m:totRec.m-totLoss.m,c:totRec.c-totLoss.c,d:totRec.d-totLoss.d};
 
   const weights={};
-  if(mode==="paritaria"){
-    players.forEach(nm=>weights[nm]=1/n);
-  }else{
-    const totFleet = players.reduce((s,nm)=>s+(fleetValue[nm]||0),0) || 1;
+  if(mode==="paritaria"){ players.forEach(nm=>weights[nm]=1/n); }
+  else{
+    const totFleet=players.reduce((s,nm)=>s+(fleetValue[nm]||0),0)||1;
     players.forEach(nm=>weights[nm]=(fleetValue[nm]||0)/totFleet);
   }
 
@@ -424,17 +374,16 @@ function computeFromSheetLogic(cr, rrTotals, mode){
   players.forEach(nm=>{
     const r=rrTotals[nm]||{m:0,c:0,d:0};
     quota[nm]={
-      m: losses[nm].m + gain.m*weights[nm] - r.m,
-      c: losses[nm].c + gain.c*weights[nm] - r.c,
-      d: losses[nm].d + gain.d*weights[nm] - r.d,
-      w: weights[nm],
-      fleet: fleetValue[nm],
-      lost: losses[nm],
-      rec: r
+      m:losses[nm].m + gain.m*weights[nm] - r.m,
+      c:losses[nm].c + gain.c*weights[nm] - r.c,
+      d:losses[nm].d + gain.d*weights[nm] - r.d,
+      w:weights[nm],
+      lost:losses[nm],
+      rec:r
     };
   });
 
-  return {players,losses,fleetValue,weights,totLoss,totRec,gain,quota};
+  return {players,totLoss,totRec,gain,quota};
 }
 
 function buildTransfers(players, quota, resKey){
@@ -444,14 +393,10 @@ function buildTransfers(players, quota, resKey){
     if(v>0.5) recv.push([p,v]);
     else if(v<-0.5) send.push([p,-v]);
   });
-  recv.sort((a,b)=>b[1]-a[1]);
-  send.sort((a,b)=>b[1]-a[1]);
-
-  const moves=[];
-  let i=0,j=0;
+  recv.sort((a,b)=>b[1]-a[1]); send.sort((a,b)=>b[1]-a[1]);
+  const moves=[]; let i=0,j=0;
   while(i<send.length && j<recv.length){
-    const [sp,sv]=send[i];
-    const [rp,rv]=recv[j];
+    const [sp,sv]=send[i], [rp,rv]=recv[j];
     const x=Math.min(sv,rv);
     if(x>0.5) moves.push({from:sp,to:rp,amount:x});
     send[i][1]-=x; recv[j][1]-=x;
@@ -468,12 +413,10 @@ function renderKPI(cr){
   if(!cr){ el.innerHTML=""; return; }
 
   const dfNew=computeDebrisFromCR(cr);
-
   const rrTotals=STATE.rr||{};
   const rr=Object.values(rrTotals).reduce((a,v)=>({m:a.m+(v.m||0),c:a.c+(v.c||0),d:a.d+(v.d||0)}),{m:0,c:0,d:0});
   const dfLeft={m:dfNew.m-rr.m, c:dfNew.c-rr.c, d:dfNew.d-rr.d};
 
-  /* ✅ rimosso box Attaccanti/Difensori */
   el.innerHTML=`
     <div class="box"><div class="v">${fmt(dfNew.m)}</div><div class="l">DF totale M (30%)</div></div>
     <div class="box"><div class="v">${fmt(dfNew.c)}</div><div class="l">DF totale C (30%)</div></div>
@@ -492,20 +435,10 @@ function renderKPI(cr){
 function renderRRTable(rrTotals){
   const el=document.getElementById("rrTable");
   if(!el) return;
-
   const entries=Object.entries(rrTotals||{});
-  if(entries.length===0){
-    el.innerHTML='<div class="mini">Nessun RR caricato.</div>';
-    return;
-  }
-  const rows=entries.map(([p,v])=>`
-    <tr><td>${p}</td><td>${fmt(v.m)}</td><td>${fmt(v.c)}</td><td>${fmt(v.d)}</td><td>${v.count||0}</td></tr>
-  `).join("");
-  el.innerHTML=`
-    <table>
-      <thead><tr><th>Giocatore</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>RR</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+  if(!entries.length){ el.innerHTML='<div class="mini">Nessun RR caricato.</div>'; return; }
+  const rows=entries.map(([p,v])=>`<tr><td>${p}</td><td>${fmt(v.m)}</td><td>${fmt(v.c)}</td><td>${fmt(v.d)}</td><td>${v.count||0}</td></tr>`).join("");
+  el.innerHTML=`<table><thead><tr><th>Giocatore</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>RR</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function renderResults(computed){
@@ -548,8 +481,7 @@ function renderResults(computed){
     </table>
     <div class="mini" style="margin-top:8px">Quota positiva = deve ricevere. Quota negativa = deve inviare.</div>`;
 
-  const rt=document.getElementById("resultsTables");
-  if(rt) rt.innerHTML=header+table;
+  document.getElementById("resultsTables").innerHTML = header + table;
 
   const mt=buildTransfers(players,quota,"m");
   const ct=buildTransfers(players,quota,"c");
@@ -558,58 +490,46 @@ function renderResults(computed){
   function renderMoveList(label,moves){
     if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato).</div>`;
     const r=moves.map(m=>`<tr><td>${m.from}</td><td>${m.to}</td><td>${fmt(m.amount)}</td></tr>`).join("");
-    return `
-      <div style="margin-top:10px">
-        <div class="mini" style="margin:6px 0"><b>${label}</b></div>
-        <table><thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead><tbody>${r}</tbody></table>
-      </div>`;
+    return `<div style="margin-top:10px"><div class="mini" style="margin:6px 0"><b>${label}</b></div><table><thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead><tbody>${r}</tbody></table></div>`;
   }
-
-  const tr=document.getElementById("transports");
-  if(tr) tr.innerHTML = renderMoveList("Metallo",mt)+renderMoveList("Cristallo",ct)+renderMoveList("Deuterio",dt);
+  document.getElementById("transports").innerHTML =
+    renderMoveList("Metallo",mt) + renderMoveList("Cristallo",ct) + renderMoveList("Deuterio",dt);
 }
 
 function recomputeAndRender(){
-  if(!STATE.cr){ log("⚠️ Nessun CR caricato."); return; }
+  if(!STATE.cr){ return; }
   const mode=document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
-  const computed=computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode);
-  renderResults(computed);
+  renderResults(computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode));
 }
 
-/* ===================== EVENTS ===================== */
 document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",()=>{
   log("Modalità: " + document.querySelector('input[name="mode"]:checked').value);
   recomputeAndRender();
 }));
 
-document.getElementById("btnParseCR").addEventListener("click",()=>{
-  try{
-    const text=document.getElementById("crText").value || "";
-    if(!text.trim()){
-      log("⚠️ Nessun CR presente. Caricalo da API.");
-      return;
-    }
-    const cr=parseCRText(text);
-    STATE.cr=cr;
-    renderKPI(cr);
-    recomputeAndRender();
-    log(`✅ CR caricato e analizzato.`);
-    showStage(2);
-  }catch(e){
-    log("❌ Errore parsing CR: " + (e?.message || e));
-    console.error(e);
+function analyzeCurrentCR(){
+  const text = document.getElementById("crText").value || "";
+  if(!text.trim()){
+    log("⚠️ Nessun CR presente. Caricalo da API.");
+    return;
   }
-});
+  const cr=parseCRText(text);
+  STATE.cr=cr;
+  renderKPI(cr);
+  recomputeAndRender();
+  log("✅ CR caricato e analizzato.");
+  showStage(2);
+}
 
+/* ===================== BACK ===================== */
 document.getElementById("btnBack").addEventListener("click",()=>showStage(1));
 
-/* ===================== CR API LOADER (NoMoreAngel) ===================== */
+/* ===================== CR API LOADER ===================== */
 function abortableFetch(url, timeoutMs){
   const controller=new AbortController();
   const id=setTimeout(()=>controller.abort(), timeoutMs);
   return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(id));
 }
-
 async function fetchTextWithFallback(url, timeoutMs=12000){
   try{
     const res=await abortableFetch(url,timeoutMs);
@@ -633,7 +553,6 @@ const shipNameMapEN2IT = {
   "Ion Cannon":"Cannone ionico","Plasma Turret":"Cannone al Plasma","Small Shield Dome":"Cupola scudo piccola","Large Shield Dome":"Cupola scudo potenziata"
 };
 const knownShipNamesEN = Object.keys(shipNameMapEN2IT).sort((a,b)=>b.length-a.length);
-
 function mapShipToIT(name){ const n=(name||"").trim(); return shipNameMapEN2IT[n] || n; }
 function matchKnownShipsEN(text){
   const out=[];
@@ -651,11 +570,11 @@ function parseNmaApiReaderToClassic(raw){
   const mdIdx=t.indexOf("Markdown Content:");
   if(mdIdx>=0) t=t.slice(mdIdx+"Markdown Content:".length);
 
-  const date=((t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i)||[])[1])||"--:--:--";
-  const time=((t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i)||[])[1])||"--:--:--";
-
   const idxInit=t.search(/####\s*Initial\s*:/i);
   if(idxInit<0) return null;
+
+  const date=((t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i)||[])[1])||"--:--:--";
+  const time=((t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i)||[])[1])||"--:--:--";
 
   let maxRound=0;
   const roundRe=/####\s*Round\s+(\d+)/gi;
@@ -680,10 +599,8 @@ function parseNmaApiReaderToClassic(raw){
     const name=(em[2]||"").trim();
     const tag=(em[3]||"").trim();
     const key=`${name} [${tag}]`;
-    const typePart=em[4]||"";
-    const countPart=em[5]||"";
-    const shipsEN=matchKnownShipsEN(typePart);
-    const nums=extractNums(countPart).map(parseNum);
+    const shipsEN=matchKnownShipsEN(em[4]||"");
+    const nums=extractNums(em[5]||"").map(parseNum);
     if(!shipsEN.length || !nums.length) continue;
     const target = side==="attacker" ? initial.attackers : initial.defenders;
     if(!target[key]) target[key]={};
@@ -696,7 +613,6 @@ function parseNmaApiReaderToClassic(raw){
 
   const idxRound=t.search(new RegExp(`####\\s*Round\\s+${maxRound}\\b`,"i"));
   if(idxRound<0) return null;
-
   const afterRound=t.slice(idxRound);
   const nextAfter=afterRound.slice(12).search(/####\s*Round\s+\d+/i);
   const endRound=nextAfter>=0?(12+nextAfter):afterRound.length;
@@ -727,33 +643,10 @@ function parseNmaApiReaderToClassic(raw){
     }
   }
 
-  const defChunkRe=/Defender\s+([A-Za-z0-9_À-ÿ]+)\s+([\s\S]*?)(?=Attacker\s+|$)/g;
-  let dm;
-  while((dm=defChunkRe.exec(roundTxt))!==null){
-    const shortName=(dm[1]||"").trim();
-    const body=(dm[2]||"");
-    const idxCount=body.search(/\bCount\b/i);
-    if(idxCount<0) continue;
-    const beforeCount=body.slice(0,idxCount);
-    const afterCount=body.slice(idxCount);
-    const idxLost=afterCount.search(/\bLost\b/i);
-    const countsPart=idxLost>=0?afterCount.slice(0,idxLost):afterCount;
-    const shipsEN=matchKnownShipsEN(beforeCount);
-    const nums=extractNums(countsPart).map(parseNum);
-    const tag=nameToTag[shortName];
-    const key=tag?`${shortName} [${tag}]`:shortName;
-    if(!final.defenders[key]) final.defenders[key]={};
-    for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
-      const itName=mapShipToIT(shipsEN[i]);
-      final.defenders[key][itName]=(final.defenders[key][itName]||0)+nums[i];
-    }
-  }
-
   const lines=[];
   lines.push(`Il ${date} ${time}, le seguenti flotte si scontrano in combattimento:\n`);
 
-  const atkKeys=Object.keys(initial.attackers);
-  for(const k of atkKeys){
+  for(const k of Object.keys(initial.attackers)){
     lines.push(`Attaccante ${k}`);
     lines.push("________________________________________________");
     lines.push("");
@@ -762,9 +655,7 @@ function parseNmaApiReaderToClassic(raw){
     }
     lines.push("_________________________________________\n");
   }
-
-  const defKeys=Object.keys(initial.defenders);
-  for(const k of defKeys){
+  for(const k of Object.keys(initial.defenders)){
     lines.push(`Difensore ${k}`);
     lines.push("________________________________________________");
     lines.push("");
@@ -775,8 +666,7 @@ function parseNmaApiReaderToClassic(raw){
   }
 
   lines.push("\nDopo la battaglia...\n");
-
-  for(const k of atkKeys){
+  for(const k of Object.keys(initial.attackers)){
     lines.push(`Attaccante ${k}`);
     lines.push("________________________________________________");
     lines.push("");
@@ -790,22 +680,6 @@ function parseNmaApiReaderToClassic(raw){
       lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
     }
     lines.push("_________________________________________\n");
-  }
-
-  for(const k of defKeys){
-    lines.push(`Difensore ${k}`);
-    lines.push("________________________________________________");
-    lines.push("");
-    lines.push("Distrutto!");
-    lines.push("_________________________________________\n");
-  }
-
-  const lootM=(t.match(/Metal loot:\s*([\d\.,]+)/i)||[])[1];
-  const lootC=(t.match(/Crystal loot:\s*([\d\.,]+)/i)||[])[1];
-  const lootD=(t.match(/Deuterium loot:\s*([\d\.,]+)/i)||[])[1];
-  if(lootM||lootC||lootD){
-    lines.push("L'attaccante saccheggia:");
-    lines.push(`${lootM||"0"} Metallo, ${lootC||"0"} Cristallo e ${lootD||"0"} Deuterio\n`);
   }
 
   const dfM=(t.match(/Metal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
@@ -831,25 +705,20 @@ document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
   try{
     const raw=await fetchTextWithFallback(url,timeoutMs);
     const classic=parseNmaApiReaderToClassic(raw);
-    if(!classic){
-      log("❌ CR API: non sono riuscito a convertire la pagina (manca sezione Initial/Round).");
-      return;
-    }
-    document.getElementById("crText").value=classic; // ✅ finisce nel textarea nascosto
-    log("✅ CR caricato da API. Ora analizzo...");
-    document.getElementById("btnParseCR").click();
+    if(!classic){ log("❌ CR API: non sono riuscito a convertire la pagina (manca Initial/Round)."); return; }
+    document.getElementById("crText").value=classic;
+    log("✅ CR caricato da API. Analizzo...");
+    analyzeCurrentCR(); /* ✅ ANALISI AUTOMATICA */
   }catch(e){
     log("❌ Errore fetch CR API: " + (e?.message || e));
   }
 });
 
-/* ===================== RR PARSER ===================== */
+/* ===================== RR ===================== */
 function extractPre(html){
   const m=html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
   if(!m) return null;
-  return m[1]
-    .replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&")
-    .replace(/&#039;/g,"'").replace(/&quot;/g,'"');
+  return m[1].replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&#039;/g,"'").replace(/&quot;/g,'"');
 }
 function parseRRFromPre(pre){
   const owner=(pre.match(/\[owner_name\]\s*=>\s*([^\r\n]+)/)||[])[1];
@@ -892,7 +761,6 @@ document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
       log(`❌ Errore fetch RR ${id}: ${e?.message || e}`);
     }
   }
-
   document.getElementById("rrRaw").textContent = rawLog.join("\n\n");
   renderRRTable(STATE.rr);
   renderKPI(STATE.cr);
@@ -920,7 +788,7 @@ function decodeShareState(b64){
 }
 function collectShareState(){
   return {
-    v: 4,
+    v: 5,
     crText:(document.getElementById("crText").value||"").trim(),
     proxyBase:(document.getElementById("proxyBase").value||"").trim(),
     timeoutMs:parseNum(document.getElementById("timeoutMs").value)||12000,
@@ -941,7 +809,7 @@ function applyShareState(st){
   }
 
   if((document.getElementById("crText").value||"").trim()){
-    try{ document.getElementById("btnParseCR").click(); }catch(e){ log("Errore analisi CR da link: "+(e?.message||e)); }
+    try{ analyzeCurrentCR(); }catch(e){ log("Errore analisi CR da link: "+(e?.message||e)); }
   }
   recomputeAndRender();
 }
@@ -972,15 +840,14 @@ document.getElementById("btnShare").addEventListener("click", ()=>doShare());
   const m=(location.hash||"").match(/#s=([A-Za-z0-9\-_]+)/);
   if(!m) return;
   try{
-    const st=decodeShareState(m[1]);
-    applyShareState(st);
+    applyShareState(decodeShareState(m[1]));
     log("🔗 Stato caricato dal link.");
   }catch(e){
     log("⚠️ Hash di condivisione non valido: " + (e?.message || e));
   }
 })();
 
-log("Pronto. 1) Carica CR da API e Analizza. 2) Inserisci RR. 3) Vedi risultati.");
+log("Pronto. 1) Carica CR da API (analisi automatica). 2) Inserisci RR. 3) Vedi risultati.");
 </script>
 </body>
 </html>
