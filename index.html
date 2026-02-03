@@ -563,26 +563,52 @@ function renderKPI(cr) {
   };
   const leftTot = left.m + left.c + left.d;
 
-  el.innerHTML = `
-    <div class="box">
-      <div class="v">${fmt(dfTot)}</div>
-      <div class="l">DF totale (30%)</div>
-      <div class="mini">M ${fmt(df.m)} · C ${fmt(df.c)} · D ${fmt(df.d)}</div>
-    </div>
+el.innerHTML = `
+  <div class="box">
+    <div class="v">${attackers} / ${defenders}</div>
+    <div class="l">Attaccanti / Difensori</div>
+  </div>
 
-    <div class="box">
-      <div class="v">${fmt(rrTot)}</div>
-      <div class="l">RR raccolto</div>
-      <div class="mini">M ${fmt(rr.m)} · C ${fmt(rr.c)} · D ${fmt(rr.d)}</div>
-    </div>
+  <div class="box">
+    <div class="v">${fmt(dfNew.m)}</div>
+    <div class="l">DF totale M (30%)</div>
+  </div>
+  <div class="box">
+    <div class="v">${fmt(dfNew.c)}</div>
+    <div class="l">DF totale C (30%)</div>
+  </div>
+  <div class="box">
+    <div class="v">${fmt(dfNew.d)}</div>
+    <div class="l">DF totale D (30%)</div>
+  </div>
 
-    <div class="box">
-      <div class="v">${fmt(leftTot)}</div>
-      <div class="l">DF rimasto (stimato)</div>
-      <div class="mini">M ${fmt(left.m)} · C ${fmt(left.c)} · D ${fmt(left.d)}</div>
-    </div>
-  `;
-}
+  <div class="box">
+    <div class="v">${fmt(rrM)}</div>
+    <div class="l">RR raccolto M</div>
+  </div>
+  <div class="box">
+    <div class="v">${fmt(rrC)}</div>
+    <div class="l">RR raccolto C</div>
+  </div>
+  <div class="box">
+    <div class="v">${fmt(rrD)}</div>
+    <div class="l">RR raccolto D</div>
+  </div>
+
+  <div class="box">
+    <div class="v">${fmt(dfLeft.m)}</div>
+    <div class="l">DF rimasto M (stim.)</div>
+  </div>
+  <div class="box">
+    <div class="v">${fmt(dfLeft.c)}</div>
+    <div class="l">DF rimasto C (stim.)</div>
+  </div>
+  <div class="box">
+    <div class="v">${fmt(dfLeft.d)}</div>
+    <div class="l">DF rimasto D (stim.)</div>
+  </div>
+`;
+ }
 
 function renderRRTable(rrTotals) {
   const entries = Object.entries(rrTotals);
