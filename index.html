@@ -416,7 +416,7 @@ function showStage(id){
     s2.classList.remove('hidden');
 
     // IMPORTANTISSIMO: torna in alto così stage2 non resta "in basso"
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 
     requestAnimationFrame(()=>s2.classList.add('show'));
   },260);
