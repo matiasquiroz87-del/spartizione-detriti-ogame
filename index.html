@@ -542,51 +542,45 @@ function renderKPI(cr) {
   const el = document.getElementById('kpiCR');
   if (!cr) { el.innerHTML = ""; return; }
 
-  const attackers = Object.keys(cr.attackers).length;
-  const defenders = Object.keys(cr.defenders).length;
-
-  // DF "prima del passaggio Reaper" (stimato da perdite)
+  // 1) DF totale generato (da perdite)
   const df = computeDebrisFromCR(cr); // {m,c,d}
+  const dfTot = df.m + df.c + df.d;
 
-  // RR raccolto (somma di tutti i player)
+  // 2) RR raccolto
   const rrTotals = STATE.rr || {};
-  const rrSum = Object.values(rrTotals).reduce((a,v)=>({
+  const rr = Object.values(rrTotals).reduce((a,v)=>({
     m: a.m + (v.m||0),
     c: a.c + (v.c||0),
     d: a.d + (v.d||0)
   }), {m:0,c:0,d:0});
+  const rrTot = rr.m + rr.c + rr.d;
 
-  // Rimasto dopo RR
+  // 3) Rimasto (stimato)
   const left = {
-    m: df.m - rrSum.m,
-    c: df.c - rrSum.c,
-    d: df.d - rrSum.d
+    m: df.m - rr.m,
+    c: df.c - rr.c,
+    d: df.d - rr.d
   };
-
-  const dfTot = df.m + df.c + df.d;
-  const rrTot = rrSum.m + rrSum.c + rrSum.d;
   const leftTot = left.m + left.c + left.d;
 
   el.innerHTML = `
-    <div class="box"><div class="v">${cr.coords || '-'}</div><div class="l">Coordinate</div></div>
-    <div class="box"><div class="v">${attackers} / ${defenders}</div><div class="l">Attaccanti / Difensori</div></div>
-    <div class="box"><div class="v">${cr.moonChance!==null ? (cr.moonChance+'%') : '-'}</div><div class="l">Chance Luna</div></div>
+    <div class="box">
+      <div class="v">${fmt(dfTot)}</div>
+      <div class="l">DF totale (30%)</div>
+      <div class="mini">M ${fmt(df.m)} · C ${fmt(df.c)} · D ${fmt(df.d)}</div>
+    </div>
 
-    <div class="box"><div class="v">${fmt(df.m)}</div><div class="l">DF totale M (30%)</div></div>
-    <div class="box"><div class="v">${fmt(df.c)}</div><div class="l">DF totale C (30%)</div></div>
-    <div class="box"><div class="v">${fmt(df.d)}</div><div class="l">DF totale D (30%)</div></div>
+    <div class="box">
+      <div class="v">${fmt(rrTot)}</div>
+      <div class="l">RR raccolto</div>
+      <div class="mini">M ${fmt(rr.m)} · C ${fmt(rr.c)} · D ${fmt(rr.d)}</div>
+    </div>
 
-    <div class="box"><div class="v">${fmt(rrSum.m)}</div><div class="l">RR raccolto M</div></div>
-    <div class="box"><div class="v">${fmt(rrSum.c)}</div><div class="l">RR raccolto C</div></div>
-    <div class="box"><div class="v">${fmt(rrSum.d)}</div><div class="l">RR raccolto D</div></div>
-
-    <div class="box"><div class="v">${fmt(left.m)}</div><div class="l">DF rimasto M (stim.)</div></div>
-    <div class="box"><div class="v">${fmt(left.c)}</div><div class="l">DF rimasto C (stim.)</div></div>
-    <div class="box"><div class="v">${fmt(left.d)}</div><div class="l">DF rimasto D (stim.)</div></div>
-
-    <div class="box"><div class="v">${fmt(dfTot)}</div><div class="l">DF totale complessivo</div></div>
-    <div class="box"><div class="v">${fmt(rrTot)}</div><div class="l">RR complessivo</div></div>
-    <div class="box"><div class="v">${fmt(leftTot)}</div><div class="l">Rimasto complessivo (stim.)</div></div>
+    <div class="box">
+      <div class="v">${fmt(leftTot)}</div>
+      <div class="l">DF rimasto (stimato)</div>
+      <div class="mini">M ${fmt(left.m)} · C ${fmt(left.c)} · D ${fmt(left.d)}</div>
+    </div>
   `;
 }
 
