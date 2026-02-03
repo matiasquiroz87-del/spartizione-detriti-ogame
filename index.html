@@ -329,10 +329,12 @@ function parseCRText(text) {
 );
 
 if (dfLine) {
+  log(`DF float parsed: M=${out.df_float.m} C=${out.df_float.c} D=${out.df_float.d}`);
   out.df_float.m = parseNum(dfLine[2]);
   out.df_float.c = parseNum(dfLine[4]);
   out.df_float.d = parseNum(dfLine[6] || 0);
 }
+  
 
 
   // Split pre/post battle (robusto: "Dopo la battaglia..." può variare)
