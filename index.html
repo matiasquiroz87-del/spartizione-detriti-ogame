@@ -208,17 +208,50 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cf
 .logTab[open] summary{color:var(--text)}
 .logBoxWrap{padding:10px 12px}
 #logBox{min-height:220px}
+  
+/* ===================== LAYOUT STAGES ===================== */
+/* togliamo il margin-top che spinge giù quando cambia stage */
+.grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:0}
+@media (min-width:980px){ .grid{grid-template-columns:1fr 1fr;} }
 
-/* Centratura stage1 */
+/* Stage 1: SEMPRE 1 colonna e card centrata */
 #stage1{
-  min-height:calc(100vh - var(--header-h));
+  min-height: calc(100vh - var(--header-h));
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:24px 0;
+  padding: 24px 0;
 }
+#stage1 .grid{
+  grid-template-columns: 1fr !important;
+  width:100%;
+  max-width: 860px;
+  margin: 0 auto;
+  justify-items:center;
+}
+#stage1 .card{
+  width:100%;
+  max-width: 860px;
+}
+
+/* Se schermo basso e log aperto, evita tagli */
 @media (max-height:700px){
-  #stage1{align-items:flex-start;}
+  #stage1{ align-items:flex-start; }
+}
+
+/* Stage 2: sta in ALTO e “prende il posto” dello stage 1 */
+#stage2{
+  min-height: calc(100vh - var(--header-h));
+  display:flex;
+  align-items:flex-start;      /* in alto */
+  justify-content:center;      /* centrato orizzontale */
+  padding: 14px 0 24px;        /* stesso “respiro” */
+  width:100%;
+}
+#stage2 .grid{
+  width:100%;
+  max-width:1100px;            /* come .wrap */
+  margin:0 auto;
 }
 </style>
 </head>
@@ -361,7 +394,6 @@ function log(msg){
   if(el) el.textContent = LOG.join("\n");
 }
 
-/* ===================== STAGES ===================== */
 function showStage(id){
   const s1 = document.getElementById('stage1');
   const s2 = document.getElementById('stage2');
@@ -373,10 +405,19 @@ function showStage(id){
     s1.classList.remove('hidden','fadeout');
     return;
   }
+
+  // Fadeout stage1
   s1.classList.add('fadeout');
+
   setTimeout(()=>{
     s1.classList.add('hidden');
+
+    // Mostra stage2
     s2.classList.remove('hidden');
+
+    // IMPORTANTISSIMO: torna in alto così stage2 non resta "in basso"
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+
     requestAnimationFrame(()=>s2.classList.add('show'));
   },260);
 }
