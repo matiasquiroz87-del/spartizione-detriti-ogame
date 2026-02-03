@@ -85,17 +85,17 @@
   details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
   summary{cursor:pointer;color:var(--muted);font-weight:700}
   pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
-
   .ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
 
-  /* STAGES */
   .stage{opacity:1;transform:none;transition:opacity .28s ease, transform .28s ease}
   .stage.hidden{display:none}
   .stage.fadeout{opacity:0;transform:translateY(6px);pointer-events:none}
   .stage.fadein{opacity:0;transform:translateY(6px)}
   .stage.fadein.show{opacity:1;transform:none}
-
   .min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
+
+  /* ✅ CR textarea nascosto (ma resta nel DOM per il parser/share) */
+  .cr-hidden { display:none !important; }
 </style>
 </head>
 <body>
@@ -120,7 +120,7 @@
 
 <div class="wrap">
 
-  <!-- STAGE 1: CR + LOG -->
+  <!-- STAGE 1 -->
   <div id="stage1" class="stage">
     <div class="grid">
       <div class="card">
@@ -131,14 +131,15 @@
           <button id="btnLoadCRApi" type="button">Carica CR da API</button>
         </div>
 
-        <textarea id="crText" placeholder="Incolla il CR qui..."></textarea>
+        <!-- ✅ rimosso visivamente: textarea CR (resta nascosto per parser/share) -->
+        <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
 
         <div class="row" style="margin-top:10px">
           <button id="btnParseCR" type="button">Analizza CR</button>
         </div>
 
         <div class="mini" style="margin-top:8px">
-          Incolla o carica il CR. Dopo l’analisi compariranno RR e risultati.
+          Carica il CR da API e analizza. Dopo l’analisi compariranno RR e risultati.
         </div>
       </div>
 
@@ -149,7 +150,7 @@
     </div>
   </div>
 
-  <!-- STAGE 2: RR + RISULTATI (SENZA round finale) -->
+  <!-- STAGE 2 -->
   <div id="stage2" class="stage hidden fadein">
     <div class="grid">
       <div class="card">
@@ -466,23 +467,22 @@ function renderKPI(cr){
   if(!el) return;
   if(!cr){ el.innerHTML=""; return; }
 
-  const attackersCount=Object.keys(cr.attackers||{}).length;
-  const defendersCount=Object.keys(cr.defenders||{}).length;
-
   const dfNew=computeDebrisFromCR(cr);
 
   const rrTotals=STATE.rr||{};
   const rr=Object.values(rrTotals).reduce((a,v)=>({m:a.m+(v.m||0),c:a.c+(v.c||0),d:a.d+(v.d||0)}),{m:0,c:0,d:0});
   const dfLeft={m:dfNew.m-rr.m, c:dfNew.c-rr.c, d:dfNew.d-rr.d};
 
+  /* ✅ rimosso box Attaccanti/Difensori */
   el.innerHTML=`
-    <div class="box"><div class="v">${attackersCount} / ${defendersCount}</div><div class="l">Attaccanti / Difensori</div></div>
     <div class="box"><div class="v">${fmt(dfNew.m)}</div><div class="l">DF totale M (30%)</div></div>
     <div class="box"><div class="v">${fmt(dfNew.c)}</div><div class="l">DF totale C (30%)</div></div>
     <div class="box"><div class="v">${fmt(dfNew.d)}</div><div class="l">DF totale D (30%)</div></div>
+
     <div class="box"><div class="v">${fmt(rr.m)}</div><div class="l">RR raccolto M</div></div>
     <div class="box"><div class="v">${fmt(rr.c)}</div><div class="l">RR raccolto C</div></div>
     <div class="box"><div class="v">${fmt(rr.d)}</div><div class="l">RR raccolto D</div></div>
+
     <div class="box"><div class="v">${fmt(dfLeft.m)}</div><div class="l">DF rimasto M (stim.)</div></div>
     <div class="box"><div class="v">${fmt(dfLeft.c)}</div><div class="l">DF rimasto C (stim.)</div></div>
     <div class="box"><div class="v">${fmt(dfLeft.d)}</div><div class="l">DF rimasto D (stim.)</div></div>
@@ -585,11 +585,15 @@ document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("c
 document.getElementById("btnParseCR").addEventListener("click",()=>{
   try{
     const text=document.getElementById("crText").value || "";
+    if(!text.trim()){
+      log("⚠️ Nessun CR presente. Caricalo da API.");
+      return;
+    }
     const cr=parseCRText(text);
     STATE.cr=cr;
     renderKPI(cr);
     recomputeAndRender();
-    log(`✅ CR caricato. Attaccanti: ${Object.keys(cr.attackers).length} • Difensori: ${Object.keys(cr.defenders).length}`);
+    log(`✅ CR caricato e analizzato.`);
     showStage(2);
   }catch(e){
     log("❌ Errore parsing CR: " + (e?.message || e));
@@ -828,11 +832,11 @@ document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
     const raw=await fetchTextWithFallback(url,timeoutMs);
     const classic=parseNmaApiReaderToClassic(raw);
     if(!classic){
-      log("❌ CR API: non sono riuscito a convertire la pagina (manca sezione Initial/Round). Incolla manualmente il CR.");
+      log("❌ CR API: non sono riuscito a convertire la pagina (manca sezione Initial/Round).");
       return;
     }
-    document.getElementById("crText").value=classic;
-    log("✅ CR convertito (NoMoreAngel) incollato nel box. Ora analizzo...");
+    document.getElementById("crText").value=classic; // ✅ finisce nel textarea nascosto
+    log("✅ CR caricato da API. Ora analizzo...");
     document.getElementById("btnParseCR").click();
   }catch(e){
     log("❌ Errore fetch CR API: " + (e?.message || e));
@@ -916,7 +920,7 @@ function decodeShareState(b64){
 }
 function collectShareState(){
   return {
-    v: 3,
+    v: 4,
     crText:(document.getElementById("crText").value||"").trim(),
     proxyBase:(document.getElementById("proxyBase").value||"").trim(),
     timeoutMs:parseNum(document.getElementById("timeoutMs").value)||12000,
@@ -976,7 +980,7 @@ document.getElementById("btnShare").addEventListener("click", ()=>doShare());
   }
 })();
 
-log("Pronto. 1) Incolla/Carica CR e Analizza. 2) Inserisci RR. 3) Vedi risultati.");
+log("Pronto. 1) Carica CR da API e Analizza. 2) Inserisci RR. 3) Vedi risultati.");
 </script>
 </body>
 </html>
