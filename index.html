@@ -85,6 +85,34 @@
 
   /* textarea CR nascosto (ma serve per parser/share) */
   .cr-hidden { display:none !important; }
+  /* --- LOG come tab nascondibile sotto il CR --- */
+.logTab{
+  margin-top:12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(8,12,20,.25);
+  overflow:hidden;
+}
+.logTab summary{
+  cursor:pointer;
+  padding:10px 12px;
+  font-family:var(--font-title);
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  font-size:13px;
+  color:var(--muted);
+  background:rgba(16,26,46,.55);
+  user-select:none;
+}
+.logTab[open] summary{
+  color:var(--text);
+}
+.logBoxWrap{
+  padding:10px 12px;
+}
+#logBox{
+  min-height:220px; /* puoi aumentare/diminuire */
+}
 </style>
 </head>
 
@@ -110,31 +138,35 @@
 
 <div class="wrap">
 
-  <!-- STAGE 1 -->
-  <div id="stage1" class="stage">
-    <div class="grid">
-      <div class="card">
-        <h2 class="min-title">CR</h2>
+ <!-- STAGE 1 -->
+<div id="stage1" class="stage">
+  <div class="grid">
+    <div class="card">
+      <h2 class="min-title">CR</h2>
 
-        <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
-          <input id="crApiId" placeholder="API ID CR (es. cr-it-269-... oppure link api-reader)" style="flex:1; min-width:260px;">
-          <button id="btnLoadCRApi" type="button">Carica CR da API</button>
-        </div>
-
-        <!-- CR nascosto -->
-        <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
-
-        <div class="mini" style="margin-top:8px">
-          Premi “Carica CR da API”: il CR viene convertito e analizzato automaticamente.
-        </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+        <input id="crApiId" placeholder="API ID CR (es. cr-it-269-... oppure link api-reader)" style="flex:1; min-width:260px;">
+        <button id="btnLoadCRApi" type="button">Carica CR da API</button>
       </div>
 
-      <div class="card">
-        <h2 class="min-title">Log</h2>
-        <pre id="logBox" style="min-height:330px"></pre>
+      <!-- CR nascosto (serve alla logica) -->
+      <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
+
+      <div class="mini" style="margin-top:8px">
+        Premi “Carica CR da API”: il CR viene convertito e analizzato automaticamente.
       </div>
+
+      <!-- LOG sotto il lettore, tab nascondibile -->
+      <details class="logTab" id="logDetails">
+        <summary>Log</summary>
+        <div class="logBoxWrap">
+          <pre id="logBox"></pre>
+        </div>
+      </details>
+
     </div>
   </div>
+</div>
 
   <!-- STAGE 2 -->
   <div id="stage2" class="stage hidden fadein">
