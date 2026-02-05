@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+
 <style>
   :root{
     --bg:#050a10;
@@ -15,9 +16,12 @@
     --line:rgba(120,160,220,.25);
     --good:#39d98a;
     --bad:#ff5c5c;
+    --accent:rgba(88,166,255,.65);
+    --panel1:rgba(16,26,46,.80);
+    --panel2:rgba(14,23,40,.75);
     --font-ui:"Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
     --font-title:"Orbitron","Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
-    --header-h:72px; /* fallback */
+    --header-h:72px;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
@@ -44,81 +48,42 @@
   }
   .wrap{max-width:1100px;margin:0 auto;padding:14px;}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-  .title{display:flex;align-items:center;gap:10px;min-width:0;}
-  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
   h1{font-family:var(--font-title);font-size:16px;margin:0;letter-spacing:.8px;text-transform:uppercase}
   .badge{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:999px;background:rgba(16,26,46,.6)}
-
-  .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
-  @media (min-width:980px){ .grid{grid-template-columns:1fr 1fr;} }
+  .actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
 
   .card{
     border:1px solid var(--line);
-    background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));
+    background:linear-gradient(180deg,var(--panel1),var(--panel2));
     border-radius:16px;
-    padding:12px;
+    padding:14px;
     box-shadow:0 10px 30px rgba(0,0,0,.25);
   }
   .min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
-  .card h2{margin:0 0 8px 0;font-size:14px;color:var(--text)}
-
-  textarea,input,select{
+  .mini{font-size:12px;color:var(--muted)}
+  input,textarea{
     width:100%;
     background:rgba(8,12,20,.65);
     border:1px solid var(--line);
     color:var(--text);
     border-radius:12px;
     padding:10px;
-    font-size:13px;
+    font-size:14px;
     outline:none;
   }
-  textarea{min-height:240px;resize:vertical;line-height:1.25}
-
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .row > *{flex:1}
-
+  textarea{min-height:220px;resize:vertical;line-height:1.25}
   button{
-    border:1px solid rgba(88,166,255,.65);
+    border:1px solid var(--accent);
     background:rgba(88,166,255,.15);
     color:var(--text);
-    padding:9px 12px;
+    padding:10px 12px;
     border-radius:12px;
     cursor:pointer;
-    font-weight:600;
+    font-weight:700;
   }
   button:hover{background:rgba(88,166,255,.22)}
-  .ghost{border-color:var(--line);background:rgba(16,26,46,.5)}
+  .ghost{border-color:var(--line);background:rgba(16,26,46,.45)}
   .ghost:hover{background:rgba(16,26,46,.75)}
-
-  .mini{font-size:12px;color:var(--muted)}
-  .pill{
-    display:inline-flex;gap:8px;align-items:center;
-    border:1px solid var(--line);
-    border-radius:999px;
-    padding:6px 10px;
-    background:rgba(16,26,46,.5);
-  }
-  .pill input{width:auto}
-
-  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-  .kpi .box{border:1px solid var(--line);background:rgba(8,12,20,.35);border-radius:12px;padding:10px}
-  .kpi .box .v{font-size:14px;font-weight:800}
-  .kpi .box .l{font-size:12px;color:var(--muted)}
-
-  table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
-  th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
-  th{color:var(--muted);font-weight:700;background:rgba(16,26,46,.55)}
-  th:first-child,td:first-child{text-align:left}
-  tr:last-child td{border-bottom:none}
-  .good{color:var(--good)}
-  .bad{color:var(--bad)}
-
-  details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
-  summary{cursor:pointer;color:var(--muted);font-weight:700}
-
-  pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
-
-  .ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
 
   .stage{transition:opacity .28s ease, transform .28s ease}
   .stage.hidden{display:none}
@@ -126,10 +91,85 @@
   .stage.fadein{opacity:0;transform:translateY(6px)}
   .stage.fadein.show{opacity:1;transform:none}
 
-  /* CR textarea nascosto (serve al parser/share) */
+  /* ===== PAGE 1 centered ===== */
+  #stage1{
+    min-height:calc(100vh - var(--header-h));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px 0;
+  }
+  .page1Box{width:100%;max-width:680px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .row > *{flex:1}
+  .status{
+    width:38px;height:38px;display:grid;place-items:center;
+    border-radius:12px;border:1px solid var(--line);
+    background:rgba(8,12,20,.35);
+    font-family:var(--font-title);
+    font-weight:800;
+    user-select:none;
+  }
+  .status.good{border-color:rgba(57,217,138,.45);color:var(--good);background:rgba(57,217,138,.08)}
+  .status.bad{border-color:rgba(255,92,92,.45);color:var(--bad);background:rgba(255,92,92,.08)}
+  .status.neutral{color:var(--muted)}
   .cr-hidden{display:none !important;}
 
-  /* LOG tab */
+  /* ===== PAGE 2 layout ===== */
+  #stage2{padding-top:14px}
+  .grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:12px;
+    margin-top:12px;
+  }
+  @media(min-width:980px){ .grid{grid-template-columns:1fr 1fr;} }
+
+  .gainCard{
+    grid-column:1 / -1;
+    padding:16px;
+    border-radius:18px;
+    border:1px solid var(--line);
+    background:rgba(8,12,20,.35);
+  }
+  .gainTitle{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap
+  }
+  .gainTitle .t{
+    font-family:var(--font-title);
+    letter-spacing:.8px;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-size:12px;
+  }
+  .gainValue{
+    font-family:var(--font-title);
+    font-weight:900;
+    font-size:34px;
+    letter-spacing:.5px;
+    line-height:1.05;
+  }
+  .gainValue.good{color:var(--good)}
+  .gainValue.bad{color:var(--bad)}
+  .gainSub{
+    margin-top:8px;
+    display:flex;gap:12px;flex-wrap:wrap;
+    color:var(--muted);
+    font-size:13px;
+  }
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
+  th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
+  th{color:var(--muted);font-weight:800;background:rgba(16,26,46,.55)}
+  th:first-child,td:first-child{text-align:left}
+  tr:last-child td{border-bottom:none}
+  .good{color:var(--good)}
+  .bad{color:var(--bad)}
+  details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
+  summary{cursor:pointer;color:var(--muted);font-weight:800}
+  pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
+
   .logTab{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,12,20,.25);overflow:hidden}
   .logTab summary{
     cursor:pointer;
@@ -144,42 +184,7 @@
   }
   .logTab[open] summary{color:var(--text)}
   .logBoxWrap{padding:10px 12px}
-  #logBox{min-height:220px}
-
-  /* STAGE 1 centrato e SEMPRE a una colonna */
-  #stage1{
-    min-height:calc(100vh - var(--header-h));
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:24px 0;
-  }
-  #stage1 .grid{
-    grid-template-columns:1fr !important;
-    width:100%;
-    max-width:860px;
-    margin:0 auto;
-    justify-items:center;
-  }
-  #stage1 .card{width:100%;max-width:860px}
-  @media (max-height:700px){ #stage1{align-items:flex-start;} }
-
-  /* Selettore % detriti (stile "tasto") */
-  .dfCtl{
-    display:flex;gap:10px;align-items:center;flex-wrap:wrap;
-    margin-top:10px;
-  }
-  .dfCtl .lbl{min-width:160px}
-  .dfSelect{
-    max-width:180px;
-    appearance:none;
-    cursor:pointer;
-    font-weight:700;
-    text-align:center;
-    border:1px solid rgba(88,166,255,.65);
-    background:rgba(88,166,255,.12);
-  }
-  .dfSelect:hover{background:rgba(88,166,255,.18)}
+  #logBox{min-height:180px}
 </style>
 </head>
 
@@ -187,17 +192,12 @@
 <header>
   <div class="wrap">
     <div class="topbar">
-      <div class="title">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
         <h1>Spartizione Detriti OGame</h1>
-        <span class="badge">CR API + RR API • logica foglio di calcolo</span>
+        <span class="badge">CR API + RR API</span>
       </div>
       <div class="actions">
-        <button class="ghost" id="btnShare" type="button" title="Copia un link con la configurazione">
-          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M18 16a3 3 0 0 0-2.24 1.02L8.91 13.7a3.2 3.2 0 0 0 0-3.4l6.85-3.32A3 3 0 1 0 15 5a2.98 2.98 0 0 0 .07.63L8.22 8.95A3 3 0 1 0 9 12a2.98 2.98 0 0 0-.07-.63l6.85 3.32A3 3 0 1 0 18 16Z"/>
-          </svg>
-          Condividi
-        </button>
+        <button class="ghost" id="btnShare" type="button">Condividi</button>
       </div>
     </div>
   </div>
@@ -205,45 +205,55 @@
 
 <div class="wrap">
 
-  <!-- STAGE 1 -->
+  <!-- ===== PAGE 1: CR ===== -->
   <div id="stage1" class="stage">
-    <div class="grid">
+    <div class="page1Box">
       <div class="card">
-        <h2 class="min-title">CR</h2>
+        <div class="min-title" style="margin-bottom:10px">Carica CR</div>
 
-        <div class="row" style="gap:8px; align-items:center; margin-bottom:10px;">
-          <input id="crApiId" placeholder="API ID CR (es. cr-it-269-... oppure link api-reader)" style="flex:1; min-width:260px;">
-          <button id="btnLoadCRApi" type="button">Carica CR da API</button>
+        <div class="row" style="margin-bottom:10px">
+          <input id="crApiId" placeholder="API ID CR (es. cr-it-254-... oppure link api-reader)" style="min-width:260px">
+          <button id="btnLoadCRApi" type="button">Carica</button>
+          <div id="crStatus" class="status neutral" title="Stato">…</div>
         </div>
 
-        <!-- CR nascosto -->
+        <div class="mini">
+          Se il CR viene letto correttamente vedrai una ✅ verde e passerai automaticamente alla pagina RR/Risultati.
+        </div>
+
+        <!-- CR nascosto (serve al parser) -->
         <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
 
-        <div class="mini">Premi “Carica CR da API”: il CR viene convertito e analizzato automaticamente.</div>
-
-        <!-- LOG -->
         <details class="logTab" id="logDetails">
           <summary>Log</summary>
-          <div class="logBoxWrap">
-            <pre id="logBox"></pre>
-          </div>
+          <div class="logBoxWrap"><pre id="logBox"></pre></div>
         </details>
       </div>
     </div>
   </div>
 
-  <!-- STAGE 2 -->
+  <!-- ===== PAGE 2: RR + RESULTS ===== -->
   <div id="stage2" class="stage hidden fadein">
     <div class="grid">
+
+      <div class="gainCard">
+        <div class="gainTitle">
+          <div class="t">GAIN (totale RR - perdite)</div>
+          <div class="mini" id="gainMeta">—</div>
+        </div>
+        <div id="gainValue" class="gainValue">—</div>
+        <div id="gainSub" class="gainSub"></div>
+      </div>
+
       <div class="card">
-        <h2 class="min-title">RR + Spartizione</h2>
+        <div class="min-title">RR (API) + Spartizione</div>
 
         <input id="proxyBase" type="hidden" value="https://ogame-api-proxy.matiasquiroz87.workers.dev/?apiid=" />
         <input id="timeoutMs" type="hidden" value="12000" />
 
-        <div style="margin-top:8px">
-          <label class="mini">Inserisci uno o più RR apiid (uno per riga)</label>
-          <textarea id="rrIds" placeholder="rr-it-269-...."></textarea>
+        <div style="margin-top:10px">
+          <div class="mini">Inserisci uno o più RR apiid (uno per riga)</div>
+          <textarea id="rrIds" placeholder="rr-it-... (uno per riga)"></textarea>
         </div>
 
         <div class="row" style="margin-top:10px">
@@ -252,19 +262,22 @@
         </div>
 
         <div class="row" style="margin-top:10px">
-          <label class="pill"><input type="radio" name="mode" value="paritaria" checked> Paritaria</label>
-          <label class="pill"><input type="radio" name="mode" value="equa"> Equa (peso flotta in campo)</label>
+          <label class="mini" style="display:flex;gap:8px;align-items:center">
+            <input type="radio" name="mode" value="paritaria" checked> Paritaria
+          </label>
+          <label class="mini" style="display:flex;gap:8px;align-items:center">
+            <input type="radio" name="mode" value="equa"> Equa (peso flotta in campo)
+          </label>
         </div>
 
-        <div class="kpi" id="kpiCR"></div>
-
-        <details style="margin-top:10px">
+        <details style="margin-top:10px" open>
           <summary>Raccolte lette (RR)</summary>
           <div id="rrTable" style="margin-top:8px"></div>
-          <details style="margin-top:10px">
-            <summary>Dettagli RR (debug)</summary>
-            <pre id="rrRaw"></pre>
-          </details>
+        </details>
+
+        <details style="margin-top:10px">
+          <summary>Debug RR</summary>
+          <pre id="rrRaw"></pre>
         </details>
 
         <div class="row" style="margin-top:10px">
@@ -273,17 +286,18 @@
       </div>
 
       <div class="card">
-        <h2 class="min-title">Risultati</h2>
-        <div style="margin-top:10px" id="resultsTables"></div>
+        <div class="min-title">Risultati</div>
+        <div id="resultsTables" style="margin-top:10px"></div>
 
         <details style="margin-top:12px" open>
-          <summary>Trasporti finali suggeriti</summary>
+          <summary>Trasporti suggeriti</summary>
           <div class="mini" style="margin-top:8px">
-            Elenco di trasferimenti minimi tra chi deve inviare (negativo) e chi deve ricevere (positivo).
+            Trasferimenti minimi tra chi deve inviare (negativo) e chi deve ricevere (positivo).
           </div>
-          <div id="transports"></div>
+          <div id="transports" style="margin-top:10px"></div>
         </details>
       </div>
+
     </div>
   </div>
 
@@ -291,12 +305,12 @@
 
 <script>
 /* ===================== CONFIG ===================== */
-  const INCLUDE_LOOT = false; // ❌ NON considerare bottino saccheggiato
+const INCLUDE_LOOT = false; // richiesto: NON considerare bottino
 const COSTS = {"Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],"Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],"Incrociatore da Battaglia":[30000,40000,15000],"Reaper":[85000,55000,20000],"Pathfinder":[8000,15000,8000],"Riciclatrice":[10000,6000,2000],"Colonizzatrice":[10000,20000,10000],"Sonda spia":[0,1000,0],"Satellite Solare":[0,2000,500],"Crawler":[2000,2000,1000],"Morte Nera":[5000000,4000000,1000000],"Lanciamissili":[2000,0,0],"Laser leggero":[1500,500,0],"Laser pesante":[6000,2000,0],"Cannone Gauss":[20000,15000,2000],"Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]};
-const DF_ALLOWED = new Set(["Cargo leggero","Cargo Pesante","Caccia Leggero","Caccia Pesante","Incrociatore","Nave da battaglia","Bombardiere","Corazzata","Incrociatore da Battaglia","Morte Nera","Reaper","Pathfinder","Colonizzatrice","Riciclatrice","Sonda spia","Crawler","Satellite Solare"]);
+const DF_ALLOWED = new Set(["Cargo leggero","Cargo Pesante","Caccia Leggero","Caccia Pesante","Incrociatore","Nave da battaglia","Bombardiere","Corazzata","Incrociatore da Battaglia","Morte Nera","Reaper","Pathfinder","Colonizzatrice","Riciclatrice","Sonda spia","Crawler","Satellite Solare"]); // non usato per DF ora, ma lasciato per compatibilità
 
 /* ===================== UTILS ===================== */
-function fmt(n){ if(n===null||n===undefined||isNaN(n)) return "-"; return Math.round(n).toLocaleString("it-IT"); }
+function fmt(n){ if(n===null||n===undefined||isNaN(n)) return "—"; return Math.round(n).toLocaleString("it-IT"); }
 function parseNum(str){
   if(str===null||str===undefined) return 0;
   const s = String(str).replace(/\./g,"").replace(/,/g,"").replace(/\s+/g,"").trim();
@@ -311,6 +325,13 @@ function log(msg){
   const el = document.getElementById("logBox");
   if(el) el.textContent = LOG.join("\n");
 }
+function setCRStatus(kind, text){
+  const el=document.getElementById("crStatus");
+  if(!el) return;
+  el.classList.remove("good","bad","neutral");
+  el.classList.add(kind);
+  el.textContent = text;
+}
 
 /* ===================== HEADER HEIGHT (centro stage1) ===================== */
 function syncHeaderHeight(){
@@ -322,45 +343,34 @@ syncHeaderHeight();
 
 /* ===================== STAGES ===================== */
 function showStage(id){
-  const s1=document.getElementById('stage1');
-  const s2=document.getElementById('stage2');
+  const s1=document.getElementById("stage1");
+  const s2=document.getElementById("stage2");
   if(!s1||!s2) return;
 
   if(id===1){
-    s2.classList.remove('show');
-    s2.classList.add('hidden');
-    s1.classList.remove('hidden','fadeout');
+    s2.classList.remove("show");
+    s2.classList.add("hidden");
+    s1.classList.remove("hidden","fadeout");
     window.scrollTo({top:0,behavior:"instant"});
     return;
   }
-  s1.classList.add('fadeout');
+  s1.classList.add("fadeout");
   setTimeout(()=>{
-    s1.classList.add('hidden');
-    s2.classList.remove('hidden');
+    s1.classList.add("hidden");
+    s2.classList.remove("hidden");
     requestAnimationFrame(()=>{
-      s2.classList.add('show');
+      s2.classList.add("show");
       window.scrollTo({top:0,behavior:"instant"});
     });
   },260);
 }
 
 /* ===================== STATE ===================== */
-const STATE = {
-  cr:null,
-  rr:{},
-};
-function getDfRate(){ return (STATE.dfPct||30)/100; }
+const STATE = { cr:null, rr:{} };
 
 /* ===================== CR PARSER ===================== */
 function parseCRText(text){
-  const out = {
-    attackers:{},
-    defenders:{},
-    coords:null,
-    loot:{m:0,c:0,d:0},
-    df_float:{m:0,c:0,d:0},
-    moonChance:null
-  };
+  const out = { attackers:{}, defenders:{}, coords:null, loot:{m:0,c:0,d:0}, df_float:{m:0,c:0,d:0}, moonChance:null };
 
   const coordM = text.match(/\b\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/);
   if(coordM) out.coords = (coordM[1]||coordM[2]||null);
@@ -368,25 +378,15 @@ function parseCRText(text){
   const moonM = text.match(/possibilit[aà].*?luna.*?(\d+)%/i);
   if(moonM) out.moonChance = parseNum(moonM[1]);
 
-  // Loot (bottino)
   const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
   if(lootM){
-    out.loot.m = parseNum(lootM[1]);
-    out.loot.c = parseNum(lootM[2]);
-    out.loot.d = parseNum(lootM[3]);
+    out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]);
   }
+  if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
 
-  // Se NON vuoi includere il loot in nessun calcolo, lo azzeri qui
-  if(!INCLUDE_LOOT){
-    out.loot = {m:0,c:0,d:0};
-  }
-
-  // DF float (solo info letta dal CR, non obbligatoria per i calcoli)
   const dfLine = text.match(/(At these space coordinates now float|Alle coordinate.*fluttuano|A queste coordinate.*fluttuano)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)/i);
   if(dfLine){
-    out.df_float.m = parseNum(dfLine[2]);
-    out.df_float.c = parseNum(dfLine[3]);
-    out.df_float.d = parseNum(dfLine[4]);
+    out.df_float.m=parseNum(dfLine[2]); out.df_float.c=parseNum(dfLine[3]); out.df_float.d=parseNum(dfLine[4]);
   }
 
   let pre=text, post="";
@@ -395,7 +395,7 @@ function parseCRText(text){
 
   function parseSideBlocks(blockText, phase){
     const lines=blockText.split(/\r?\n/);
-    let current=null, currentSide=null;
+    let current=null;
 
     for(const raw of lines){
       const line=raw.trim();
@@ -403,17 +403,14 @@ function parseCRText(text){
 
       const h=line.match(/^(Attaccante|Difensore)\s+(.+?)\s+\[(.+?)\]\s*$/i);
       if(h){
-        currentSide=h[1].toLowerCase().startsWith("att")?"att":"def";
+        const side=h[1].toLowerCase().startsWith("att")?"att":"def";
         const name=h[2].trim(), tag=h[3].trim();
-
-        if(currentSide==="att"){
+        if(side==="att"){
           if(!out.attackers[name]) out.attackers[name]={tag,initial:{},final:{}};
-          out.attackers[name].tag=tag;
-          current=out.attackers[name];
+          out.attackers[name].tag=tag; current=out.attackers[name];
         }else{
           if(!out.defenders[name]) out.defenders[name]={tag,initial:{},final:{}};
-          out.defenders[name].tag=tag;
-          current=out.defenders[name];
+          out.defenders[name].tag=tag; current=out.defenders[name];
         }
         continue;
       }
@@ -435,41 +432,15 @@ function parseCRText(text){
   parseSideBlocks(pre,"initial");
   if(post) parseSideBlocks(post,"final");
 
-  // Se manca la parte "Dopo la battaglia", consideriamo final = initial per gli attaccanti
+  // se final mancante, copia initial (evita perdite fantasma)
   Object.values(out.attackers).forEach(p=>{
-    if(!p.final || Object.keys(p.final).length===0){
-      p.final = JSON.parse(JSON.stringify(p.initial));
-    }
+    if(!p.final || Object.keys(p.final).length===0) p.final=JSON.parse(JSON.stringify(p.initial));
   });
 
   return out;
 }
 
-function computeDebrisFromCR(cr){
-  const rate = getDfRate(); // ✅ usa % selezionata
-  const sum={m:0,c:0,d:0};
-  function add(sideObj){
-    for(const p of Object.values(sideObj||{})){
-      const ini=p.initial||{};
-      const fin=(p.final && Object.keys(p.final).length)?p.final:{};
-      const ships=new Set([...Object.keys(ini),...Object.keys(fin)]);
-      for(const ship of ships){
-        const lost=Math.max(0,(ini[ship]||0)-(fin[ship]||0));
-        if(!lost) continue;
-        const cost=COSTS[ship];
-        if(!cost) continue;
-        if(!DF_ALLOWED.has(ship)) continue;
-        sum.m += cost[0]*lost*rate;
-        sum.c += cost[1]*lost*rate;
-        sum.d += cost[2]*lost*rate;
-      }
-    }
-  }
-  add(cr.attackers); add(cr.defenders);
-  return sum;
-}
-
-/* ===================== SHEET LOGIC ===================== */
+/* ===================== SHEET LOGIC (perdite & gain) ===================== */
 function computeFromSheetLogic(cr, rrTotals, mode){
   const players=Object.keys(cr.attackers);
   const n=players.length||1;
@@ -498,20 +469,11 @@ function computeFromSheetLogic(cr, rrTotals, mode){
   });
 
   const totLoss=players.reduce((a,nm)=>({m:a.m+losses[nm].m,c:a.c+losses[nm].c,d:a.d+losses[nm].d}),{m:0,c:0,d:0});
-  const totRec=players.reduce((a,nm)=>{const r=rrTotals[nm]||{m:0,c:0,d:0};return {m:a.m+r.m,c:a.c+r.c,d:a.d+r.d};},{m:0,c:0,d:0});
-  const totRecSum = totRec.m + totRec.c + totRec.d;
-if (totRecSum <= 0) {
-  const quota = {};
-  players.forEach(nm => {
-    quota[nm] = {
-      m: 0, c: 0, d: 0,
-      w: (mode === "paritaria") ? 1/n : 0,
-      lost: losses[nm],
-      rec: rrTotals[nm] || { m:0,c:0,d:0 }
-    };
-  });
-  return { players, totLoss, totRec, gain:{m:0,c:0,d:0}, quota };
-}
+  const totRec=players.reduce((a,nm)=>{
+    const r=rrTotals[nm]||{m:0,c:0,d:0};
+    return {m:a.m+r.m,c:a.c+r.c,d:a.d+r.d};
+  },{m:0,c:0,d:0});
+
   const gain={m:totRec.m-totLoss.m,c:totRec.c-totLoss.c,d:totRec.d-totLoss.d};
 
   const weights={};
@@ -557,37 +519,7 @@ function buildTransfers(players, quota, resKey){
   return moves;
 }
 
-/* ===================== RENDER ===================== */
-function renderKPI(cr){
-  const el = document.getElementById("kpiCR");
-  if(!el) return;
-
-  const rrTotals = STATE.rr || {};
-  const rr = Object.values(rrTotals).reduce(
-    (a,v)=>({
-      m:a.m+(v.m||0),
-      c:a.c+(v.c||0),
-      d:a.d+(v.d||0)
-    }),
-    {m:0,c:0,d:0}
-  );
-
-  el.innerHTML = `
-    <div class="box">
-      <div class="v">${fmt(rr.m)}</div>
-      <div class="l">RR raccolto Metallo</div>
-    </div>
-    <div class="box">
-      <div class="v">${fmt(rr.c)}</div>
-      <div class="l">RR raccolto Cristallo</div>
-    </div>
-    <div class="box">
-      <div class="v">${fmt(rr.d)}</div>
-      <div class="l">RR raccolto Deuterio</div>
-    </div>
-  `;
-}
-
+/* ===================== RENDER (GAIN + TABLES) ===================== */
 function renderRRTable(rrTotals){
   const el=document.getElementById("rrTable");
   if(!el) return;
@@ -597,33 +529,62 @@ function renderRRTable(rrTotals){
   el.innerHTML=`<table><thead><tr><th>Giocatore</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>RR</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-function renderResults(computed){
-  const {players,totLoss,totRec,gain,quota}=computed;
+function renderGain(computed){
+  const {totLoss,totRec,gain} = computed;
+  const gv = document.getElementById("gainValue");
+  const meta = document.getElementById("gainMeta");
+  const sub = document.getElementById("gainSub");
+  if(!gv||!meta||!sub) return;
+
+  const gainTot = (gain.m||0)+(gain.c||0)+(gain.d||0);
+  gv.classList.remove("good","bad");
+  gv.classList.add(gainTot>=0 ? "good" : "bad");
+  gv.textContent = fmt(gainTot);
+
+  meta.textContent = `RR: ${fmt(totRec.m)}/${fmt(totRec.c)}/${fmt(totRec.d)} • Perdite: ${fmt(totLoss.m)}/${fmt(totLoss.c)}/${fmt(totLoss.d)}`;
+  sub.innerHTML = `<span>Gain M: <b class="${gain.m>=0?'good':'bad'}">${fmt(gain.m)}</b></span>
+                   <span>Gain C: <b class="${gain.c>=0?'good':'bad'}">${fmt(gain.c)}</b></span>
+                   <span>Gain D: <b class="${gain.d>=0?'good':'bad'}">${fmt(gain.d)}</b></span>`;
+}
+
+function renderResultsOrHint(computed){
+  const el=document.getElementById("resultsTables");
+  const tr=document.getElementById("transports");
+  if(!el||!tr) return;
+
+  const {players,totRec,totLoss,gain,quota} = computed;
+  const recTot = (totRec.m||0)+(totRec.c||0)+(totRec.d||0);
+
+  // se non ci sono RR -> niente quote/trasporti (evita “quote positive” senza dati)
+  if(recTot < 1){
+    el.innerHTML = `
+      <div class="mini">
+        Nessun RR caricato: inserisci e carica almeno un RR per calcolare quote e trasporti.
+      </div>`;
+    tr.innerHTML = `<div class="mini">Trasporti non calcolabili senza RR.</div>`;
+    return;
+  }
 
   const header=`
-    <div class="kpi">
-      <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
-      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite totali (M/C/D)</div></div>
-      <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain da dividere (M/C/D)</div></div>
+    <div class="mini">
+      Riciclato totale: <b>${fmt(totRec.m)}/${fmt(totRec.c)}/${fmt(totRec.d)}</b> •
+      Perdite totali: <b>${fmt(totLoss.m)}/${fmt(totLoss.c)}/${fmt(totLoss.d)}</b>
     </div>`;
 
   const rows=players.map(p=>{
     const q=quota[p];
-    const mClass=q.m>=0?"good":"bad";
-    const cClass=q.c>=0?"good":"bad";
-    const dClass=q.d>=0?"good":"bad";
     return `
       <tr>
         <td>${p} <span class="mini">[${(q.w*100).toFixed(2)}%]</span></td>
         <td>${fmt(q.lost.m)}</td><td>${fmt(q.lost.c)}</td><td>${fmt(q.lost.d)}</td>
         <td>${fmt(q.rec.m)}</td><td>${fmt(q.rec.c)}</td><td>${fmt(q.rec.d)}</td>
-        <td class="${mClass}">${fmt(q.m)}</td>
-        <td class="${cClass}">${fmt(q.c)}</td>
-        <td class="${dClass}">${fmt(q.d)}</td>
+        <td class="${q.m>=0?'good':'bad'}">${fmt(q.m)}</td>
+        <td class="${q.c>=0?'good':'bad'}">${fmt(q.c)}</td>
+        <td class="${q.d>=0?'good':'bad'}">${fmt(q.d)}</td>
       </tr>`;
   }).join("");
 
-  const table=`
+  el.innerHTML = header + `
     <table style="margin-top:10px">
       <thead>
         <tr>
@@ -635,9 +596,8 @@ function renderResults(computed){
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="mini" style="margin-top:8px">Quota positiva = deve ricevere. Quota negativa = deve inviare.</div>`;
-
-  document.getElementById("resultsTables").innerHTML = header + table;
+    <div class="mini" style="margin-top:8px">Quota positiva = deve ricevere. Quota negativa = deve inviare.</div>
+  `;
 
   const mt=buildTransfers(players,quota,"m");
   const ct=buildTransfers(players,quota,"c");
@@ -646,58 +606,29 @@ function renderResults(computed){
   function renderMoveList(label,moves){
     if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato).</div>`;
     const r=moves.map(m=>`<tr><td>${m.from}</td><td>${m.to}</td><td>${fmt(m.amount)}</td></tr>`).join("");
-    return `<div style="margin-top:10px"><div class="mini" style="margin:6px 0"><b>${label}</b></div><table><thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead><tbody>${r}</tbody></table></div>`;
+    return `<div style="margin-top:10px">
+      <div class="mini" style="margin:6px 0"><b>${label}</b></div>
+      <table><thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead><tbody>${r}</tbody></table>
+    </div>`;
   }
-  document.getElementById("transports").innerHTML =
-    renderMoveList("Metallo",mt) + renderMoveList("Cristallo",ct) + renderMoveList("Deuterio",dt);
+  tr.innerHTML = renderMoveList("Metallo",mt) + renderMoveList("Cristallo",ct) + renderMoveList("Deuterio",dt);
 }
 
 function recomputeAndRender(){
-  if(!STATE.cr) return;
+  if(!STATE.cr){ return; }
   const mode=document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
-  renderResults(computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode));
+  const computed = computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode);
+  renderGain(computed);
+  renderRRTable(STATE.rr);
+  renderResultsOrHint(computed);
 }
 
 document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",()=>{
-  log("Modalità: " + document.querySelector('input[name="mode"]:checked').value);
+  log("Modalità: " + (document.querySelector('input[name="mode"]:checked')?.value||"paritaria"));
   recomputeAndRender();
 }));
 
-function analyzeCurrentCR(){
-  const text=document.getElementById("crText").value || "";
-  if(!text.trim()){ log("⚠️ Nessun CR presente. Caricalo da API."); return; }
-  const cr=parseCRText(text);
-  STATE.cr=cr;
-  renderKPI(cr);
-  recomputeAndRender();
-  log("✅ CR caricato e analizzato.");
-  showStage(2);
-}
-
-/* ===================== BACK ===================== */
-document.getElementById("btnBack").addEventListener("click",()=>showStage(1));
-
-/* ===================== FETCH HELPERS ===================== */
-function abortableFetch(url, timeoutMs){
-  const controller=new AbortController();
-  const id=setTimeout(()=>controller.abort(), timeoutMs);
-  return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(id));
-}
-async function fetchTextWithFallback(url, timeoutMs=12000){
-  try{
-    const res=await abortableFetch(url,timeoutMs);
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    return await res.text();
-  }catch(e1){
-    const clean=String(url).replace(/^https?:\/\//i,"");
-    const jinaUrl="https://r.jina.ai/http://" + clean;
-    const res2=await abortableFetch(jinaUrl,timeoutMs);
-    if(!res2.ok) throw new Error("HTTP "+res2.status);
-    return await res2.text();
-  }
-}
-
-/* ===================== NMA → CLASSICO ===================== */
+/* ===================== NMA → CLASSICO (CR) ===================== */
 const shipNameMapEN2IT = {
   "Small Cargo":"Cargo leggero","Large Cargo":"Cargo Pesante","Light Fighter":"Caccia Leggero","Heavy Fighter":"Caccia Pesante",
   "Cruiser":"Incrociatore","Battleship":"Nave da battaglia","Colony Ship":"Colonizzatrice","Recycler":"Riciclatrice",
@@ -842,32 +773,80 @@ function parseNmaApiReaderToClassic(raw){
   if(dfM||dfC||dfD){
     lines.push(`At these space coordinates now float ${dfM||"0"} metal, ${dfC||"0"} crystal and ${dfD||"0"} deuterium.`);
   }
-
   return lines.join("\n");
 }
 
-/* ===================== CR API LOADER ===================== */
+/* ===================== FETCH HELPERS ===================== */
+function abortableFetch(url, timeoutMs){
+  const controller=new AbortController();
+  const id=setTimeout(()=>controller.abort(), timeoutMs);
+  return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(id));
+}
+async function fetchTextWithFallback(url, timeoutMs=12000){
+  try{
+    const res=await abortableFetch(url,timeoutMs);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.text();
+  }catch(e1){
+    const clean=String(url).replace(/^https?:\/\//i,"");
+    const jinaUrl="https://r.jina.ai/http://" + clean;
+    const res2=await abortableFetch(jinaUrl,timeoutMs);
+    if(!res2.ok) throw new Error("HTTP "+res2.status);
+    return await res2.text();
+  }
+}
+
+/* ===================== CR LOAD FLOW ===================== */
+function analyzeCurrentCR(){
+  const text=document.getElementById("crText").value || "";
+  if(!text.trim()) throw new Error("CR vuoto");
+  const cr=parseCRText(text);
+  STATE.cr=cr;
+
+  // reset RR (opzionale: se preferisci mantenerli, togli queste 2 righe)
+  // STATE.rr={};
+  // document.getElementById("rrIds").value="";
+
+  recomputeAndRender();
+}
+
 document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
   const apiId=(document.getElementById("crApiId").value||"").trim();
-  if(!apiId){ log("⚠️ Inserisci un API ID CR."); return; }
-  const timeoutMs=parseNum(document.getElementById("timeoutMs")?.value)||15000;
+  if(!apiId){ log("⚠️ Inserisci un API ID CR."); setCRStatus("bad","✖"); return; }
 
+  setCRStatus("neutral","…");
+  log(`CR API: richiesta per ${apiId}...`);
+
+  const timeoutMs=parseNum(document.getElementById("timeoutMs")?.value)||15000;
   const url = /^https?:\/\//i.test(apiId)
     ? apiId
     : `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
 
-  log(`CR API: richiesta NoMoreAngel per ${apiId}...`);
   try{
     const raw=await fetchTextWithFallback(url,timeoutMs);
     const classic=parseNmaApiReaderToClassic(raw);
-    if(!classic){ log("❌ CR API: non sono riuscito a convertire la pagina (manca Initial/Round)."); return; }
+    if(!classic){
+      setCRStatus("bad","✖");
+      log("❌ CR: conversione fallita (manca Initial/Round).");
+      return;
+    }
     document.getElementById("crText").value=classic;
-    log("✅ CR caricato da API. Analizzo...");
+
+    // prova analisi
     analyzeCurrentCR();
+
+    // ok -> check verde + passa pagina 2
+    setCRStatus("good","✓");
+    log("✅ CR letto correttamente. Passo alla pagina RR/Risultati.");
+    setTimeout(()=>showStage(2), 220);
+
   }catch(e){
-    log("❌ Errore fetch CR API: " + (e?.message || e));
+    setCRStatus("bad","✖");
+    log("❌ Errore fetch CR: " + (e?.message || e));
   }
 });
+
+document.getElementById("btnBack").addEventListener("click", ()=>showStage(1));
 
 /* ===================== RR ===================== */
 function extractPre(html){
@@ -887,6 +866,8 @@ function parseRRFromPre(pre){
 }
 
 document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
+  if(!STATE.cr){ log("⚠️ Prima carica un CR."); return; }
+
   const base=(document.getElementById("proxyBase").value||"").trim();
   const timeoutMs=parseNum(document.getElementById("timeoutMs").value)||12000;
   const ids=(document.getElementById("rrIds").value||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -917,17 +898,13 @@ document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
     }
   }
   document.getElementById("rrRaw").textContent = rawLog.join("\n\n");
-  renderRRTable(STATE.rr);
-  renderKPI(STATE.cr);
   recomputeAndRender();
 });
 
 document.getElementById("btnClearRR").addEventListener("click", ()=>{
   STATE.rr={};
   document.getElementById("rrRaw").textContent="";
-  renderRRTable(STATE.rr);
   recomputeAndRender();
-  renderKPI(STATE.cr);
   log("RR puliti.");
 });
 
@@ -944,41 +921,30 @@ function decodeShareState(b64){
 }
 function collectShareState(){
   return {
-    v: 6,
+    v: 7,
     crText:(document.getElementById("crText").value||"").trim(),
-    proxyBase:(document.getElementById("proxyBase").value||"").trim(),
-    timeoutMs:parseNum(document.getElementById("timeoutMs").value)||12000,
     rrIds:(document.getElementById("rrIds").value||"").trim(),
-    rrTotals: STATE.rr || {},
-    dfPct: STATE.dfPct || 30
+    rrTotals: STATE.rr || {}
   };
 }
 function applyShareState(st){
   if(!st || typeof st!=="object") return;
-
-  if(typeof st.proxyBase==="string" && st.proxyBase.trim()) document.getElementById("proxyBase").value=st.proxyBase.trim();
-  if(st.timeoutMs) document.getElementById("timeoutMs").value=String(st.timeoutMs);
-  if(typeof st.rrIds==="string") document.getElementById("rrIds").value=st.rrIds;
   if(typeof st.crText==="string") document.getElementById("crText").value=st.crText;
-
-  if(st.dfPct){
-    STATE.dfPct = Math.min(80, Math.max(20, parseInt(st.dfPct,10)||30));
-    const sel=document.getElementById("dfPct");
-    const hint=document.getElementById("dfPctHint");
-    if(sel) sel.value=String(STATE.dfPct);
-    if(hint) hint.textContent=`Attuale: ${STATE.dfPct}%`;
-  }
-
-  if(st.rrTotals && typeof st.rrTotals==="object" && Object.keys(st.rrTotals).length){
-    STATE.rr=st.rrTotals;
-    renderRRTable(STATE.rr);
-  }
+  if(typeof st.rrIds==="string") document.getElementById("rrIds").value=st.rrIds;
+  if(st.rrTotals && typeof st.rrTotals==="object") STATE.rr=st.rrTotals;
 
   if((document.getElementById("crText").value||"").trim()){
-    try{ analyzeCurrentCR(); }catch(e){ log("Errore analisi CR da link: "+(e?.message||e)); }
+    try{
+      analyzeCurrentCR();
+      setCRStatus("good","✓");
+      showStage(2);
+      log("🔗 Stato caricato dal link.");
+    }catch(e){
+      setCRStatus("bad","✖");
+      log("⚠️ Stato link: CR non valido ("+(e?.message||e)+")");
+    }
   }
   recomputeAndRender();
-  renderKPI(STATE.cr);
 }
 function shareLink(){
   const token=encodeShareState(collectShareState());
@@ -986,13 +952,6 @@ function shareLink(){
 }
 async function doShare(){
   const url=shareLink();
-  try{
-    if(navigator.share){
-      await navigator.share({title:"Spartizione Detriti OGame", text:"Link con CR/RR precompilati", url});
-      log("✅ Link condiviso.");
-      return;
-    }
-  }catch(e){}
   try{
     await navigator.clipboard.writeText(url);
     log("✅ Link copiato negli appunti.");
@@ -1006,15 +965,14 @@ document.getElementById("btnShare").addEventListener("click", ()=>doShare());
 (() => {
   const m=(location.hash||"").match(/#s=([A-Za-z0-9\-_]+)/);
   if(!m) return;
-  try{
-    applyShareState(decodeShareState(m[1]));
-    log("🔗 Stato caricato dal link.");
-  }catch(e){
+  try{ applyShareState(decodeShareState(m[1])); }catch(e){
     log("⚠️ Hash di condivisione non valido: " + (e?.message || e));
   }
 })();
 
-log("Pronto. 1) Carica CR da API. 2) Seleziona % detriti (20–80). 3) Inserisci RR. 4) Vedi risultati.");
+/* init */
+setCRStatus("neutral","…");
+log("Pronto. 1) Inserisci CR apiid 2) Carica 3) Poi RR e risultati.");
 </script>
 </body>
 </html>
