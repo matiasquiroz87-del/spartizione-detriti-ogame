@@ -9,250 +9,226 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
-:root{
-  --bg:#050a10;
-  --text:#dbe7ff;
-  --muted:#93a6c7;
-  --line:rgba(120,160,220,.25);
-  --accent:#4da3ff;
-  --good:#39d98a;
-  --bad:#ff5c5c;
+  :root{
+    --bg:#050a10;
+    --text:#dbe7ff;
+    --muted:#93a6c7;
+    --line:rgba(120,160,220,.25);
+    --good:#39d98a;
+    --bad:#ff5c5c;
+    --font-ui:"Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+    --font-title:"Orbitron","Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+    --header-h:72px; /* fallback, poi lo settiamo via JS */
+  }
 
-  --font-ui:"Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
-  --font-title:"Orbitron","Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
 
-  --header-h:72px; /* fallback, aggiornato via JS */
-}
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-1;
+    background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(124,240,255,.10), transparent 55%),
+      radial-gradient(900px 600px at 110% 10%, rgba(255,179,77,.10), transparent 55%),
+      radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.9), transparent 60%),
+      radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,.75), transparent 60%),
+      radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,.7), transparent 60%),
+      radial-gradient(1px 1px at 85% 80%, rgba(255,255,255,.65), transparent 60%),
+      radial-gradient(1px 1px at 10% 85%, rgba(255,255,255,.6), transparent 60%),
+      radial-gradient(1px 1px at 95% 45%, rgba(255,255,255,.55), transparent 60%),
+      linear-gradient(180deg, rgba(15,25,40,.65), rgba(5,10,16,1));
+    filter:saturate(1.05) contrast(1.05);
+  }
 
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:var(--font-ui);
-  color:var(--text);
-  background:var(--bg);
-}
+  header{
+    position:sticky;top:0;z-index:10;
+    background:linear-gradient(180deg, rgba(7,12,18,.92), rgba(7,12,18,.65));
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
 
-body::before{
-  content:"";
-  position:fixed; inset:0; z-index:-1;
-  background:
-    radial-gradient(1200px 700px at 15% -10%, rgba(124,240,255,.10), transparent 55%),
-    radial-gradient(900px 600px at 110% 10%, rgba(255,179,77,.10), transparent 55%),
-    radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.9), transparent 60%),
-    radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,.75), transparent 60%),
-    radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,.7), transparent 60%),
-    radial-gradient(1px 1px at 85% 80%, rgba(255,255,255,.65), transparent 60%),
-    radial-gradient(1px 1px at 10% 85%, rgba(255,255,255,.6), transparent 60%),
-    radial-gradient(1px 1px at 95% 45%, rgba(255,255,255,.55), transparent 60%),
-    linear-gradient(180deg, rgba(15,25,40,.65), rgba(5,10,16,1));
-  filter:saturate(1.05) contrast(1.05);
-}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .title{display:flex;align-items:center;gap:10px;min-width:0;}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
 
-header{
-  position:sticky; top:0; z-index:5;
-  background:linear-gradient(180deg, rgba(7,12,18,.92), rgba(7,12,18,.65));
-  backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--line);
-}
+  h1{
+    font-family:var(--font-title);
+    font-size:16px;margin:0;
+    letter-spacing:.8px;text-transform:uppercase
+  }
 
-.wrap{max-width:1100px;margin:0 auto;padding:14px;}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.title{display:flex;align-items:center;gap:10px;min-width:0;}
-.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
-.badge{
-  font-size:12px;
-  color:var(--muted);
-  border:1px solid var(--line);
-  padding:4px 8px;
-  border-radius:999px;
-  background:rgba(16,26,46,.6);
-}
-h1{
-  font-family:var(--font-title);
-  font-size:16px;
-  margin:0;
-  letter-spacing:.8px;
-  text-transform:uppercase;
-}
+  .badge{
+    font-size:12px;color:var(--muted);
+    border:1px solid var(--line);
+    padding:4px 8px;border-radius:999px;
+    background:rgba(16,26,46,.6)
+  }
 
-/* Griglie: separo stage1 e stage2 */
-.grid1{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:12px;
-  margin-top:14px;
-  width:100%;
-  max-width:860px;
-  margin-left:auto;
-  margin-right:auto;
-}
+  .grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:12px;
+  }
+  @media (min-width: 980px){
+    .grid{grid-template-columns:1fr 1fr;}
+  }
 
-.grid2{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:12px;
-  margin-top:14px;
-}
-@media (min-width:980px){
-  .grid2{grid-template-columns:1fr 1fr;}
-}
+  .card{
+    border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));
+    border-radius:16px;
+    padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
 
-.card{
-  border:1px solid var(--line);
-  background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));
-  border-radius:16px;
-  padding:12px;
-  box-shadow:0 10px 30px rgba(0,0,0,.25);
-}
-.card h2{margin:0 0 8px 0;font-size:14px;color:var(--text)}
+  .min-title{
+    font-family:var(--font-title);
+    letter-spacing:.8px;
+    text-transform:uppercase;
+    margin:0 0 8px 0;
+    font-size:14px;
+  }
 
-textarea,input{
-  width:100%;
-  background:rgba(8,12,20,.65);
-  border:1px solid var(--line);
-  color:var(--text);
-  border-radius:12px;
-  padding:10px;
-  font-size:13px;
-  outline:none;
-}
-textarea{min-height:240px;resize:vertical;line-height:1.25}
+  textarea,input{
+    width:100%;
+    background:rgba(8,12,20,.65);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:12px;
+    padding:10px;
+    font-size:13px;
+    outline:none
+  }
+  textarea{min-height:240px;resize:vertical;line-height:1.25}
 
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.row > *{flex:1}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .row > *{flex:1}
 
-button{
-  border:1px solid rgba(88,166,255,.65);
-  background:rgba(88,166,255,.15);
-  color:var(--text);
-  padding:9px 12px;
-  border-radius:12px;
-  cursor:pointer;
-  font-weight:600;
-}
-button:hover{background:rgba(88,166,255,.22)}
-.ghost{
-  border-color:var(--line);
-  background:rgba(16,26,46,.5);
-}
-.ghost:hover{background:rgba(16,26,46,.75)}
+  button{
+    border:1px solid rgba(88,166,255,.65);
+    background:rgba(88,166,255,.15);
+    color:var(--text);
+    padding:9px 12px;border-radius:12px;
+    cursor:pointer;font-weight:600
+  }
+  button:hover{background:rgba(88,166,255,.22)}
 
-.mini{font-size:12px;color:var(--muted)}
-.pill{
-  display:inline-flex;gap:8px;align-items:center;
-  border:1px solid var(--line);
-  border-radius:999px;
-  padding:6px 10px;
-  background:rgba(16,26,46,.5);
-}
-.pill input{width:auto}
+  .ghost{
+    border-color:var(--line);
+    background:rgba(16,26,46,.5);
+    font-weight:600
+  }
+  .ghost:hover{background:rgba(16,26,46,.75)}
 
-.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-.kpi .box{
-  border:1px solid var(--line);
-  background:rgba(8,12,20,.35);
-  border-radius:12px;
-  padding:10px;
-}
-.kpi .box .v{font-size:14px;font-weight:800}
-.kpi .box .l{font-size:12px;color:var(--muted)}
+  .mini{font-size:12px;color:var(--muted)}
+  .pill{
+    display:inline-flex;gap:8px;align-items:center;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:6px 10px;
+    background:rgba(16,26,46,.5)
+  }
+  .pill input{width:auto}
 
-table{
-  width:100%;
-  border-collapse:collapse;
-  overflow:hidden;
-  border-radius:12px;
-  border:1px solid var(--line);
-  background:rgba(8,12,20,.35);
-}
-th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
-th{color:var(--muted);font-weight:700;background:rgba(16,26,46,.55)}
-th:first-child, td:first-child{text-align:left}
-tr:last-child td{border-bottom:none}
+  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .kpi .box{border:1px solid var(--line);background:rgba(8,12,20,.35);border-radius:12px;padding:10px}
+  .kpi .box .v{font-size:14px;font-weight:800}
+  .kpi .box .l{font-size:12px;color:var(--muted)}
 
-.good{color:var(--good)}
-.bad{color:var(--bad)}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    overflow:hidden;border-radius:12px;
+    border:1px solid var(--line);
+    background:rgba(8,12,20,.35)
+  }
+  th,td{
+    padding:8px 8px;
+    border-bottom:1px solid rgba(34,52,85,.6);
+    font-size:12px;
+    text-align:right
+  }
+  th{
+    color:var(--muted);
+    font-weight:700;
+    background:rgba(16,26,46,.55)
+  }
+  th:first-child, td:first-child{text-align:left}
+  tr:last-child td{border-bottom:none}
 
-details{
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:10px;
-  background:rgba(8,12,20,.25);
-}
-summary{cursor:pointer;color:var(--muted);font-weight:700}
-pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
+  .good{color:var(--good)}
+  .bad{color:var(--bad)}
 
-.ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
+  details{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px;
+    background:rgba(8,12,20,.25)
+  }
+  summary{cursor:pointer;color:var(--muted);font-weight:700}
+  pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
 
-.stage{transition:opacity .28s ease, transform .28s ease}
-.stage.hidden{display:none}
-.stage.fadeout{opacity:0;transform:translateY(6px);pointer-events:none}
-.stage.fadein{opacity:0;transform:translateY(6px)}
-.stage.fadein.show{opacity:1;transform:none}
-.min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
+  .ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
 
-/* textarea CR nascosto */
-.cr-hidden{display:none !important}
+  /* STAGES */
+  .stage{transition:opacity .28s ease, transform .28s ease}
+  .stage.hidden{display:none}
+  .stage.fadeout{opacity:0;transform:translateY(6px);pointer-events:none}
+  .stage.fadein{opacity:0;transform:translateY(6px)}
+  .stage.fadein.show{opacity:1;transform:none}
 
-/* LOG tab */
-.logTab{margin-top:12px;overflow:hidden}
-.logTab summary{
-  padding:10px 12px;
-  font-family:var(--font-title);
-  letter-spacing:.8px;
-  text-transform:uppercase;
-  font-size:13px;
-  background:rgba(16,26,46,.55);
-  user-select:none;
-}
-.logTab[open] summary{color:var(--text)}
-.logBoxWrap{padding:10px 12px}
-#logBox{min-height:220px}
-  
-/* ===================== LAYOUT STAGES ===================== */
-/* togliamo il margin-top che spinge giù quando cambia stage */
-.grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:0}
-@media (min-width:980px){ .grid{grid-template-columns:1fr 1fr;} }
+  /* CR textarea nascosto */
+  .cr-hidden{display:none !important;}
 
-/* Stage 1: SEMPRE 1 colonna e card centrata */
-#stage1{
-  min-height: calc(100vh - var(--header-h));
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 24px 0;
-}
-#stage1 .grid{
-  grid-template-columns: 1fr !important;
-  width:100%;
-  max-width: 860px;
-  margin: 0 auto;
-  justify-items:center;
-}
-#stage1 .card{
-  width:100%;
-  max-width: 860px;
-}
+  /* LOG tab */
+  .logTab{
+    margin-top:12px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:rgba(8,12,20,.25);
+    overflow:hidden;
+  }
+  .logTab summary{
+    padding:10px 12px;
+    font-family:var(--font-title);
+    letter-spacing:.8px;
+    text-transform:uppercase;
+    font-size:13px;
+    background:rgba(16,26,46,.55);
+    user-select:none;
+  }
+  .logBoxWrap{padding:10px 12px}
+  #logBox{min-height:180px}
 
-/* Se schermo basso e log aperto, evita tagli */
-@media (max-height:700px){
-  #stage1{ align-items:flex-start; }
-}
+  /* STAGE 1: sempre centrato e 1 colonna */
+  #stage1{
+    min-height:calc(100vh - var(--header-h));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px 0;
+  }
+  #stage1 .grid{
+    grid-template-columns:1fr !important;
+    width:100%;
+    max-width:860px;
+    margin:0 auto;
+    justify-items:center;
+  }
+  #stage1 .card{
+    width:100%;
+    max-width:860px;
+  }
 
-/* Stage 2: sta in ALTO e “prende il posto” dello stage 1 */
-#stage2{
-  min-height: calc(100vh - var(--header-h));
-  display:flex;
-  align-items:flex-start;      /* in alto */
-  justify-content:center;      /* centrato orizzontale */
-  padding: 14px 0 24px;        /* stesso “respiro” */
-  width:100%;
-}
-#stage2 .grid{
-  width:100%;
-  max-width:1100px;            /* come .wrap */
-  margin:0 auto;
-}
+  /* STAGE 2: sempre “in alto” sotto header */
+  #stage2{
+    min-height:calc(100vh - var(--header-h));
+    padding-top:14px; /* subito sotto header, senza mega vuoto */
+  }
+
+  @media (max-height: 700px){
+    #stage1{align-items:flex-start;}
+  }
 </style>
 </head>
 
@@ -280,15 +256,16 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cf
 
   <!-- STAGE 1 -->
   <div id="stage1" class="stage">
-    <div class="grid1">
+    <div class="grid">
       <div class="card">
         <h2 class="min-title">CR</h2>
 
         <div class="row" style="gap:8px; align-items:center; margin-bottom:10px;">
-          <input id="crApiId" placeholder="API ID CR (es. cr-it-269-... oppure link api-reader)" style="flex:1; min-width:260px;">
+          <input id="crApiId" placeholder="API ID CR (es. cr-it-... oppure link api-reader)" style="flex:1; min-width:260px;">
           <button id="btnLoadCRApi" type="button">Carica CR da API</button>
         </div>
 
+        <!-- CR nascosto (serve alla logica) -->
         <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
 
         <div class="mini" style="margin-top:8px">
@@ -301,13 +278,14 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cf
             <pre id="logBox"></pre>
           </div>
         </details>
+
       </div>
     </div>
   </div>
 
   <!-- STAGE 2 -->
   <div id="stage2" class="stage hidden fadein">
-    <div class="grid2">
+    <div class="grid" style="margin-top:14px">
       <div class="card">
         <h2 class="min-title">RR + Spartizione</h2>
 
@@ -363,14 +341,13 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cf
 </div>
 
 <script>
-/* aggiorna altezza header per centratura stage1 */
-function updateHeaderH(){
-  const h = document.getElementById("appHeader")?.offsetHeight || 72;
-  document.documentElement.style.setProperty("--header-h", h + "px");
+/* ===================== HEADER HEIGHT -> CSS VAR ===================== */
+function updateHeaderHeight(){
+  const h = document.getElementById('appHeader')?.offsetHeight || 72;
+  document.documentElement.style.setProperty('--header-h', h + 'px');
 }
-window.addEventListener("resize", updateHeaderH);
-window.addEventListener("load", updateHeaderH);
-updateHeaderH();
+window.addEventListener('resize', updateHeaderHeight);
+updateHeaderHeight();
 
 /* ===================== CONFIG ===================== */
 const DF_RATE = 0.30;
@@ -394,10 +371,14 @@ function log(msg){
   if(el) el.textContent = LOG.join("\n");
 }
 
+/* ===================== STAGES ===================== */
 function showStage(id){
   const s1 = document.getElementById('stage1');
   const s2 = document.getElementById('stage2');
   if(!s1 || !s2) return;
+
+  // IMPORTANTISSIMO: quando cambi stage, vai sempre in alto
+  window.scrollTo({top: 0, left: 0, behavior: "auto"});
 
   if(id===1){
     s2.classList.remove('show');
@@ -406,18 +387,10 @@ function showStage(id){
     return;
   }
 
-  // Fadeout stage1
   s1.classList.add('fadeout');
-
   setTimeout(()=>{
     s1.classList.add('hidden');
-
-    // Mostra stage2
     s2.classList.remove('hidden');
-
-    // IMPORTANTISSIMO: torna in alto così stage2 non resta "in basso"
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-
     requestAnimationFrame(()=>s2.classList.add('show'));
   },260);
 }
@@ -457,9 +430,9 @@ function parseCRText(text){
 
       const h=line.match(/^(Attaccante|Difensore)\s+(.+?)\s+\[(.+?)\]\s*$/i);
       if(h){
-        const isAtt=h[1].toLowerCase().startsWith("att");
+        const side=h[1].toLowerCase().startsWith("att")?"att":"def";
         const name=h[2].trim(), tag=h[3].trim();
-        if(isAtt){
+        if(side==="att"){
           if(!out.attackers[name]) out.attackers[name]={tag,initial:{},final:{}};
           out.attackers[name].tag=tag; current=out.attackers[name];
         }else{
@@ -687,6 +660,7 @@ function recomputeAndRender(){
   const mode=document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
   renderResults(computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode));
 }
+
 document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",()=>{
   log("Modalità: " + document.querySelector('input[name="mode"]:checked').value);
   recomputeAndRender();
@@ -706,10 +680,10 @@ function analyzeCurrentCR(){
   showStage(2);
 }
 
-/* BACK */
+/* ===================== BACK ===================== */
 document.getElementById("btnBack").addEventListener("click",()=>showStage(1));
 
-/* ===================== CR API LOADER ===================== */
+/* ===================== FETCH HELPERS ===================== */
 function abortableFetch(url, timeoutMs){
   const controller=new AbortController();
   const id=setTimeout(()=>controller.abort(), timeoutMs);
@@ -729,6 +703,7 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
   }
 }
 
+/* ===================== NMA CONVERTER ===================== */
 const shipNameMapEN2IT = {
   "Small Cargo":"Cargo leggero","Large Cargo":"Cargo Pesante","Light Fighter":"Caccia Leggero","Heavy Fighter":"Caccia Pesante",
   "Cruiser":"Incrociatore","Battleship":"Nave da battaglia","Colony Ship":"Colonizzatrice","Recycler":"Riciclatrice",
@@ -877,6 +852,7 @@ function parseNmaApiReaderToClassic(raw){
   return lines.join("\n");
 }
 
+/* ===================== CR API LOADER ===================== */
 document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
   const apiId=(document.getElementById("crApiId").value||"").trim();
   if(!apiId){ log("⚠️ Inserisci un API ID CR."); return; }
@@ -973,7 +949,7 @@ function decodeShareState(b64){
 }
 function collectShareState(){
   return {
-    v: 5,
+    v: 6,
     crText:(document.getElementById("crText").value||"").trim(),
     proxyBase:(document.getElementById("proxyBase").value||"").trim(),
     timeoutMs:parseNum(document.getElementById("timeoutMs").value)||12000,
