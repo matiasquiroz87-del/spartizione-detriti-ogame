@@ -7,23 +7,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
-
 <style>
-  :root{
-    --bg:#050a10;
-    --text:#dbe7ff;
-    --muted:#93a6c7;
-    --line:rgba(120,160,220,.25);
-    --good:#39d98a;
-    --bad:#ff5c5c;
+  :root {
+    --bg:#050a10; --panel:#0b1320; --panel2:#07101b;
+    --text:#dbe7ff; --muted:#93a6c7; --line:rgba(120,160,220,.25);
+    --accent:#4da3ff; --accent2:#2dd4ff;
+    --good:#39d98a; --bad:#ff5c5c;
     --font-ui:"Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
     --font-title:"Orbitron","Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
-    --header-h:72px; /* fallback, poi lo settiamo via JS */
+    --header-h:72px;
   }
-
   *{box-sizing:border-box}
   body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
-
   body::before{
     content:"";position:fixed;inset:0;z-index:-1;
     background:
@@ -38,58 +33,25 @@
       linear-gradient(180deg, rgba(15,25,40,.65), rgba(5,10,16,1));
     filter:saturate(1.05) contrast(1.05);
   }
-
   header{
-    position:sticky;top:0;z-index:10;
+    position:sticky;top:0;z-index:5;
     background:linear-gradient(180deg, rgba(7,12,18,.92), rgba(7,12,18,.65));
     backdrop-filter:blur(10px);
     border-bottom:1px solid var(--line);
   }
-
   .wrap{max-width:1100px;margin:0 auto;padding:14px;}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .title{display:flex;align-items:center;gap:10px;min-width:0;}
   .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+  .badge{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:999px;background:rgba(16,26,46,.6)}
+  h1{font-family:var(--font-title);font-size:16px;margin:0;letter-spacing:.8px;text-transform:uppercase}
 
-  h1{
-    font-family:var(--font-title);
-    font-size:16px;margin:0;
-    letter-spacing:.8px;text-transform:uppercase
-  }
+  .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+  @media (min-width: 980px){ .grid{grid-template-columns: 1fr 1fr;} }
 
-  .badge{
-    font-size:12px;color:var(--muted);
-    border:1px solid var(--line);
-    padding:4px 8px;border-radius:999px;
-    background:rgba(16,26,46,.6)
-  }
-
-  .grid{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:12px;
-  }
-  @media (min-width: 980px){
-    .grid{grid-template-columns:1fr 1fr;}
-  }
-
-  .card{
-    border:1px solid var(--line);
-    background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));
-    border-radius:16px;
-    padding:12px;
-    box-shadow:0 10px 30px rgba(0,0,0,.25);
-  }
-
-  .min-title{
-    font-family:var(--font-title);
-    letter-spacing:.8px;
-    text-transform:uppercase;
-    margin:0 0 8px 0;
-    font-size:14px;
-  }
-
-  textarea,input{
+  .card{border:1px solid var(--line);background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .card h2{margin:0 0 8px 0;font-size:14px;color:var(--text)}
+  textarea,input,select{
     width:100%;
     background:rgba(8,12,20,.65);
     border:1px solid var(--line);
@@ -100,10 +62,8 @@
     outline:none
   }
   textarea{min-height:240px;resize:vertical;line-height:1.25}
-
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .row > *{flex:1}
-
   button{
     border:1px solid rgba(88,166,255,.65);
     background:rgba(88,166,255,.15);
@@ -112,95 +72,37 @@
     cursor:pointer;font-weight:600
   }
   button:hover{background:rgba(88,166,255,.22)}
-
-  .ghost{
-    border-color:var(--line);
-    background:rgba(16,26,46,.5);
-    font-weight:600
-  }
+  .ghost{border-color:var(--line);background:rgba(16,26,46,.5);font-weight:600}
   .ghost:hover{background:rgba(16,26,46,.75)}
-
   .mini{font-size:12px;color:var(--muted)}
-  .pill{
-    display:inline-flex;gap:8px;align-items:center;
-    border:1px solid var(--line);
-    border-radius:999px;
-    padding:6px 10px;
-    background:rgba(16,26,46,.5)
-  }
+  .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:rgba(16,26,46,.5)}
   .pill input{width:auto}
-
   .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
   .kpi .box{border:1px solid var(--line);background:rgba(8,12,20,.35);border-radius:12px;padding:10px}
   .kpi .box .v{font-size:14px;font-weight:800}
   .kpi .box .l{font-size:12px;color:var(--muted)}
-
-  table{
-    width:100%;
-    border-collapse:collapse;
-    overflow:hidden;border-radius:12px;
-    border:1px solid var(--line);
-    background:rgba(8,12,20,.35)
-  }
-  th,td{
-    padding:8px 8px;
-    border-bottom:1px solid rgba(34,52,85,.6);
-    font-size:12px;
-    text-align:right
-  }
-  th{
-    color:var(--muted);
-    font-weight:700;
-    background:rgba(16,26,46,.55)
-  }
+  table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
+  th,td{padding:8px 8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
+  th{text-align:right;color:var(--muted);font-weight:700;background:rgba(16,26,46,.55)}
   th:first-child, td:first-child{text-align:left}
   tr:last-child td{border-bottom:none}
-
   .good{color:var(--good)}
   .bad{color:var(--bad)}
-
-  details{
-    border:1px solid var(--line);
-    border-radius:12px;
-    padding:10px;
-    background:rgba(8,12,20,.25)
-  }
+  details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
   summary{cursor:pointer;color:var(--muted);font-weight:700}
   pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
-
   .ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
 
-  /* STAGES */
-  .stage{transition:opacity .28s ease, transform .28s ease}
+  .stage{opacity:1;transform:none;transition:opacity .28s ease, transform .28s ease}
   .stage.hidden{display:none}
   .stage.fadeout{opacity:0;transform:translateY(6px);pointer-events:none}
   .stage.fadein{opacity:0;transform:translateY(6px)}
   .stage.fadein.show{opacity:1;transform:none}
+  .min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
 
-  /* CR textarea nascosto */
   .cr-hidden{display:none !important;}
 
-  /* LOG tab */
-  .logTab{
-    margin-top:12px;
-    border:1px solid var(--line);
-    border-radius:12px;
-    background:rgba(8,12,20,.25);
-    overflow:hidden;
-  }
-  .logTab summary{
-    padding:10px 12px;
-    font-family:var(--font-title);
-    letter-spacing:.8px;
-    text-transform:uppercase;
-    font-size:13px;
-    background:rgba(16,26,46,.55);
-    user-select:none;
-  }
-  .logBoxWrap{padding:10px 12px}
-  #logBox{min-height:180px}
-
-  /* STAGE 1: sempre centrato e 1 colonna */
+  /* Stage 1 centrato e 1 sola colonna */
   #stage1{
     min-height:calc(100vh - var(--header-h));
     display:flex;
@@ -209,31 +111,60 @@
     padding:24px 0;
   }
   #stage1 .grid{
-    grid-template-columns:1fr !important;
     width:100%;
     max-width:860px;
     margin:0 auto;
+    grid-template-columns:1fr !important;
     justify-items:center;
   }
-  #stage1 .card{
-    width:100%;
-    max-width:860px;
+  #stage1 .card{width:100%;max-width:860px}
+
+  @media (max-height:700px){
+    #stage1{align-items:flex-start}
   }
 
-  /* STAGE 2: sempre “in alto” sotto header */
-  #stage2{
-    min-height:calc(100vh - var(--header-h));
-    padding-top:14px; /* subito sotto header, senza mega vuoto */
+  /* LOG tab sotto */
+  .logTab{
+    margin-top:12px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:rgba(8,12,20,.25);
+    overflow:hidden;
   }
+  .logTab summary{
+    cursor:pointer;
+    padding:10px 12px;
+    font-family:var(--font-title);
+    letter-spacing:.8px;
+    text-transform:uppercase;
+    font-size:13px;
+    color:var(--muted);
+    background:rgba(16,26,46,.55);
+    user-select:none;
+  }
+  .logTab[open] summary{color:var(--text)}
+  .logBoxWrap{padding:10px 12px}
+  #logBox{min-height:180px}
 
-  @media (max-height: 700px){
-    #stage1{align-items:flex-start;}
+  /* mini control DF% */
+  .dfCtl{
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    margin-top:10px;
+  }
+  .dfCtl .miniLbl{flex:0 0 auto;min-width:110px}
+  .dfCtl select{flex:0 0 140px}
+  .dfPill{
+    display:inline-flex;gap:6px;align-items:center;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:6px 10px;
+    background:rgba(16,26,46,.5);
   }
 </style>
 </head>
 
 <body>
-<header id="appHeader">
+<header>
   <div class="wrap">
     <div class="topbar">
       <div class="title">
@@ -261,17 +192,27 @@
         <h2 class="min-title">CR</h2>
 
         <div class="row" style="gap:8px; align-items:center; margin-bottom:10px;">
-          <input id="crApiId" placeholder="API ID CR (es. cr-it-... oppure link api-reader)" style="flex:1; min-width:260px;">
-          <button id="btnLoadCRApi" type="button">Carica CR da API</button>
+          <input id="crApiId" placeholder="API ID CR (es. cr-it-269-... oppure link api-reader)" style="flex:1; min-width:260px;">
+          <button id="btnLoadCRApi" type="button" style="flex:0 0 220px;">Carica CR da API</button>
         </div>
 
-        <!-- CR nascosto (serve alla logica) -->
+        <!-- Selettore DF% -->
+        <div class="dfCtl">
+          <div class="mini miniLbl">Detriti (%)</div>
+          <select id="dfRateSelect" aria-label="Percentuale detriti">
+            <!-- popolato via JS -->
+          </select>
+          <span class="dfPill mini" id="dfRateHint">Usato per calcolare DF stimato da perdite</span>
+        </div>
+
+        <!-- CR nascosto (serve alla logica/share) -->
         <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
 
         <div class="mini" style="margin-top:8px">
           Premi “Carica CR da API”: il CR viene convertito e analizzato automaticamente.
         </div>
 
+        <!-- LOG sotto, tab -->
         <details class="logTab" id="logDetails">
           <summary>Log</summary>
           <div class="logBoxWrap">
@@ -285,7 +226,7 @@
 
   <!-- STAGE 2 -->
   <div id="stage2" class="stage hidden fadein">
-    <div class="grid" style="margin-top:14px">
+    <div class="grid">
       <div class="card">
         <h2 class="min-title">RR + Spartizione</h2>
 
@@ -341,16 +282,7 @@
 </div>
 
 <script>
-/* ===================== HEADER HEIGHT -> CSS VAR ===================== */
-function updateHeaderHeight(){
-  const h = document.getElementById('appHeader')?.offsetHeight || 72;
-  document.documentElement.style.setProperty('--header-h', h + 'px');
-}
-window.addEventListener('resize', updateHeaderHeight);
-updateHeaderHeight();
-
 /* ===================== CONFIG ===================== */
-const DF_RATE = 0.30;
 const COSTS = {"Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],"Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],"Incrociatore da Battaglia":[30000,40000,15000],"Reaper":[85000,55000,20000],"Pathfinder":[8000,15000,8000],"Riciclatrice":[10000,6000,2000],"Colonizzatrice":[10000,20000,10000],"Sonda spia":[0,1000,0],"Satellite Solare":[0,2000,500],"Crawler":[2000,2000,1000],"Morte Nera":[5000000,4000000,1000000],"Lanciamissili":[2000,0,0],"Laser leggero":[1500,500,0],"Laser pesante":[6000,2000,0],"Cannone Gauss":[20000,15000,2000],"Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]};
 const DF_ALLOWED = new Set(["Cargo leggero","Cargo Pesante","Caccia Leggero","Caccia Pesante","Incrociatore","Nave da battaglia","Bombardiere","Corazzata","Incrociatore da Battaglia","Morte Nera","Reaper","Pathfinder","Colonizzatrice","Riciclatrice","Sonda spia","Crawler","Satellite Solare"]);
 
@@ -377,16 +309,12 @@ function showStage(id){
   const s2 = document.getElementById('stage2');
   if(!s1 || !s2) return;
 
-  // IMPORTANTISSIMO: quando cambi stage, vai sempre in alto
-  window.scrollTo({top: 0, left: 0, behavior: "auto"});
-
   if(id===1){
     s2.classList.remove('show');
     s2.classList.add('hidden');
     s1.classList.remove('hidden','fadeout');
     return;
   }
-
   s1.classList.add('fadeout');
   setTimeout(()=>{
     s1.classList.add('hidden');
@@ -396,25 +324,41 @@ function showStage(id){
 }
 
 /* ===================== STATE ===================== */
-const STATE = { cr:null, rr:{} };
+const STATE = {
+  cr:null,
+  rr:{},
+  dfRate: 0.30 // <-- default
+};
+
+/* ===================== DF% SELECT ===================== */
+function initDfSelect(){
+  const sel = document.getElementById('dfRateSelect');
+  if(!sel) return;
+
+  // 20..80 step 5
+  const opts = [];
+  for(let p=20;p<=80;p+=5){
+    const v = (p/100).toFixed(2);
+    opts.push({p, v:Number(v)});
+  }
+
+  sel.innerHTML = opts.map(o=>`<option value="${o.v}">${o.p}%</option>`).join('');
+  sel.value = String(STATE.dfRate.toFixed(2));
+
+  sel.addEventListener('change', ()=>{
+    STATE.dfRate = Number(sel.value) || 0.30;
+    log(`🧩 Detriti impostati: ${(STATE.dfRate*100).toFixed(0)}%`);
+    // se CR già caricato, aggiorna KPI
+    if(STATE.cr){
+      renderKPI(STATE.cr);
+    }
+  });
+}
+initDfSelect();
 
 /* ===================== CR PARSER ===================== */
 function parseCRText(text){
-  const out = { attackers:{}, defenders:{}, coords:null, loot:{m:0,c:0,d:0}, df_float:{m:0,c:0,d:0}, moonChance:null, lossesUnits:{att:0,def:0} };
-
-  const coordM = text.match(/\b\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/);
-  if(coordM) out.coords = (coordM[1]||coordM[2]||null);
-
-  const moonM = text.match(/possibilit[aà].*?luna.*?(\d+)%/i);
-  if(moonM) out.moonChance = parseNum(moonM[1]);
-
-  const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
-  if(lootM){ out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]); }
-
-  const dfLine = text.match(/(At these space coordinates now float|Alle coordinate.*fluttuano|A queste coordinate.*fluttuano)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)/i);
-  if(dfLine){
-    out.df_float.m=parseNum(dfLine[2]); out.df_float.c=parseNum(dfLine[3]); out.df_float.d=parseNum(dfLine[4]);
-  }
+  const out = { attackers:{}, defenders:{} };
 
   let pre=text, post="";
   const idx=text.search(/\bDopo\s+la\s+battaglia\b/i);
@@ -422,7 +366,7 @@ function parseCRText(text){
 
   function parseSideBlocks(blockText, phase){
     const lines=blockText.split(/\r?\n/);
-    let current=null;
+    let current=null, currentSide=null;
 
     for(const raw of lines){
       const line=raw.trim();
@@ -430,9 +374,9 @@ function parseCRText(text){
 
       const h=line.match(/^(Attaccante|Difensore)\s+(.+?)\s+\[(.+?)\]\s*$/i);
       if(h){
-        const side=h[1].toLowerCase().startsWith("att")?"att":"def";
+        currentSide=h[1].toLowerCase().startsWith("att")?"att":"def";
         const name=h[2].trim(), tag=h[3].trim();
-        if(side==="att"){
+        if(currentSide==="att"){
           if(!out.attackers[name]) out.attackers[name]={tag,initial:{},final:{}};
           out.attackers[name].tag=tag; current=out.attackers[name];
         }else{
@@ -463,11 +407,11 @@ function parseCRText(text){
     if(!p.final || Object.keys(p.final).length===0) p.final=JSON.parse(JSON.stringify(p.initial));
   });
 
-  out.df_calc = computeDebrisFromCR(out);
   return out;
 }
 
 function computeDebrisFromCR(cr){
+  const rate = STATE.dfRate || 0.30; // <-- usa selettore
   const sum={m:0,c:0,d:0};
   function add(sideObj){
     for(const p of Object.values(sideObj||{})){
@@ -480,9 +424,9 @@ function computeDebrisFromCR(cr){
         const cost=COSTS[ship];
         if(!cost) continue;
         if(!DF_ALLOWED.has(ship)) continue;
-        sum.m += cost[0]*lost*DF_RATE;
-        sum.c += cost[1]*lost*DF_RATE;
-        sum.d += cost[2]*lost*DF_RATE;
+        sum.m += cost[0]*lost*rate;
+        sum.c += cost[1]*lost*rate;
+        sum.d += cost[2]*lost*rate;
       }
     }
   }
@@ -571,15 +515,16 @@ function renderKPI(cr){
   if(!el) return;
   if(!cr){ el.innerHTML=""; return; }
 
-  const dfNew=computeDebrisFromCR(cr);
+  const dfNew = computeDebrisFromCR(cr);
+
   const rrTotals=STATE.rr||{};
   const rr=Object.values(rrTotals).reduce((a,v)=>({m:a.m+(v.m||0),c:a.c+(v.c||0),d:a.d+(v.d||0)}),{m:0,c:0,d:0});
   const dfLeft={m:dfNew.m-rr.m, c:dfNew.c-rr.c, d:dfNew.d-rr.d};
 
   el.innerHTML=`
-    <div class="box"><div class="v">${fmt(dfNew.m)}</div><div class="l">DF totale M (30%)</div></div>
-    <div class="box"><div class="v">${fmt(dfNew.c)}</div><div class="l">DF totale C (30%)</div></div>
-    <div class="box"><div class="v">${fmt(dfNew.d)}</div><div class="l">DF totale D (30%)</div></div>
+    <div class="box"><div class="v">${fmt(dfNew.m)}</div><div class="l">DF totale M (${Math.round(STATE.dfRate*100)}%)</div></div>
+    <div class="box"><div class="v">${fmt(dfNew.c)}</div><div class="l">DF totale C (${Math.round(STATE.dfRate*100)}%)</div></div>
+    <div class="box"><div class="v">${fmt(dfNew.d)}</div><div class="l">DF totale D (${Math.round(STATE.dfRate*100)}%)</div></div>
 
     <div class="box"><div class="v">${fmt(rr.m)}</div><div class="l">RR raccolto M</div></div>
     <div class="box"><div class="v">${fmt(rr.c)}</div><div class="l">RR raccolto C</div></div>
@@ -703,7 +648,7 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
   }
 }
 
-/* ===================== NMA CONVERTER ===================== */
+/* ===================== NoMoreAngel converter (come tuo) ===================== */
 const shipNameMapEN2IT = {
   "Small Cargo":"Cargo leggero","Large Cargo":"Cargo Pesante","Light Fighter":"Caccia Leggero","Heavy Fighter":"Caccia Pesante",
   "Cruiser":"Incrociatore","Battleship":"Nave da battaglia","Colony Ship":"Colonizzatrice","Recycler":"Riciclatrice",
@@ -842,13 +787,6 @@ function parseNmaApiReaderToClassic(raw){
     lines.push("_________________________________________\n");
   }
 
-  const dfM=(t.match(/Metal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  const dfC=(t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  const dfD=(t.match(/Deuterium to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  if(dfM||dfC||dfD){
-    lines.push(`At these space coordinates now float ${dfM||"0"} metal, ${dfC||"0"} crystal and ${dfD||"0"} deuterium.`);
-  }
-
   return lines.join("\n");
 }
 
@@ -950,6 +888,7 @@ function decodeShareState(b64){
 function collectShareState(){
   return {
     v: 6,
+    dfRate: STATE.dfRate,
     crText:(document.getElementById("crText").value||"").trim(),
     proxyBase:(document.getElementById("proxyBase").value||"").trim(),
     timeoutMs:parseNum(document.getElementById("timeoutMs").value)||12000,
@@ -959,6 +898,13 @@ function collectShareState(){
 }
 function applyShareState(st){
   if(!st || typeof st!=="object") return;
+
+  if(typeof st.dfRate === "number" && st.dfRate>=0.2 && st.dfRate<=0.8){
+    STATE.dfRate = st.dfRate;
+    const sel = document.getElementById('dfRateSelect');
+    if(sel) sel.value = String(STATE.dfRate.toFixed(2));
+  }
+
   if(typeof st.proxyBase==="string" && st.proxyBase.trim()) document.getElementById("proxyBase").value=st.proxyBase.trim();
   if(st.timeoutMs) document.getElementById("timeoutMs").value=String(st.timeoutMs);
   if(typeof st.rrIds==="string") document.getElementById("rrIds").value=st.rrIds;
@@ -1008,7 +954,7 @@ document.getElementById("btnShare").addEventListener("click", ()=>doShare());
   }
 })();
 
-log("Pronto. 1) Carica CR da API (analisi automatica). 2) Inserisci RR. 3) Vedi risultati.");
+log("Pronto. 1) Carica CR da API (analisi automatica). 2) Imposta Detriti (%). 3) Inserisci RR. 4) Vedi risultati.");
 </script>
 </body>
 </html>
