@@ -594,28 +594,30 @@ function buildTransfers(players, quota, resKey){
 
 /* ===================== RENDER ===================== */
 function renderKPI(cr){
-  const el=document.getElementById("kpiCR");
+  const el = document.getElementById("kpiCR");
   if(!el) return;
   if(!cr){ el.innerHTML=""; return; }
 
-  const dfNew=computeDebrisFromCR(cr);
-  const rrTotals=STATE.rr||{};
-  const rr=Object.values(rrTotals).reduce((a,v)=>({m:a.m+(v.m||0),c:a.c+(v.c||0),d:a.d+(v.d||0)}),{m:0,c:0,d:0});
-  const dfLeft={m:dfNew.m-rr.m, c:dfNew.c-rr.c, d:dfNew.d-rr.d};
+  // DF dal CR (se manca, mostra 0)
+  const df = cr.df_float || {m:0,c:0,d:0};
+
+  // RR totali inseriti
+  const rrTotals = STATE.rr || {};
+  const rr = Object.values(rrTotals).reduce(
+    (a,v)=>({m:a.m+(v.m||0), c:a.c+(v.c||0), d:a.d+(v.d||0)}),
+    {m:0,c:0,d:0}
+  );
+
   const pct = STATE.dfPct || 30;
 
-  el.innerHTML=`
-    <div class="box"><div class="v">${fmt(dfNew.m)}</div><div class="l">DF totale M (${pct}%)</div></div>
-    <div class="box"><div class="v">${fmt(dfNew.c)}</div><div class="l">DF totale C (${pct}%)</div></div>
-    <div class="box"><div class="v">${fmt(dfNew.d)}</div><div class="l">DF totale D (${pct}%)</div></div>
+  el.innerHTML = `
+    <div class="box"><div class="v">${fmt(df.m)}</div><div class="l">DF (CR) Metallo (${pct}%)</div></div>
+    <div class="box"><div class="v">${fmt(df.c)}</div><div class="l">DF (CR) Cristallo (${pct}%)</div></div>
+    <div class="box"><div class="v">${fmt(df.d)}</div><div class="l">DF (CR) Deuterio (${pct}%)</div></div>
 
-    <div class="box"><div class="v">${fmt(rr.m)}</div><div class="l">RR raccolto M</div></div>
-    <div class="box"><div class="v">${fmt(rr.c)}</div><div class="l">RR raccolto C</div></div>
-    <div class="box"><div class="v">${fmt(rr.d)}</div><div class="l">RR raccolto D</div></div>
-
-    <div class="box"><div class="v">${fmt(dfLeft.m)}</div><div class="l">DF rimasto M (stim.)</div></div>
-    <div class="box"><div class="v">${fmt(dfLeft.c)}</div><div class="l">DF rimasto C (stim.)</div></div>
-    <div class="box"><div class="v">${fmt(dfLeft.d)}</div><div class="l">DF rimasto D (stim.)</div></div>
+    <div class="box"><div class="v">${fmt(rr.m)}</div><div class="l">RR raccolto Metallo</div></div>
+    <div class="box"><div class="v">${fmt(rr.c)}</div><div class="l">RR raccolto Cristallo</div></div>
+    <div class="box"><div class="v">${fmt(rr.d)}</div><div class="l">RR raccolto Deuterio</div></div>
   `;
 }
 
