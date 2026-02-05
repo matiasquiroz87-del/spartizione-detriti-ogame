@@ -221,15 +221,6 @@
 
         <div class="mini">Premi “Carica CR da API”: il CR viene convertito e analizzato automaticamente.</div>
 
-        <!-- Selettore % detriti -->
-        <div class="dfCtl">
-          <div class="mini lbl">Percentuale detriti (DF)</div>
-          <select id="dfPct" class="dfSelect" aria-label="Percentuale detriti">
-            <!-- popolato via JS -->
-          </select>
-          <div class="mini" id="dfPctHint"></div>
-        </div>
-
         <!-- LOG -->
         <details class="logTab" id="logDetails">
           <summary>Log</summary>
@@ -357,34 +348,8 @@ function showStage(id){
 const STATE = {
   cr:null,
   rr:{},
-  dfPct: 30  // ✅ percentuale detriti selezionata (20..80)
 };
 function getDfRate(){ return (STATE.dfPct||30)/100; }
-
-/* ===================== DF SELECT (20..80) ===================== */
-(function initDfSelect(){
-  const sel=document.getElementById("dfPct");
-  const hint=document.getElementById("dfPctHint");
-  if(!sel) return;
-
-  // opzioni 20..80 step 5 (puoi cambiare a 10 se preferisci)
-  for(let p=20;p<=80;p+=5){
-    const opt=document.createElement("option");
-    opt.value=String(p);
-    opt.textContent = p + "%";
-    sel.appendChild(opt);
-  }
-  sel.value=String(STATE.dfPct);
-  if(hint) hint.textContent = `Attuale: ${STATE.dfPct}%`;
-
-  sel.addEventListener("change", ()=>{
-  STATE.dfPct = parseInt(sel.value,10) || 30;
-  if(hint) hint.textContent = `Attuale: ${STATE.dfPct}%`;
-  log(`Detriti impostati a ${STATE.dfPct}%`);
-  renderKPI(STATE.cr);
-  recomputeAndRender(); // ✅ aggiungi questa riga
-});
-})();
 
 /* ===================== CR PARSER ===================== */
 function parseCRText(text){
