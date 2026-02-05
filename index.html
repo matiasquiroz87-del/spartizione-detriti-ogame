@@ -388,16 +388,14 @@ function getDfRate(){ return (STATE.dfPct||30)/100; }
 
 /* ===================== CR PARSER ===================== */
 function parseCRText(text){
-  const out = { attackers:{}, defenders:{}, coords:null, loot:{m:0,c:0,d:0}, df_float:{m:0,c:0,d:0}, moonChance:null };
-
-  // ... parsing loot ecc ...
-
-  if(!INCLUDE_LOOT){
-    out.loot = { m:0, c:0, d:0 };
-  }
-
-  return out;
-}
+  const out = {
+    attackers:{},
+    defenders:{},
+    coords:null,
+    loot:{m:0,c:0,d:0},
+    df_float:{m:0,c:0,d:0},
+    moonChance:null
+  };
 
   const coordM = text.match(/\b\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/);
   if(coordM) out.coords = (coordM[1]||coordM[2]||null);
@@ -405,12 +403,25 @@ function parseCRText(text){
   const moonM = text.match(/possibilit[aà].*?luna.*?(\d+)%/i);
   if(moonM) out.moonChance = parseNum(moonM[1]);
 
+  // Loot (bottino)
   const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
-  if(lootM){ out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]); }
+  if(lootM){
+    out.loot.m = parseNum(lootM[1]);
+    out.loot.c = parseNum(lootM[2]);
+    out.loot.d = parseNum(lootM[3]);
+  }
 
+  // Se NON vuoi includere il loot in nessun calcolo, lo azzeri qui
+  if(!INCLUDE_LOOT){
+    out.loot = {m:0,c:0,d:0};
+  }
+
+  // DF float (solo info letta dal CR, non obbligatoria per i calcoli)
   const dfLine = text.match(/(At these space coordinates now float|Alle coordinate.*fluttuano|A queste coordinate.*fluttuano)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)/i);
   if(dfLine){
-    out.df_float.m=parseNum(dfLine[2]); out.df_float.c=parseNum(dfLine[3]); out.df_float.d=parseNum(dfLine[4]);
+    out.df_float.m = parseNum(dfLine[2]);
+    out.df_float.c = parseNum(dfLine[3]);
+    out.df_float.d = parseNum(dfLine[4]);
   }
 
   let pre=text, post="";
@@ -429,12 +440,15 @@ function parseCRText(text){
       if(h){
         currentSide=h[1].toLowerCase().startsWith("att")?"att":"def";
         const name=h[2].trim(), tag=h[3].trim();
+
         if(currentSide==="att"){
           if(!out.attackers[name]) out.attackers[name]={tag,initial:{},final:{}};
-          out.attackers[name].tag=tag; current=out.attackers[name];
+          out.attackers[name].tag=tag;
+          current=out.attackers[name];
         }else{
           if(!out.defenders[name]) out.defenders[name]={tag,initial:{},final:{}};
-          out.defenders[name].tag=tag; current=out.defenders[name];
+          out.defenders[name].tag=tag;
+          current=out.defenders[name];
         }
         continue;
       }
@@ -456,8 +470,11 @@ function parseCRText(text){
   parseSideBlocks(pre,"initial");
   if(post) parseSideBlocks(post,"final");
 
+  // Se manca la parte "Dopo la battaglia", consideriamo final = initial per gli attaccanti
   Object.values(out.attackers).forEach(p=>{
-    if(!p.final || Object.keys(p.final).length===0) p.final=JSON.parse(JSON.stringify(p.initial));
+    if(!p.final || Object.keys(p.final).length===0){
+      p.final = JSON.parse(JSON.stringify(p.initial));
+    }
   });
 
   return out;
