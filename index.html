@@ -534,6 +534,19 @@ function computeFromSheetLogic(cr, rrTotals, mode){
 
   const totLoss=players.reduce((a,nm)=>({m:a.m+losses[nm].m,c:a.c+losses[nm].c,d:a.d+losses[nm].d}),{m:0,c:0,d:0});
   const totRec=players.reduce((a,nm)=>{const r=rrTotals[nm]||{m:0,c:0,d:0};return {m:a.m+r.m,c:a.c+r.c,d:a.d+r.d};},{m:0,c:0,d:0});
+  const totRecSum = totRec.m + totRec.c + totRec.d;
+if (totRecSum <= 0) {
+  const quota = {};
+  players.forEach(nm => {
+    quota[nm] = {
+      m: 0, c: 0, d: 0,
+      w: (mode === "paritaria") ? 1/n : 0,
+      lost: losses[nm],
+      rec: rrTotals[nm] || { m:0,c:0,d:0 }
+    };
+  });
+  return { players, totLoss, totRec, gain:{m:0,c:0,d:0}, quota };
+}
   const gain={m:totRec.m-totLoss.m,c:totRec.c-totLoss.c,d:totRec.d-totLoss.d};
 
   const weights={};
