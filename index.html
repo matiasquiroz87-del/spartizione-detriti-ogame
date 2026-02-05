@@ -8,14 +8,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:#050a10; --panel:#0b1320; --panel2:#07101b;
-    --text:#dbe7ff; --muted:#93a6c7; --line:rgba(120,160,220,.25);
-    --accent:#4da3ff; --accent2:#2dd4ff;
-    --good:#39d98a; --bad:#ff5c5c;
-    --font-ui:"Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
-    --font-title:"Orbitron","Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
-    --header-h:72px;
+  :root{
+    --bg:#050a10;
+    --text:#dbe7ff;
+    --muted:#93a6c7;
+    --line:rgba(120,160,220,.25);
+    --good:#39d98a;
+    --bad:#ff5c5c;
+    --font-ui:"Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
+    --font-title:"Orbitron","Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
+    --header-h:72px; /* fallback */
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
@@ -33,6 +35,7 @@
       linear-gradient(180deg, rgba(15,25,40,.65), rgba(5,10,16,1));
     filter:saturate(1.05) contrast(1.05);
   }
+
   header{
     position:sticky;top:0;z-index:5;
     background:linear-gradient(180deg, rgba(7,12,18,.92), rgba(7,12,18,.65));
@@ -43,14 +46,22 @@
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .title{display:flex;align-items:center;gap:10px;min-width:0;}
   .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
-  .badge{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:999px;background:rgba(16,26,46,.6)}
   h1{font-family:var(--font-title);font-size:16px;margin:0;letter-spacing:.8px;text-transform:uppercase}
+  .badge{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:999px;background:rgba(16,26,46,.6)}
 
   .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
-  @media (min-width: 980px){ .grid{grid-template-columns: 1fr 1fr;} }
+  @media (min-width:980px){ .grid{grid-template-columns:1fr 1fr;} }
 
-  .card{border:1px solid var(--line);background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .card{
+    border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));
+    border-radius:16px;
+    padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  .min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
   .card h2{margin:0 0 8px 0;font-size:14px;color:var(--text)}
+
   textarea,input,select{
     width:100%;
     background:rgba(8,12,20,.65);
@@ -59,78 +70,67 @@
     border-radius:12px;
     padding:10px;
     font-size:13px;
-    outline:none
+    outline:none;
   }
   textarea{min-height:240px;resize:vertical;line-height:1.25}
+
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .row > *{flex:1}
+
   button{
     border:1px solid rgba(88,166,255,.65);
     background:rgba(88,166,255,.15);
     color:var(--text);
-    padding:9px 12px;border-radius:12px;
-    cursor:pointer;font-weight:600
+    padding:9px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:600;
   }
   button:hover{background:rgba(88,166,255,.22)}
-  .ghost{border-color:var(--line);background:rgba(16,26,46,.5);font-weight:600}
+  .ghost{border-color:var(--line);background:rgba(16,26,46,.5)}
   .ghost:hover{background:rgba(16,26,46,.75)}
+
   .mini{font-size:12px;color:var(--muted)}
-  .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:rgba(16,26,46,.5)}
+  .pill{
+    display:inline-flex;gap:8px;align-items:center;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:6px 10px;
+    background:rgba(16,26,46,.5);
+  }
   .pill input{width:auto}
+
   .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
   .kpi .box{border:1px solid var(--line);background:rgba(8,12,20,.35);border-radius:12px;padding:10px}
   .kpi .box .v{font-size:14px;font-weight:800}
   .kpi .box .l{font-size:12px;color:var(--muted)}
+
   table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
-  th,td{padding:8px 8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
-  th{text-align:right;color:var(--muted);font-weight:700;background:rgba(16,26,46,.55)}
-  th:first-child, td:first-child{text-align:left}
+  th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
+  th{color:var(--muted);font-weight:700;background:rgba(16,26,46,.55)}
+  th:first-child,td:first-child{text-align:left}
   tr:last-child td{border-bottom:none}
   .good{color:var(--good)}
   .bad{color:var(--bad)}
+
   details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
   summary{cursor:pointer;color:var(--muted);font-weight:700}
+
   pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
+
   .ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
 
-  .stage{opacity:1;transform:none;transition:opacity .28s ease, transform .28s ease}
+  .stage{transition:opacity .28s ease, transform .28s ease}
   .stage.hidden{display:none}
   .stage.fadeout{opacity:0;transform:translateY(6px);pointer-events:none}
   .stage.fadein{opacity:0;transform:translateY(6px)}
   .stage.fadein.show{opacity:1;transform:none}
-  .min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
 
+  /* CR textarea nascosto (serve al parser/share) */
   .cr-hidden{display:none !important;}
 
-  /* Stage 1 centrato e 1 sola colonna */
-  #stage1{
-    min-height:calc(100vh - var(--header-h));
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:24px 0;
-  }
-  #stage1 .grid{
-    width:100%;
-    max-width:860px;
-    margin:0 auto;
-    grid-template-columns:1fr !important;
-    justify-items:center;
-  }
-  #stage1 .card{width:100%;max-width:860px}
-
-  @media (max-height:700px){
-    #stage1{align-items:flex-start}
-  }
-
-  /* LOG tab sotto */
-  .logTab{
-    margin-top:12px;
-    border:1px solid var(--line);
-    border-radius:12px;
-    background:rgba(8,12,20,.25);
-    overflow:hidden;
-  }
+  /* LOG tab */
+  .logTab{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,12,20,.25);overflow:hidden}
   .logTab summary{
     cursor:pointer;
     padding:10px 12px;
@@ -144,22 +144,42 @@
   }
   .logTab[open] summary{color:var(--text)}
   .logBoxWrap{padding:10px 12px}
-  #logBox{min-height:180px}
+  #logBox{min-height:220px}
 
-  /* mini control DF% */
+  /* STAGE 1 centrato e SEMPRE a una colonna */
+  #stage1{
+    min-height:calc(100vh - var(--header-h));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px 0;
+  }
+  #stage1 .grid{
+    grid-template-columns:1fr !important;
+    width:100%;
+    max-width:860px;
+    margin:0 auto;
+    justify-items:center;
+  }
+  #stage1 .card{width:100%;max-width:860px}
+  @media (max-height:700px){ #stage1{align-items:flex-start;} }
+
+  /* Selettore % detriti (stile "tasto") */
   .dfCtl{
-    display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;
     margin-top:10px;
   }
-  .dfCtl .miniLbl{flex:0 0 auto;min-width:110px}
-  .dfCtl select{flex:0 0 140px}
-  .dfPill{
-    display:inline-flex;gap:6px;align-items:center;
-    border:1px solid var(--line);
-    border-radius:999px;
-    padding:6px 10px;
-    background:rgba(16,26,46,.5);
+  .dfCtl .lbl{min-width:160px}
+  .dfSelect{
+    max-width:180px;
+    appearance:none;
+    cursor:pointer;
+    font-weight:700;
+    text-align:center;
+    border:1px solid rgba(88,166,255,.65);
+    background:rgba(88,166,255,.12);
   }
+  .dfSelect:hover{background:rgba(88,166,255,.18)}
 </style>
 </head>
 
@@ -193,33 +213,30 @@
 
         <div class="row" style="gap:8px; align-items:center; margin-bottom:10px;">
           <input id="crApiId" placeholder="API ID CR (es. cr-it-269-... oppure link api-reader)" style="flex:1; min-width:260px;">
-          <button id="btnLoadCRApi" type="button" style="flex:0 0 220px;">Carica CR da API</button>
+          <button id="btnLoadCRApi" type="button">Carica CR da API</button>
         </div>
 
-        <!-- Selettore DF% -->
-        <div class="dfCtl">
-          <div class="mini miniLbl">Detriti (%)</div>
-          <select id="dfRateSelect" aria-label="Percentuale detriti">
-            <!-- popolato via JS -->
-          </select>
-          <span class="dfPill mini" id="dfRateHint">Usato per calcolare DF stimato da perdite</span>
-        </div>
-
-        <!-- CR nascosto (serve alla logica/share) -->
+        <!-- CR nascosto -->
         <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
 
-        <div class="mini" style="margin-top:8px">
-          Premi “Carica CR da API”: il CR viene convertito e analizzato automaticamente.
+        <div class="mini">Premi “Carica CR da API”: il CR viene convertito e analizzato automaticamente.</div>
+
+        <!-- Selettore % detriti -->
+        <div class="dfCtl">
+          <div class="mini lbl">Percentuale detriti (DF)</div>
+          <select id="dfPct" class="dfSelect" aria-label="Percentuale detriti">
+            <!-- popolato via JS -->
+          </select>
+          <div class="mini" id="dfPctHint"></div>
         </div>
 
-        <!-- LOG sotto, tab -->
+        <!-- LOG -->
         <details class="logTab" id="logDetails">
           <summary>Log</summary>
           <div class="logBoxWrap">
             <pre id="logBox"></pre>
           </div>
         </details>
-
       </div>
     </div>
   </div>
@@ -303,23 +320,35 @@ function log(msg){
   if(el) el.textContent = LOG.join("\n");
 }
 
+/* ===================== HEADER HEIGHT (centro stage1) ===================== */
+function syncHeaderHeight(){
+  const h = document.querySelector("header")?.offsetHeight || 72;
+  document.documentElement.style.setProperty("--header-h", h + "px");
+}
+window.addEventListener("resize", syncHeaderHeight);
+syncHeaderHeight();
+
 /* ===================== STAGES ===================== */
 function showStage(id){
-  const s1 = document.getElementById('stage1');
-  const s2 = document.getElementById('stage2');
-  if(!s1 || !s2) return;
+  const s1=document.getElementById('stage1');
+  const s2=document.getElementById('stage2');
+  if(!s1||!s2) return;
 
   if(id===1){
     s2.classList.remove('show');
     s2.classList.add('hidden');
     s1.classList.remove('hidden','fadeout');
+    window.scrollTo({top:0,behavior:"instant"});
     return;
   }
   s1.classList.add('fadeout');
   setTimeout(()=>{
     s1.classList.add('hidden');
     s2.classList.remove('hidden');
-    requestAnimationFrame(()=>s2.classList.add('show'));
+    requestAnimationFrame(()=>{
+      s2.classList.add('show');
+      window.scrollTo({top:0,behavior:"instant"});
+    });
   },260);
 }
 
@@ -327,38 +356,51 @@ function showStage(id){
 const STATE = {
   cr:null,
   rr:{},
-  dfRate: 0.30 // <-- default
+  dfPct: 30  // ✅ percentuale detriti selezionata (20..80)
 };
+function getDfRate(){ return (STATE.dfPct||30)/100; }
 
-/* ===================== DF% SELECT ===================== */
-function initDfSelect(){
-  const sel = document.getElementById('dfRateSelect');
+/* ===================== DF SELECT (20..80) ===================== */
+(function initDfSelect(){
+  const sel=document.getElementById("dfPct");
+  const hint=document.getElementById("dfPctHint");
   if(!sel) return;
 
-  // 20..80 step 5
-  const opts = [];
+  // opzioni 20..80 step 5 (puoi cambiare a 10 se preferisci)
   for(let p=20;p<=80;p+=5){
-    const v = (p/100).toFixed(2);
-    opts.push({p, v:Number(v)});
+    const opt=document.createElement("option");
+    opt.value=String(p);
+    opt.textContent = p + "%";
+    sel.appendChild(opt);
   }
+  sel.value=String(STATE.dfPct);
+  if(hint) hint.textContent = `Attuale: ${STATE.dfPct}%`;
 
-  sel.innerHTML = opts.map(o=>`<option value="${o.v}">${o.p}%</option>`).join('');
-  sel.value = String(STATE.dfRate.toFixed(2));
-
-  sel.addEventListener('change', ()=>{
-    STATE.dfRate = Number(sel.value) || 0.30;
-    log(`🧩 Detriti impostati: ${(STATE.dfRate*100).toFixed(0)}%`);
-    // se CR già caricato, aggiorna KPI
-    if(STATE.cr){
-      renderKPI(STATE.cr);
-    }
+  sel.addEventListener("change", ()=>{
+    STATE.dfPct = parseInt(sel.value,10) || 30;
+    if(hint) hint.textContent = `Attuale: ${STATE.dfPct}%`;
+    log(`Detriti impostati a ${STATE.dfPct}%`);
+    renderKPI(STATE.cr);
   });
-}
-initDfSelect();
+})();
 
 /* ===================== CR PARSER ===================== */
 function parseCRText(text){
-  const out = { attackers:{}, defenders:{} };
+  const out = { attackers:{}, defenders:{}, coords:null, loot:{m:0,c:0,d:0}, df_float:{m:0,c:0,d:0}, moonChance:null };
+
+  const coordM = text.match(/\b\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/);
+  if(coordM) out.coords = (coordM[1]||coordM[2]||null);
+
+  const moonM = text.match(/possibilit[aà].*?luna.*?(\d+)%/i);
+  if(moonM) out.moonChance = parseNum(moonM[1]);
+
+  const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
+  if(lootM){ out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]); }
+
+  const dfLine = text.match(/(At these space coordinates now float|Alle coordinate.*fluttuano|A queste coordinate.*fluttuano)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)/i);
+  if(dfLine){
+    out.df_float.m=parseNum(dfLine[2]); out.df_float.c=parseNum(dfLine[3]); out.df_float.d=parseNum(dfLine[4]);
+  }
 
   let pre=text, post="";
   const idx=text.search(/\bDopo\s+la\s+battaglia\b/i);
@@ -411,7 +453,7 @@ function parseCRText(text){
 }
 
 function computeDebrisFromCR(cr){
-  const rate = STATE.dfRate || 0.30; // <-- usa selettore
+  const rate = getDfRate(); // ✅ usa % selezionata
   const sum={m:0,c:0,d:0};
   function add(sideObj){
     for(const p of Object.values(sideObj||{})){
@@ -442,7 +484,7 @@ function computeFromSheetLogic(cr, rrTotals, mode){
   const losses={}, fleetValue={};
   players.forEach(name=>{
     const p=cr.attackers[name];
-    losses[name]={m:0,c:0,d:0,units:0};
+    losses[name]={m:0,c:0,d:0};
     fleetValue[name]=0;
 
     for(const [ship,cnt] of Object.entries(p.initial)){
@@ -515,16 +557,16 @@ function renderKPI(cr){
   if(!el) return;
   if(!cr){ el.innerHTML=""; return; }
 
-  const dfNew = computeDebrisFromCR(cr);
-
+  const dfNew=computeDebrisFromCR(cr);
   const rrTotals=STATE.rr||{};
   const rr=Object.values(rrTotals).reduce((a,v)=>({m:a.m+(v.m||0),c:a.c+(v.c||0),d:a.d+(v.d||0)}),{m:0,c:0,d:0});
   const dfLeft={m:dfNew.m-rr.m, c:dfNew.c-rr.c, d:dfNew.d-rr.d};
+  const pct = STATE.dfPct || 30;
 
   el.innerHTML=`
-    <div class="box"><div class="v">${fmt(dfNew.m)}</div><div class="l">DF totale M (${Math.round(STATE.dfRate*100)}%)</div></div>
-    <div class="box"><div class="v">${fmt(dfNew.c)}</div><div class="l">DF totale C (${Math.round(STATE.dfRate*100)}%)</div></div>
-    <div class="box"><div class="v">${fmt(dfNew.d)}</div><div class="l">DF totale D (${Math.round(STATE.dfRate*100)}%)</div></div>
+    <div class="box"><div class="v">${fmt(dfNew.m)}</div><div class="l">DF totale M (${pct}%)</div></div>
+    <div class="box"><div class="v">${fmt(dfNew.c)}</div><div class="l">DF totale C (${pct}%)</div></div>
+    <div class="box"><div class="v">${fmt(dfNew.d)}</div><div class="l">DF totale D (${pct}%)</div></div>
 
     <div class="box"><div class="v">${fmt(rr.m)}</div><div class="l">RR raccolto M</div></div>
     <div class="box"><div class="v">${fmt(rr.c)}</div><div class="l">RR raccolto C</div></div>
@@ -601,7 +643,7 @@ function renderResults(computed){
 }
 
 function recomputeAndRender(){
-  if(!STATE.cr){ return; }
+  if(!STATE.cr) return;
   const mode=document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
   renderResults(computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode));
 }
@@ -612,11 +654,8 @@ document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("c
 }));
 
 function analyzeCurrentCR(){
-  const text = document.getElementById("crText").value || "";
-  if(!text.trim()){
-    log("⚠️ Nessun CR presente. Caricalo da API.");
-    return;
-  }
+  const text=document.getElementById("crText").value || "";
+  if(!text.trim()){ log("⚠️ Nessun CR presente. Caricalo da API."); return; }
   const cr=parseCRText(text);
   STATE.cr=cr;
   renderKPI(cr);
@@ -648,7 +687,7 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
   }
 }
 
-/* ===================== NoMoreAngel converter (come tuo) ===================== */
+/* ===================== NMA → CLASSICO ===================== */
 const shipNameMapEN2IT = {
   "Small Cargo":"Cargo leggero","Large Cargo":"Cargo Pesante","Light Fighter":"Caccia Leggero","Heavy Fighter":"Caccia Pesante",
   "Cruiser":"Incrociatore","Battleship":"Nave da battaglia","Colony Ship":"Colonizzatrice","Recycler":"Riciclatrice",
@@ -678,8 +717,8 @@ function parseNmaApiReaderToClassic(raw){
   const idxInit=t.search(/####\s*Initial\s*:/i);
   if(idxInit<0) return null;
 
-  const date=((t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i)||[])[1])||"--:--:--";
-  const time=((t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i)||[])[1])||"--:--:--";
+  const date=((t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i)||[])[1])||"--";
+  const time=((t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i)||[])[1])||"--";
 
   let maxRound=0;
   const roundRe=/####\s*Round\s+(\d+)/gi;
@@ -787,6 +826,13 @@ function parseNmaApiReaderToClassic(raw){
     lines.push("_________________________________________\n");
   }
 
+  const dfM=(t.match(/Metal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
+  const dfC=(t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
+  const dfD=(t.match(/Deuterium to debrisfield:\s*([\d\.,]+)/i)||[])[1];
+  if(dfM||dfC||dfD){
+    lines.push(`At these space coordinates now float ${dfM||"0"} metal, ${dfC||"0"} crystal and ${dfD||"0"} deuterium.`);
+  }
+
   return lines.join("\n");
 }
 
@@ -871,6 +917,7 @@ document.getElementById("btnClearRR").addEventListener("click", ()=>{
   document.getElementById("rrRaw").textContent="";
   renderRRTable(STATE.rr);
   recomputeAndRender();
+  renderKPI(STATE.cr);
   log("RR puliti.");
 });
 
@@ -888,27 +935,29 @@ function decodeShareState(b64){
 function collectShareState(){
   return {
     v: 6,
-    dfRate: STATE.dfRate,
     crText:(document.getElementById("crText").value||"").trim(),
     proxyBase:(document.getElementById("proxyBase").value||"").trim(),
     timeoutMs:parseNum(document.getElementById("timeoutMs").value)||12000,
     rrIds:(document.getElementById("rrIds").value||"").trim(),
     rrTotals: STATE.rr || {},
+    dfPct: STATE.dfPct || 30
   };
 }
 function applyShareState(st){
   if(!st || typeof st!=="object") return;
 
-  if(typeof st.dfRate === "number" && st.dfRate>=0.2 && st.dfRate<=0.8){
-    STATE.dfRate = st.dfRate;
-    const sel = document.getElementById('dfRateSelect');
-    if(sel) sel.value = String(STATE.dfRate.toFixed(2));
-  }
-
   if(typeof st.proxyBase==="string" && st.proxyBase.trim()) document.getElementById("proxyBase").value=st.proxyBase.trim();
   if(st.timeoutMs) document.getElementById("timeoutMs").value=String(st.timeoutMs);
   if(typeof st.rrIds==="string") document.getElementById("rrIds").value=st.rrIds;
   if(typeof st.crText==="string") document.getElementById("crText").value=st.crText;
+
+  if(st.dfPct){
+    STATE.dfPct = Math.min(80, Math.max(20, parseInt(st.dfPct,10)||30));
+    const sel=document.getElementById("dfPct");
+    const hint=document.getElementById("dfPctHint");
+    if(sel) sel.value=String(STATE.dfPct);
+    if(hint) hint.textContent=`Attuale: ${STATE.dfPct}%`;
+  }
 
   if(st.rrTotals && typeof st.rrTotals==="object" && Object.keys(st.rrTotals).length){
     STATE.rr=st.rrTotals;
@@ -919,6 +968,7 @@ function applyShareState(st){
     try{ analyzeCurrentCR(); }catch(e){ log("Errore analisi CR da link: "+(e?.message||e)); }
   }
   recomputeAndRender();
+  renderKPI(STATE.cr);
 }
 function shareLink(){
   const token=encodeShareState(collectShareState());
@@ -954,7 +1004,7 @@ document.getElementById("btnShare").addEventListener("click", ()=>doShare());
   }
 })();
 
-log("Pronto. 1) Carica CR da API (analisi automatica). 2) Imposta Detriti (%). 3) Inserisci RR. 4) Vedi risultati.");
+log("Pronto. 1) Carica CR da API. 2) Seleziona % detriti (20–80). 3) Inserisci RR. 4) Vedi risultati.");
 </script>
 </body>
 </html>
