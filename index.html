@@ -300,6 +300,7 @@
 
 <script>
 /* ===================== CONFIG ===================== */
+  const INCLUDE_LOOT = false; // ❌ NON considerare bottino saccheggiato
 const COSTS = {"Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],"Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],"Incrociatore da Battaglia":[30000,40000,15000],"Reaper":[85000,55000,20000],"Pathfinder":[8000,15000,8000],"Riciclatrice":[10000,6000,2000],"Colonizzatrice":[10000,20000,10000],"Sonda spia":[0,1000,0],"Satellite Solare":[0,2000,500],"Crawler":[2000,2000,1000],"Morte Nera":[5000000,4000000,1000000],"Lanciamissili":[2000,0,0],"Laser leggero":[1500,500,0],"Laser pesante":[6000,2000,0],"Cannone Gauss":[20000,15000,2000],"Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]};
 const DF_ALLOWED = new Set(["Cargo leggero","Cargo Pesante","Caccia Leggero","Caccia Pesante","Incrociatore","Nave da battaglia","Bombardiere","Corazzata","Incrociatore da Battaglia","Morte Nera","Reaper","Pathfinder","Colonizzatrice","Riciclatrice","Sonda spia","Crawler","Satellite Solare"]);
 
@@ -386,6 +387,9 @@ function getDfRate(){ return (STATE.dfPct||30)/100; }
 
 /* ===================== CR PARSER ===================== */
 function parseCRText(text){
+  if (!INCLUDE_LOOT) {
+  out.loot = { m: 0, c: 0, d: 0 };
+}
   const out = { attackers:{}, defenders:{}, coords:null, loot:{m:0,c:0,d:0}, df_float:{m:0,c:0,d:0}, moonChance:null };
 
   const coordM = text.match(/\b\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/);
