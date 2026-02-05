@@ -378,19 +378,26 @@ function getDfRate(){ return (STATE.dfPct||30)/100; }
   if(hint) hint.textContent = `Attuale: ${STATE.dfPct}%`;
 
   sel.addEventListener("change", ()=>{
-    STATE.dfPct = parseInt(sel.value,10) || 30;
-    if(hint) hint.textContent = `Attuale: ${STATE.dfPct}%`;
-    log(`Detriti impostati a ${STATE.dfPct}%`);
-    renderKPI(STATE.cr);
-  });
+  STATE.dfPct = parseInt(sel.value,10) || 30;
+  if(hint) hint.textContent = `Attuale: ${STATE.dfPct}%`;
+  log(`Detriti impostati a ${STATE.dfPct}%`);
+  renderKPI(STATE.cr);
+  recomputeAndRender(); // ✅ aggiungi questa riga
+});
 })();
 
 /* ===================== CR PARSER ===================== */
 function parseCRText(text){
-  if (!INCLUDE_LOOT) {
-  out.loot = { m: 0, c: 0, d: 0 };
-}
   const out = { attackers:{}, defenders:{}, coords:null, loot:{m:0,c:0,d:0}, df_float:{m:0,c:0,d:0}, moonChance:null };
+
+  // ... parsing loot ecc ...
+
+  if(!INCLUDE_LOOT){
+    out.loot = { m:0, c:0, d:0 };
+  }
+
+  return out;
+}
 
   const coordM = text.match(/\b\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/);
   if(coordM) out.coords = (coordM[1]||coordM[2]||null);
