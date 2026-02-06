@@ -422,31 +422,24 @@ function computeFromSheetLogic(cr, rrTotals, mode){
   return {players,totLoss,totRec,gain,quota};
 }
 
-function buildTransfersFromRecycled(players, quota, resKey){
-  // quota[p].lost = perdite
-  // quota[p].rec  = riciclato
-  // quota[p].w    = peso
-  // computed.gain[resKey] è incorporato in quota[p][resKey] nel tuo modello,
-  // ma qui lo ricostruiamo usando lost + gain*w => lo passiamo da fuori (vedi sotto).
-  // Quindi questa funzione riceve già "desired" pre-calcolato dentro quota[p].desiredRec
+function buildTransfersByTargetShare(players, quota, totRec, resKey){
+  // Target = totRec * weight
+  const recv=[], send=[];
 
-  const recv = []; // [player, amount]
-  const send = []; // [player, amount]  (solo surplus reali)
-
-  for(const p of players){
-    const desired = quota[p].desiredRec?.[resKey] ?? 0;  // quanto "dovrebbe" riciclare
-    const actual  = quota[p].rec?.[resKey] ?? 0;        // quanto ha riciclato
-    const delta   = desired - actual;                   // + deve ricevere, - surplus
+  players.forEach(p=>{
+    const w = quota[p].w || 0;
+    const target = (totRec?.[resKey] || 0) * w;
+    const actual = quota[p].rec?.[resKey] || 0;
+    const delta = target - actual;
 
     if(delta > 0.5) recv.push([p, delta]);
-    else if(delta < -0.5) send.push([p, -delta]);       // surplus positivo
-  }
+    else if(delta < -0.5) send.push([p, -delta]); // surplus reale riciclato
+  });
 
   recv.sort((a,b)=>b[1]-a[1]);
   send.sort((a,b)=>b[1]-a[1]);
 
-  const moves=[];
-  let i=0, j=0;
+  const moves=[]; let i=0,j=0;
   while(i<send.length && j<recv.length){
     const [sp,sv]=send[i];
     const [rp,rv]=recv[j];
