@@ -560,9 +560,9 @@ players.forEach(p=>{
 
   resEl.innerHTML = header + table;
 
-const mt = buildTransfersFromRecycled(players, quota, "m");
-const ct = buildTransfersFromRecycled(players, quota, "c");
-const dt = buildTransfersFromRecycled(players, quota, "d");
+const mt = buildTransfersByTargetShare(players, quota, totRec, "m");
+const ct = buildTransfersByTargetShare(players, quota, totRec, "c");
+const dt = buildTransfersByTargetShare(players, quota, totRec, "d");
 
   function renderMoveList(label,moves){
     if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato).</div>`;
