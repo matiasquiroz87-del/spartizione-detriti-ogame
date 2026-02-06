@@ -298,7 +298,6 @@ const STATE = { cr:null, rr:{} };
 function parseCRText(text){
   const out = { attackers:{}, defenders:{}, loot:{m:0,c:0,d:0} };
 
-  // Loot (opzionale)
   const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
   if(lootM){
     out.loot.m = parseNum(lootM[1]);
@@ -307,70 +306,73 @@ function parseCRText(text){
   }
   if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
 
-  // Split: prima/dopo battaglia
-  let pre = text, post = "";
+  let pre=text, post="";
   const idx = text.search(/\b(Dopo\s+la\s+battaglia|After\s+the\s+battle)\b/i);
-  if(idx >= 0){
-    pre = text.slice(0, idx);
-    post = text.slice(idx);
+  if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
+
+  function ensure(bucket,name,tag){
+    if(!bucket[name]) bucket[name]={ tag, initial:{}, final:{}, lost:{} };
+    bucket[name].tag = tag;
+    bucket[name].lost = bucket[name].lost || {};
+    return bucket[name];
   }
 
-  function ensurePlayer(bucket, name, tag){
-    if(!bucket[name]) bucket[name] = { tag, initial:{}, final:{} };
-    bucket[name].tag = tag;
-    return bucket[name];
+  function normKey(s){
+    return String(s||"")
+      .replace(/\u00A0/g," ")     // NBSP
+      .replace(/\s+/g," ")       // spazi multipli
+      .trim();
   }
 
   function parseSideBlocks(blockText, phase){
     const lines = String(blockText||"").split(/\r?\n/);
-    let current = null;
+    let current=null, side=null;
 
     for(const raw of lines){
       const line = raw.trim();
       if(!line) continue;
 
-      // Header player (IT/EN)
-      const h = line.match(/^(Attaccante|Difensore|Attacker|Defender)\s+(.+?)\s+\[(.+?)\]\s*$/i);
+      const h=line.match(/^(Attaccante|Difensore|Attacker|Defender)\s+(.+?)\s+\[(.+?)\]\s*$/i);
       if(h){
-        const isAtt = /^(Attaccante|Attacker)$/i.test(h[1]);
-        const name = (h[2]||"").trim();
-        const tag  = (h[3]||"").trim();
-        const bucket = isAtt ? out.attackers : out.defenders;
-        current = ensurePlayer(bucket, name, tag);
+        side = /^(Attaccante|Attacker)$/i.test(h[1]) ? "att" : "def";
+        const name=normKey(h[2]), tag=normKey(h[3]);
+        const bucket = side==="att" ? out.attackers : out.defenders;
+        current = ensure(bucket, name, tag);
         continue;
       }
 
       if(!current) continue;
-
-      // Separatori/righe inutili
       if(line.startsWith("_")) continue;
       if(line.toLowerCase().includes("distrutto")) continue;
 
-      // Riga unità: "Nome 123.456 ( -...)"
-      const m = line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-[\d\.,]+\s*\))?\s*$/);
+      // cattura anche il "(- 123.456)" se presente
+      const m=line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-\s*([\d\.,]+)\s*\))?\s*$/);
       if(!m) continue;
 
-      const item = m[1].trim();
+      const item = normKey(m[1]);
       const count = parseNum(m[2]);
+      const lostCap = (m[3]!==undefined) ? parseNum(m[3]) : null;
 
-      // ✅ REGOLA GIUSTA:
-      // - initial: SOMMA (perché NMA spezza lo stesso player in più blocchi Initial)
-      // - final:   PRENDI L'ULTIMO (Round finale) => usa max per sicurezza se ricompare
-      if(phase === "initial"){
-        current.initial[item] = (current.initial[item] || 0) + count;
-      } else {
-        current.final[item] = Math.max(current.final[item] || 0, count);
+      if(phase==="initial"){
+        // se lo stesso player è spezzato in più blocchi, somma (ok)
+        current.initial[item] = (current.initial[item]||0) + count;
+      }else{
+        // finale: prendi l’ultimo/il max
+        current.final[item] = Math.max(current.final[item]||0, count);
+
+        // ✅ salva Lost ufficiale dal CR
+        if(lostCap!==null && lostCap>0){
+          current.lost[item] = Math.max(current.lost[item]||0, lostCap);
+        }
       }
     }
   }
 
-  // Parse initial e final
-  parseSideBlocks(pre, "initial");
-  if(post) parseSideBlocks(post, "final");
+  parseSideBlocks(pre,"initial");
+  if(post) parseSideBlocks(post,"final");
 
-  // Se manca la parte finale (CR incompleto), assume finale = iniziale per gli attaccanti
   Object.values(out.attackers).forEach(p=>{
-    if(!p.final || Object.keys(p.final).length === 0){
+    if(!p.final || Object.keys(p.final).length===0){
       p.final = JSON.parse(JSON.stringify(p.initial));
     }
   });
@@ -396,7 +398,9 @@ function computeFromSheetLogic(cr, rrTotals, mode){
 
     const ships = new Set([...Object.keys(p.initial), ...Object.keys(p.final)]);
     for(const ship of ships){
-      const lostCnt = Math.max(0,(p.initial[ship]||0) - (p.final[ship]||0));
+      const lostCnt = (p.lost && p.lost[ship]!=null)
+  ? p.lost[ship]
+  : Math.max(0,(p.initial[ship]||0) - (p.final[ship]||0));
       if(lostCnt<=0) continue;
       const cost=COSTS[ship];
       if(!cost) continue;
