@@ -349,7 +349,7 @@ function parseCRText(text){
   return out;
 }
 
-/* ===================== LOGICA ECONOMICA (saldo) ===================== */
+/* ===================== LOGICA (saldi) ===================== */
 function computeFromSheetLogic(cr, rrTotals, mode){
   const players = Object.keys(cr.attackers);
   const n = players.length || 1;
@@ -395,21 +395,33 @@ function computeFromSheetLogic(cr, rrTotals, mode){
     players.forEach(nm=>weights[nm]=(fleetValue[nm]||0)/totFleet);
   }
 
-  // SALDO = perdite + (gain * %) - riciclato
-  const saldo={};
+  // ✅ Per-player: saldo senza RR e saldo con RR
+  const outPlayers = {};
   players.forEach(nm=>{
-    const r=rrTotals[nm]||{m:0,c:0,d:0};
-    saldo[nm]={
-      m:losses[nm].m + gain.m*weights[nm] - r.m,
-      c:losses[nm].c + gain.c*weights[nm] - r.c,
-      d:losses[nm].d + gain.d*weights[nm] - r.d,
-      w:weights[nm],
-      lost:losses[nm],
-      rec:r
+    const r = rrTotals[nm]||{m:0,c:0,d:0};
+
+    const saldoBase = { // senza RR
+      m: -losses[nm].m,
+      c: -losses[nm].c,
+      d: -losses[nm].d
+    };
+
+    const saldoConRR = { // con RR effettivo
+      m: saldoBase.m + r.m,
+      c: saldoBase.c + r.c,
+      d: saldoBase.d + r.d
+    };
+
+    outPlayers[nm] = {
+      w: weights[nm],
+      lost: losses[nm],
+      rec: r,
+      saldoBase,
+      saldoConRR
     };
   });
 
-  return {players,totLoss,totRec,gain,weights,saldo};
+  return {players,totLoss,totRec,gain,weights,perPlayer:outPlayers};
 }
 
 /* ===================== TRASPORTI SOLO SU RICICLATO (ΔRR) ===================== */
@@ -438,7 +450,7 @@ function buildTransfers(players, bucket, resKey){
     if(v>0.5) recv.push([p,v]);
     else if(v<-0.5) send.push([p,-v]);
   });
-  recv.sort((a,b)=>b[1]-a[1]); send.sort((a,b)=>b[1]-a[1]);
+  recv.sort((a,b)=>b[1]-a[1]); send.sort((a,b)=>a[1]-b[1]); // non critico
   const moves=[]; let i=0,j=0;
   while(i<send.length && j<recv.length){
     const [sp,sv]=send[i], [rp,rv]=recv[j];
@@ -464,7 +476,7 @@ function renderRRTable(rrTotals){
 
   el.innerHTML = `
     <table>
-      <thead><tr><th>Giocatore</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>RR</th></tr></thead>
+      <thead><tr><th>Giocatore</th><th>RR Metallo</th><th>RR Cristallo</th><th>RR Deuterio</th><th>RR</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -500,28 +512,33 @@ function renderResults(computed){
     return;
   }
 
-  const {players,totLoss,totRec,gain,weights,saldo}=computed;
+  const {players,totLoss,totRec,gain,weights,perPlayer}=computed;
 
   const header=`
     <div class="kpi">
-      <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
+      <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">RR totale (M/C/D)</div></div>
       <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite totali (M/C/D)</div></div>
       <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain (M/C/D)</div></div>
     </div>`;
 
   const rows=players.map(p=>{
-    const q=saldo[p];
-    const mClass=q.m>=0?"good":"bad";
-    const cClass=q.c>=0?"good":"bad";
-    const dClass=q.d>=0?"good":"bad";
+    const q=perPlayer[p];
+    const sb=q.saldoBase, sr=q.saldoConRR;
+
     return `
       <tr>
         <td>${p} <span class="mini">[${(q.w*100).toFixed(2)}%]</span></td>
+
         <td>${fmt(q.lost.m)}</td><td>${fmt(q.lost.c)}</td><td>${fmt(q.lost.d)}</td>
         <td>${fmt(q.rec.m)}</td><td>${fmt(q.rec.c)}</td><td>${fmt(q.rec.d)}</td>
-        <td class="${mClass}">${fmt(q.m)}</td>
-        <td class="${cClass}">${fmt(q.c)}</td>
-        <td class="${dClass}">${fmt(q.d)}</td>
+
+        <td class="${sb.m>=0?'good':'bad'}">${fmt(sb.m)}</td>
+        <td class="${sb.c>=0?'good':'bad'}">${fmt(sb.c)}</td>
+        <td class="${sb.d>=0?'good':'bad'}">${fmt(sb.d)}</td>
+
+        <td class="${sr.m>=0?'good':'bad'}">${fmt(sr.m)}</td>
+        <td class="${sr.c>=0?'good':'bad'}">${fmt(sr.c)}</td>
+        <td class="${sr.d>=0?'good':'bad'}">${fmt(sr.d)}</td>
       </tr>`;
   }).join("");
 
@@ -530,18 +547,23 @@ function renderResults(computed){
       <thead>
         <tr>
           <th>Giocatore</th>
+
           <th>Perse M</th><th>Perse C</th><th>Perse D</th>
-          <th>Riciclato M</th><th>Riciclato C</th><th>Riciclato D</th>
-          <th>Saldo M</th><th>Saldo C</th><th>Saldo D</th>
+          <th>RR M</th><th>RR C</th><th>RR D</th>
+
+          <th>Saldo M (senza RR)</th><th>Saldo C (senza RR)</th><th>Saldo D (senza RR)</th>
+          <th>Saldo M (con RR)</th><th>Saldo C (con RR)</th><th>Saldo D (con RR)</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="mini" style="margin-top:8px">Saldo = Perdite + (Gain×%) − Riciclato. (Informativo)</div>`;
+    <div class="mini" style="margin-top:8px">
+      Saldo (senza RR) = −Perdite. &nbsp;•&nbsp; Saldo (con RR) = −Perdite + RR effettivo.
+    </div>`;
 
   resEl.innerHTML = header + table;
 
-  // ✅ TRASPORTI SOLO SU RICICLATO
+  // ✅ TRASPORTI SOLO SU RICICLATO (delta = quota teorica RR - RR effettivo)
   const {delta} = computeDeltaRR(players, STATE.rr, weights);
   const mt=buildTransfers(players,delta,"m");
   const ct=buildTransfers(players,delta,"c");
@@ -916,7 +938,7 @@ document.getElementById("btnShare").addEventListener("click", ()=>doShare());
 })();
 
 setCrStatus(null,"In attesa del CR…");
-log("Pronto. 1) Carica CR. 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
+log("Pronto. 1) Carica CR. 2) Carica RR. 3) Vedi saldi (senza/con RR) e trasporti (solo su riciclato).");
 </script>
 </body>
 </html>
