@@ -393,6 +393,32 @@ function parseCRText(text){
   const idx=text.search(/\bDopo\s+la\s+battaglia\b/i);
   if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
 
+  function debugLossesByPlayer(cr){
+  const out = {};
+  for(const [name, p] of Object.entries(cr.attackers)){
+    let m=0, c=0, d=0;
+
+    const ships = new Set([
+      ...Object.keys(p.initial||{}),
+      ...Object.keys(p.final||{})
+    ]);
+
+    for(const ship of ships){
+      const lost = Math.max(0, (p.initial[ship]||0) - (p.final[ship]||0));
+      if(!lost) continue;
+      const cost = COSTS[ship];
+      if(!cost) continue;
+
+      m += cost[0] * lost;
+      c += cost[1] * lost;
+      d += cost[2] * lost;
+    }
+
+    out[name] = { m, c, d, total: m+c+d };
+  }
+  return out;
+}
+
   function parseSideBlocks(blockText, phase){
     const lines=blockText.split(/\r?\n/);
     let current=null;
