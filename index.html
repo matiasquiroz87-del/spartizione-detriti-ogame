@@ -730,6 +730,9 @@ function parseNmaApiReaderToClassic(raw){
     for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
       const itName=mapShipToIT(shipsEN[i]);
     final.attackers[key][itName] = Math.max(final.attackers[key][itName]||0, nums[i]);
+      const totalLost = {};
+if(!totalLost[key]) totalLost[key] = {};
+totalLost[key][itName] = (totalLost[key][itName] || 0) + lostValue;
     }
   }
 
