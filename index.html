@@ -299,7 +299,11 @@ function parseCRText(text){
   const out = { attackers:{}, defenders:{}, loot:{m:0,c:0,d:0} };
 
   const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
-  if(lootM){ out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]); }
+  if(lootM){
+    out.loot.m = parseNum(lootM[1]);
+    out.loot.c = parseNum(lootM[2]);
+    out.loot.d = parseNum(lootM[3]);
+  }
   if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
 
   let pre=text, post="";
@@ -310,6 +314,9 @@ function parseCRText(text){
     const lines = blockText.split(/\r?\n/);
     let current=null, side=null;
 
+    // ✅ evita che lo stesso header player venga parsato 2 volte nello stesso blocco/phase
+    const seenPlayerInPhase = new Set();
+
     for(const raw of lines){
       const line = raw.trim();
       if(!line) continue;
@@ -318,6 +325,15 @@ function parseCRText(text){
       if(h){
         side = h[1].toLowerCase().startsWith("att") ? "att" : "def";
         const name=h[2].trim(), tag=h[3].trim();
+
+        const key = `${phase}|${side}|${name}|${tag}`;
+        if(seenPlayerInPhase.has(key)){
+          // header duplicato -> evita doppio parsing
+          current = null;
+          continue;
+        }
+        seenPlayerInPhase.add(key);
+
         const bucket = side==="att" ? out.attackers : out.defenders;
         if(!bucket[name]) bucket[name]={tag,initial:{},final:{}};
         bucket[name].tag=tag;
@@ -333,8 +349,13 @@ function parseCRText(text){
       if(m){
         const item=m[1].trim();
         const count=parseNum(m[2]);
-        if(phase==="initial") current.initial[item]=(current.initial[item]||0)+count;
-        else current.final[item]=(current.final[item]||0)+count;
+
+        // ✅ NON sommare: se la riga ricompare, prendi il valore più grande
+        if(phase==="initial"){
+          current.initial[item] = Math.max(current.initial[item]||0, count);
+        }else{
+          current.final[item] = Math.max(current.final[item]||0, count);
+        }
       }
     }
   }
