@@ -294,10 +294,11 @@ function showApp2(){
 /* ===================== STATE ===================== */
 const STATE = { cr:null, rr:{} };
 
-/* ===================== CR PARSER ===================== */
+/* ===================== CR PARSER (CORRETTO) ===================== */
 function parseCRText(text){
   const out = { attackers:{}, defenders:{}, loot:{m:0,c:0,d:0} };
 
+  // Loot (opzionale)
   const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
   if(lootM){
     out.loot.m = parseNum(lootM[1]);
@@ -306,64 +307,72 @@ function parseCRText(text){
   }
   if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
 
-  let pre=text, post="";
+  // Split: prima/dopo battaglia
+  let pre = text, post = "";
   const idx = text.search(/\b(Dopo\s+la\s+battaglia|After\s+the\s+battle)\b/i);
-  if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
+  if(idx >= 0){
+    pre = text.slice(0, idx);
+    post = text.slice(idx);
+  }
+
+  function ensurePlayer(bucket, name, tag){
+    if(!bucket[name]) bucket[name] = { tag, initial:{}, final:{} };
+    bucket[name].tag = tag;
+    return bucket[name];
+  }
 
   function parseSideBlocks(blockText, phase){
-    const lines = blockText.split(/\r?\n/);
-    let current=null, side=null;
-
-    // ✅ evita che lo stesso header player venga parsato 2 volte nello stesso blocco/phase
-    const seenPlayerInPhase = new Set();
+    const lines = String(blockText||"").split(/\r?\n/);
+    let current = null;
 
     for(const raw of lines){
       const line = raw.trim();
       if(!line) continue;
 
-      const h=line.match(/^(Attaccante|Difensore|Attacker|Defender)\s+(.+?)\s+\[(.+?)\]\s*$/i);
+      // Header player (IT/EN)
+      const h = line.match(/^(Attaccante|Difensore|Attacker|Defender)\s+(.+?)\s+\[(.+?)\]\s*$/i);
       if(h){
-        side = /^(Attaccante|Attacker)$/i.test(h[1]) ? "att" : "def";
-        const name=h[2].trim(), tag=h[3].trim();
-
-        const key = `${phase}|${side}|${name}|${tag}`;
-        if(seenPlayerInPhase.has(key)){
-          // header duplicato -> evita doppio parsing
-          current = null;
-          continue;
-        }
-        seenPlayerInPhase.add(key);
-
-        const bucket = side==="att" ? out.attackers : out.defenders;
-        if(!bucket[name]) bucket[name]={tag,initial:{},final:{}};
-        bucket[name].tag=tag;
-        current=bucket[name];
+        const isAtt = /^(Attaccante|Attacker)$/i.test(h[1]);
+        const name = (h[2]||"").trim();
+        const tag  = (h[3]||"").trim();
+        const bucket = isAtt ? out.attackers : out.defenders;
+        current = ensurePlayer(bucket, name, tag);
         continue;
       }
 
       if(!current) continue;
+
+      // Separatori/righe inutili
       if(line.startsWith("_")) continue;
       if(line.toLowerCase().includes("distrutto")) continue;
 
-      const m=line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-[\d\.,]+\s*\))?\s*$/);
-      if(m){
-        const item=m[1].trim();
-        const count=parseNum(m[2]);
+      // Riga unità: "Nome 123.456 ( -...)"
+      const m = line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-[\d\.,]+\s*\))?\s*$/);
+      if(!m) continue;
 
-        // ✅ NON sommare: se la riga ricompare, prendi il valore più grande
-if(phase==="initial"){
-  current.initial[item] = (current.initial[item] || 0) + count;
-}
-       
+      const item = m[1].trim();
+      const count = parseNum(m[2]);
+
+      // ✅ REGOLA GIUSTA:
+      // - initial: SOMMA (perché NMA spezza lo stesso player in più blocchi Initial)
+      // - final:   PRENDI L'ULTIMO (Round finale) => usa max per sicurezza se ricompare
+      if(phase === "initial"){
+        current.initial[item] = (current.initial[item] || 0) + count;
+      } else {
+        current.final[item] = Math.max(current.final[item] || 0, count);
       }
     }
   }
 
-  parseSideBlocks(pre,"initial");
-  if(post) parseSideBlocks(post,"final");
+  // Parse initial e final
+  parseSideBlocks(pre, "initial");
+  if(post) parseSideBlocks(post, "final");
 
+  // Se manca la parte finale (CR incompleto), assume finale = iniziale per gli attaccanti
   Object.values(out.attackers).forEach(p=>{
-    if(!p.final || Object.keys(p.final).length===0) p.final = JSON.parse(JSON.stringify(p.initial));
+    if(!p.final || Object.keys(p.final).length === 0){
+      p.final = JSON.parse(JSON.stringify(p.initial));
+    }
   });
 
   return out;
