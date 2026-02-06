@@ -422,17 +422,34 @@ function computeFromSheetLogic(cr, rrTotals, mode){
   return {players,totLoss,totRec,gain,quota};
 }
 
-function buildTransfers(players, quota, resKey){
-  const recv=[], send=[];
-  players.forEach(p=>{
-    const v=quota[p][resKey];
-    if(v>0.5) recv.push([p,v]);
-    else if(v<-0.5) send.push([p,-v]);
-  });
-  recv.sort((a,b)=>b[1]-a[1]); send.sort((a,b)=>b[1]-a[1]);
-  const moves=[]; let i=0,j=0;
+function buildTransfersFromRecycled(players, quota, resKey){
+  // quota[p].lost = perdite
+  // quota[p].rec  = riciclato
+  // quota[p].w    = peso
+  // computed.gain[resKey] è incorporato in quota[p][resKey] nel tuo modello,
+  // ma qui lo ricostruiamo usando lost + gain*w => lo passiamo da fuori (vedi sotto).
+  // Quindi questa funzione riceve già "desired" pre-calcolato dentro quota[p].desiredRec
+
+  const recv = []; // [player, amount]
+  const send = []; // [player, amount]  (solo surplus reali)
+
+  for(const p of players){
+    const desired = quota[p].desiredRec?.[resKey] ?? 0;  // quanto "dovrebbe" riciclare
+    const actual  = quota[p].rec?.[resKey] ?? 0;        // quanto ha riciclato
+    const delta   = desired - actual;                   // + deve ricevere, - surplus
+
+    if(delta > 0.5) recv.push([p, delta]);
+    else if(delta < -0.5) send.push([p, -delta]);       // surplus positivo
+  }
+
+  recv.sort((a,b)=>b[1]-a[1]);
+  send.sort((a,b)=>b[1]-a[1]);
+
+  const moves=[];
+  let i=0, j=0;
   while(i<send.length && j<recv.length){
-    const [sp,sv]=send[i], [rp,rv]=recv[j];
+    const [sp,sv]=send[i];
+    const [rp,rv]=recv[j];
     const x=Math.min(sv,rv);
     if(x>0.5) moves.push({from:sp,to:rp,amount:x});
     send[i][1]-=x; recv[j][1]-=x;
@@ -492,6 +509,17 @@ function renderResults(computed){
   }
 
   const {players,totLoss,totRec,gain,quota}=computed;
+  
+  // ✅ Desired recycled per player (divide SOLO ciò che è stato riciclato)
+// desired = losses + gain * weight, ma non può andare sotto 0
+players.forEach(p=>{
+  const w = quota[p].w || 0;
+  const desiredM = Math.max(0, quota[p].lost.m + gain.m * w);
+  const desiredC = Math.max(0, quota[p].lost.c + gain.c * w);
+  const desiredD = Math.max(0, quota[p].lost.d + gain.d * w);
+  quota[p].desiredRec = { m: desiredM, c: desiredC, d: desiredD };
+});
+
 
   const header=`
     <div class="kpi">
@@ -532,9 +560,9 @@ function renderResults(computed){
 
   resEl.innerHTML = header + table;
 
-  const mt=buildTransfers(players,quota,"m");
-  const ct=buildTransfers(players,quota,"c");
-  const dt=buildTransfers(players,quota,"d");
+const mt = buildTransfersFromRecycled(players, quota, "m");
+const ct = buildTransfersFromRecycled(players, quota, "c");
+const dt = buildTransfersFromRecycled(players, quota, "d");
 
   function renderMoveList(label,moves){
     if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato).</div>`;
