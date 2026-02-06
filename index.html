@@ -685,7 +685,7 @@ function parseNmaApiReaderToClassic(raw){
     nameToTag[name]=tag;
     for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
       const itName=mapShipToIT(shipsEN[i]);
-      target[key][itName]=(target[key][itName]||0)+nums[i];
+      target[key][itName] = Math.max(target[key][itName]||0, nums[i]);
     }
   }
 
@@ -717,7 +717,7 @@ function parseNmaApiReaderToClassic(raw){
     if(!final.attackers[key]) final.attackers[key]={};
     for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
       const itName=mapShipToIT(shipsEN[i]);
-      final.attackers[key][itName]=(final.attackers[key][itName]||0)+nums[i];
+    final.attackers[key][itName] = Math.max(final.attackers[key][itName]||0, nums[i]);
     }
   }
 
