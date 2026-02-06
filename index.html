@@ -307,7 +307,7 @@ function parseCRText(text){
   if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
 
   let pre=text, post="";
-  const idx=text.search(/\bDopo\s+la\s+battaglia\b/i);
+  const idx = text.search(/\b(Dopo\s+la\s+battaglia|After\s+the\s+battle)\b/i);
   if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
 
   function parseSideBlocks(blockText, phase){
@@ -321,9 +321,9 @@ function parseCRText(text){
       const line = raw.trim();
       if(!line) continue;
 
-      const h=line.match(/^(Attaccante|Difensore)\s+(.+?)\s+\[(.+?)\]\s*$/i);
+      const h=line.match(/^(Attaccante|Difensore|Attacker|Defender)\s+(.+?)\s+\[(.+?)\]\s*$/i);
       if(h){
-        side = h[1].toLowerCase().startsWith("att") ? "att" : "def";
+        side = /^(Attaccante|Attacker)$/i.test(h[1]) ? "att" : "def";
         const name=h[2].trim(), tag=h[3].trim();
 
         const key = `${phase}|${side}|${name}|${tag}`;
