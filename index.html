@@ -766,8 +766,8 @@ function parseNmaApiReaderToClassic(raw){
     for(const ship of Array.from(shipSet).sort((a,b)=>a.localeCompare(b,"it"))){
       const a0=initShips[ship]||0;
       const a1=finShips[ship]||0;
-      const lost=Math.max(0,a0-a1);
-      lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
+const lost = (totalLost[k] && totalLost[k][ship]) || 0;
+lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
     }
     lines.push("_________________________________________\n");
   }
