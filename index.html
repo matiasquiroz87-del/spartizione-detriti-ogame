@@ -3,188 +3,139 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Spartizione Detriti OGame - CR (API) + RR (API)</title>
+<title>Spartizione Detriti OGame</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
-  :root{
-    --bg:#050a10;
-    --text:#dbe7ff;
-    --muted:#93a6c7;
-    --line:rgba(120,160,220,.25);
-    --good:#39d98a;
-    --bad:#ff5c5c;
-    --accent:rgba(88,166,255,.65);
-    --panel1:rgba(16,26,46,.80);
-    --panel2:rgba(14,23,40,.75);
-    --font-ui:"Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
-    --font-title:"Orbitron","Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
-    --header-h:72px;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
-  body::before{
-    content:"";position:fixed;inset:0;z-index:-1;
-    background:
-      radial-gradient(1200px 700px at 15% -10%, rgba(124,240,255,.10), transparent 55%),
-      radial-gradient(900px 600px at 110% 10%, rgba(255,179,77,.10), transparent 55%),
-      radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.9), transparent 60%),
-      radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,.75), transparent 60%),
-      radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,.7), transparent 60%),
-      radial-gradient(1px 1px at 85% 80%, rgba(255,255,255,.65), transparent 60%),
-      radial-gradient(1px 1px at 10% 85%, rgba(255,255,255,.6), transparent 60%),
-      radial-gradient(1px 1px at 95% 45%, rgba(255,255,255,.55), transparent 60%),
-      linear-gradient(180deg, rgba(15,25,40,.65), rgba(5,10,16,1));
-    filter:saturate(1.05) contrast(1.05);
-  }
+:root{
+  --bg:#050a10;
+  --text:#dbe7ff;
+  --muted:#93a6c7;
+  --line:rgba(120,160,220,.25);
+  --good:#39d98a;
+  --bad:#ff5c5c;
+  --accent:rgba(88,166,255,.18);
+  --accentLine:rgba(88,166,255,.65);
+  --font-ui:"Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
+  --font-title:"Orbitron","Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;
+  background:
+    radial-gradient(1200px 700px at 15% -10%, rgba(124,240,255,.10), transparent 55%),
+    radial-gradient(900px 600px at 110% 10%, rgba(255,179,77,.10), transparent 55%),
+    linear-gradient(180deg, rgba(15,25,40,.65), rgba(5,10,16,1));
+  filter:saturate(1.05) contrast(1.05);
+}
+header{
+  position:sticky;top:0;z-index:5;
+  background:linear-gradient(180deg, rgba(7,12,18,.92), rgba(7,12,18,.65));
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.wrap{max-width:1100px;margin:0 auto;padding:14px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.title{display:flex;align-items:center;gap:10px;min-width:0;}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+h1{font-family:var(--font-title);font-size:16px;margin:0;letter-spacing:.8px;text-transform:uppercase}
+.badge{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:999px;background:rgba(16,26,46,.6)}
 
-  header{
-    position:sticky;top:0;z-index:5;
-    background:linear-gradient(180deg, rgba(7,12,18,.92), rgba(7,12,18,.65));
-    backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--line);
-  }
-  .wrap{max-width:1100px;margin:0 auto;padding:14px;}
-  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-  h1{font-family:var(--font-title);font-size:16px;margin:0;letter-spacing:.8px;text-transform:uppercase}
-  .badge{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:999px;background:rgba(16,26,46,.6)}
-  .actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+@media (min-width:980px){ .grid{grid-template-columns:1fr 1fr;} }
 
-  .card{
-    border:1px solid var(--line);
-    background:linear-gradient(180deg,var(--panel1),var(--panel2));
-    border-radius:16px;
-    padding:14px;
-    box-shadow:0 10px 30px rgba(0,0,0,.25);
-  }
-  .min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
-  .mini{font-size:12px;color:var(--muted)}
-  input,textarea{
-    width:100%;
-    background:rgba(8,12,20,.65);
-    border:1px solid var(--line);
-    color:var(--text);
-    border-radius:12px;
-    padding:10px;
-    font-size:14px;
-    outline:none;
-  }
-  textarea{min-height:220px;resize:vertical;line-height:1.25}
-  button{
-    border:1px solid var(--accent);
-    background:rgba(88,166,255,.15);
-    color:var(--text);
-    padding:10px 12px;
-    border-radius:12px;
-    cursor:pointer;
-    font-weight:700;
-  }
-  button:hover{background:rgba(88,166,255,.22)}
-  .ghost{border-color:var(--line);background:rgba(16,26,46,.45)}
-  .ghost:hover{background:rgba(16,26,46,.75)}
+.card{
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));
+  border-radius:16px;
+  padding:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+.min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
+.card h2{margin:0 0 8px 0;font-size:14px;color:var(--text)}
+.mini{font-size:12px;color:var(--muted)}
 
-  .stage{transition:opacity .28s ease, transform .28s ease}
-  .stage.hidden{display:none}
-  .stage.fadeout{opacity:0;transform:translateY(6px);pointer-events:none}
-  .stage.fadein{opacity:0;transform:translateY(6px)}
-  .stage.fadein.show{opacity:1;transform:none}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row > *{flex:1}
 
-  /* ===== PAGE 1 centered ===== */
-  #stage1{
-    min-height:calc(100vh - var(--header-h));
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:24px 0;
-  }
-  .page1Box{width:100%;max-width:680px}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .row > *{flex:1}
-  .status{
-    width:38px;height:38px;display:grid;place-items:center;
-    border-radius:12px;border:1px solid var(--line);
-    background:rgba(8,12,20,.35);
-    font-family:var(--font-title);
-    font-weight:800;
-    user-select:none;
-  }
-  .status.good{border-color:rgba(57,217,138,.45);color:var(--good);background:rgba(57,217,138,.08)}
-  .status.bad{border-color:rgba(255,92,92,.45);color:var(--bad);background:rgba(255,92,92,.08)}
-  .status.neutral{color:var(--muted)}
-  .cr-hidden{display:none !important;}
+input,textarea{
+  width:100%;
+  background:rgba(8,12,20,.65);
+  border:1px solid var(--line);
+  color:var(--text);
+  border-radius:12px;
+  padding:10px;
+  font-size:13px;
+  outline:none;
+}
+textarea{min-height:200px;resize:vertical;line-height:1.25}
 
-  /* ===== PAGE 2 layout ===== */
-  #stage2{padding-top:0px}
-  .grid{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:12px;
-    margin-top:0px;
-  }
-  @media(min-width:980px){ .grid{grid-template-columns:1fr 1fr;} }
+button{
+  border:1px solid var(--accentLine);
+  background:var(--accent);
+  color:var(--text);
+  padding:9px 12px;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:700;
+}
+button:hover{background:rgba(88,166,255,.24)}
+button.ghost{border-color:var(--line);background:rgba(16,26,46,.5)}
+button.ghost:hover{background:rgba(16,26,46,.75)}
 
-  .gainCard{
-    grid-column:1 / -1;
-    padding:16px;
-    border-radius:18px;
-    border:1px solid var(--line);
-    background:rgba(8,12,20,.35);
-  }
-  .gainTitle{
-    display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap
-  }
-  .gainTitle .t{
-    font-family:var(--font-title);
-    letter-spacing:.8px;
-    text-transform:uppercase;
-    color:var(--muted);
-    font-size:12px;
-  }
-  .gainValue{
-    font-family:var(--font-title);
-    font-weight:900;
-    font-size:34px;
-    letter-spacing:.5px;
-    line-height:1.05;
-  }
-  .gainValue.good{color:var(--good)}
-  .gainValue.bad{color:var(--bad)}
-  .gainSub{
-    margin-top:8px;
-    display:flex;gap:12px;flex-wrap:wrap;
-    color:var(--muted);
-    font-size:13px;
-  }
+details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
+summary{cursor:pointer;color:var(--muted);font-weight:800}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
 
-  /* tables */
-  table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
-  th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
-  th{color:var(--muted);font-weight:800;background:rgba(16,26,46,.55)}
-  th:first-child,td:first-child{text-align:left}
-  tr:last-child td{border-bottom:none}
-  .good{color:var(--good)}
-  .bad{color:var(--bad)}
-  details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
-  summary{cursor:pointer;color:var(--muted);font-weight:800}
-  pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
+table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
+th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
+th{color:var(--muted);font-weight:800;background:rgba(16,26,46,.55)}
+th:first-child,td:first-child{text-align:left}
+tr:last-child td{border-bottom:none}
+.good{color:var(--good)}
+.bad{color:var(--bad)}
 
-  .logTab{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,12,20,.25);overflow:hidden}
-  .logTab summary{
-    cursor:pointer;
-    padding:10px 12px;
-    font-family:var(--font-title);
-    letter-spacing:.8px;
-    text-transform:uppercase;
-    font-size:13px;
-    color:var(--muted);
-    background:rgba(16,26,46,.55);
-    user-select:none;
-  }
-  .logTab[open] summary{color:var(--text)}
-  .logBoxWrap{padding:10px 12px}
-  #logBox{min-height:180px}
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.kpi .box{border:1px solid var(--line);background:rgba(8,12,20,.35);border-radius:12px;padding:10px}
+.kpi .box .v{font-size:14px;font-weight:900}
+.kpi .box .l{font-size:12px;color:var(--muted)}
+
+.gainWrap{margin-top:6px}
+.gainBig{
+  font-family:var(--font-title);
+  letter-spacing:.6px;
+  text-transform:uppercase;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px 14px;
+  background:rgba(8,12,20,.35);
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+}
+.gainBig .label{font-size:12px;color:var(--muted)}
+.gainBig .value{font-size:22px;font-weight:900}
+.gainBig.good{border-color:rgba(57,217,138,.35)}
+.gainBig.bad{border-color:rgba(255,92,92,.35)}
+
+.hr{height:1px;background:var(--line);margin:10px 0;border-radius:999px}
+
+.statusLine{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.statusDot{
+  width:22px;height:22px;border-radius:999px;
+  border:1px solid var(--line);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-weight:900;
+}
+.statusDot.ok{border-color:rgba(57,217,138,.55); color:var(--good)}
+.statusDot.err{border-color:rgba(255,92,92,.55); color:var(--bad)}
+.hidden{display:none !important}
+
+.ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
 </style>
 </head>
 
@@ -192,12 +143,17 @@
 <header>
   <div class="wrap">
     <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+      <div class="title">
         <h1>Spartizione Detriti OGame</h1>
         <span class="badge">CR API + RR API</span>
       </div>
       <div class="actions">
-        <button class="ghost" id="btnShare" type="button">Condividi</button>
+        <button class="ghost" id="btnShare" type="button" title="Copia un link con la configurazione">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 16a3 3 0 0 0-2.24 1.02L8.91 13.7a3.2 3.2 0 0 0 0-3.4l6.85-3.32A3 3 0 1 0 15 5a2.98 2.98 0 0 0 .07.63L8.22 8.95A3 3 0 1 0 9 12a2.98 2.98 0 0 0-.07-.63l6.85 3.32A3 3 0 1 0 18 16Z"/>
+          </svg>
+          Condividi
+        </button>
       </div>
     </div>
   </div>
@@ -205,56 +161,49 @@
 
 <div class="wrap">
 
-  <!-- ===== PAGE 1: CR ===== -->
-  <div id="stage1" class="stage">
-    <div class="page1Box">
-      <div class="card">
-        <div class="min-title" style="margin-bottom:10px">Carica CR</div>
+  <!-- SEZIONE 1: CR -->
+  <div class="card">
+    <h2 class="min-title">1) Carica CR</h2>
 
-        <div class="row" style="margin-bottom:10px">
-          <input id="crApiId" placeholder="API ID CR (es. cr-it-254-... oppure link api-reader)" style="min-width:260px">
-          <button id="btnLoadCRApi" type="button">Carica</button>
-          <div id="crStatus" class="status neutral" title="Stato">…</div>
-        </div>
-
-        <div class="mini">
-          Se il CR viene letto correttamente vedrai una ✅ verde e passerai automaticamente alla pagina RR/Risultati.
-        </div>
-
-        <!-- CR nascosto (serve al parser) -->
-        <textarea id="crText" class="cr-hidden" aria-hidden="true"></textarea>
-
-        <details class="logTab" id="logDetails">
-          <summary>Log</summary>
-          <div class="logBoxWrap"><pre id="logBox"></pre></div>
-        </details>
-      </div>
+    <div class="row" style="gap:8px;margin-top:6px">
+      <input id="crApiId" placeholder="API ID CR (es. cr-it-254-...) oppure link api-reader">
+      <button id="btnLoadCRApi" type="button">Carica CR</button>
     </div>
+
+    <div class="statusLine">
+      <div id="crStatusDot" class="statusDot" title="Stato CR">•</div>
+      <div class="mini" id="crStatusText">In attesa del CR…</div>
+    </div>
+
+    <details class="logTab" style="margin-top:10px">
+      <summary>Log</summary>
+      <pre id="logBox" style="margin-top:10px"></pre>
+    </details>
   </div>
 
-  <!-- ===== PAGE 2: RR + RESULTS ===== -->
-  <div id="stage2" class="stage hidden fadein">
+  <!-- SEZIONE 2: RR + RISULTATI -->
+  <div id="app2" class="hidden">
     <div class="grid">
-
-      <div class="gainCard">
-        <div class="gainTitle">
-          <div class="t">GAIN (totale RR - perdite)</div>
-          <div class="mini" id="gainMeta">—</div>
-        </div>
-        <div id="gainValue" class="gainValue">—</div>
-        <div id="gainSub" class="gainSub"></div>
-      </div>
-
       <div class="card">
-        <div class="min-title">RR (API) + Spartizione</div>
+        <h2 class="min-title">2) RR + Spartizione</h2>
 
         <input id="proxyBase" type="hidden" value="https://ogame-api-proxy.matiasquiroz87.workers.dev/?apiid=" />
         <input id="timeoutMs" type="hidden" value="12000" />
 
-        <div style="margin-top:10px">
-          <div class="mini">Inserisci uno o più RR apiid (uno per riga)</div>
-          <textarea id="rrIds" placeholder="rr-it-... (uno per riga)"></textarea>
+        <div class="gainWrap">
+          <div id="gainBox" class="gainBig">
+            <div>
+              <div class="label">GAIN (serve caricare RR)</div>
+              <div class="mini" id="gainBreakdown">—</div>
+            </div>
+            <div class="value" id="gainValue">—</div>
+          </div>
         </div>
+
+        <div class="hr"></div>
+
+        <label class="mini">Inserisci uno o più RR apiid (uno per riga)</label>
+        <textarea id="rrIds" placeholder="rr-it-..."></textarea>
 
         <div class="row" style="margin-top:10px">
           <button id="btnLoadRR" type="button">Carica RR</button>
@@ -262,42 +211,37 @@
         </div>
 
         <div class="row" style="margin-top:10px">
-          <label class="mini" style="display:flex;gap:8px;align-items:center">
+          <label class="mini" style="flex:0 0 auto">
             <input type="radio" name="mode" value="paritaria" checked> Paritaria
           </label>
-          <label class="mini" style="display:flex;gap:8px;align-items:center">
+          <label class="mini" style="flex:0 0 auto">
             <input type="radio" name="mode" value="equa"> Equa (peso flotta in campo)
           </label>
         </div>
 
-        <details style="margin-top:10px" open>
+        <details style="margin-top:10px">
           <summary>Raccolte lette (RR)</summary>
           <div id="rrTable" style="margin-top:8px"></div>
+          <details style="margin-top:10px">
+            <summary>Dettagli RR (debug)</summary>
+            <pre id="rrRaw"></pre>
+          </details>
         </details>
-
-        <details style="margin-top:10px">
-          <summary>Debug RR</summary>
-          <pre id="rrRaw"></pre>
-        </details>
-
-        <div class="row" style="margin-top:10px">
-          <button id="btnBack" class="ghost" type="button">← Torna al CR</button>
-        </div>
       </div>
 
       <div class="card">
-        <div class="min-title">Risultati</div>
+        <h2 class="min-title">Risultati</h2>
+
         <div id="resultsTables" style="margin-top:10px"></div>
 
         <details style="margin-top:12px" open>
-          <summary>Trasporti suggeriti</summary>
+          <summary>Trasporti finali suggeriti</summary>
           <div class="mini" style="margin-top:8px">
             Trasferimenti minimi tra chi deve inviare (negativo) e chi deve ricevere (positivo).
           </div>
-          <div id="transports" style="margin-top:10px"></div>
+          <div id="transports" style="margin-top:8px"></div>
         </details>
       </div>
-
     </div>
   </div>
 
@@ -305,12 +249,22 @@
 
 <script>
 /* ===================== CONFIG ===================== */
-const INCLUDE_LOOT = false; // richiesto: NON considerare bottino
-const COSTS = {"Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],"Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],"Incrociatore da Battaglia":[30000,40000,15000],"Reaper":[85000,55000,20000],"Pathfinder":[8000,15000,8000],"Riciclatrice":[10000,6000,2000],"Colonizzatrice":[10000,20000,10000],"Sonda spia":[0,1000,0],"Satellite Solare":[0,2000,500],"Crawler":[2000,2000,1000],"Morte Nera":[5000000,4000000,1000000],"Lanciamissili":[2000,0,0],"Laser leggero":[1500,500,0],"Laser pesante":[6000,2000,0],"Cannone Gauss":[20000,15000,2000],"Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]};
-const DF_ALLOWED = new Set(["Cargo leggero","Cargo Pesante","Caccia Leggero","Caccia Pesante","Incrociatore","Nave da battaglia","Bombardiere","Corazzata","Incrociatore da Battaglia","Morte Nera","Reaper","Pathfinder","Colonizzatrice","Riciclatrice","Sonda spia","Crawler","Satellite Solare"]); // non usato per DF ora, ma lasciato per compatibilità
+const INCLUDE_LOOT = false; // non usiamo bottino nella logica
+const COSTS = {
+  "Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],
+  "Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],
+  "Incrociatore da Battaglia":[30000,40000,15000],"Reaper":[85000,55000,20000],"Pathfinder":[8000,15000,8000],
+  "Riciclatrice":[10000,6000,2000],"Colonizzatrice":[10000,20000,10000],"Sonda spia":[0,1000,0],"Satellite Solare":[0,2000,500],
+  "Crawler":[2000,2000,1000],"Morte Nera":[5000000,4000000,1000000],
+  "Lanciamissili":[2000,0,0],"Laser leggero":[1500,500,0],"Laser pesante":[6000,2000,0],"Cannone Gauss":[20000,15000,2000],
+  "Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]
+};
 
 /* ===================== UTILS ===================== */
-function fmt(n){ if(n===null||n===undefined||isNaN(n)) return "—"; return Math.round(n).toLocaleString("it-IT"); }
+function fmt(n){
+  if(n===null||n===undefined||isNaN(n)) return "—";
+  return Math.round(n).toLocaleString("it-IT");
+}
 function parseNum(str){
   if(str===null||str===undefined) return 0;
   const s = String(str).replace(/\./g,"").replace(/,/g,"").replace(/\s+/g,"").trim();
@@ -325,135 +279,70 @@ function log(msg){
   const el = document.getElementById("logBox");
   if(el) el.textContent = LOG.join("\n");
 }
-function setCRStatus(kind, text){
-  const el=document.getElementById("crStatus");
-  if(!el) return;
-  el.classList.remove("good","bad","neutral");
-  el.classList.add(kind);
-  el.textContent = text;
+function setCrStatus(ok, text){
+  const dot = document.getElementById("crStatusDot");
+  const label = document.getElementById("crStatusText");
+  dot.classList.remove("ok","err");
+  if(ok===true){ dot.classList.add("ok"); dot.textContent="✓"; }
+  else if(ok===false){ dot.classList.add("err"); dot.textContent="×"; }
+  else { dot.textContent="•"; }
+  label.textContent = text || "";
 }
-
-/* ===================== HEADER HEIGHT (centro stage1) ===================== */
-function syncHeaderHeight(){
-  const h = document.querySelector("header")?.offsetHeight || 72;
-  document.documentElement.style.setProperty("--header-h", h + "px");
-}
-window.addEventListener("resize", syncHeaderHeight);
-syncHeaderHeight();
-
-/* ===================== STAGES ===================== */
-function showStage(id){
-  const s1 = document.getElementById('stage1');
-  const s2 = document.getElementById('stage2');
-  if(!s1 || !s2) return;
-
-  const goTop = () => window.scrollTo(0, 0); // ✅ compatibile ovunque
-
-  if(id === 1){
-    s2.classList.remove('show');
-    s2.classList.add('hidden');
-    s1.classList.remove('hidden','fadeout');
-    goTop();
-    return;
-  }
-
-  s1.classList.add('fadeout');
-  setTimeout(()=>{
-    s1.classList.add('hidden');
-    s2.classList.remove('hidden');
-    requestAnimationFrame(()=>{
-      s2.classList.add('show');
-      goTop(); // ✅ adesso la pagina 2 “prende il posto” subito sotto l’header
-    });
-  }, 260);
+function showApp2(){
+  const el = document.getElementById("app2");
+  el.classList.remove("hidden");
+  // scroll “pulito” sempre in alto della sezione
+  el.scrollIntoView({behavior:"auto", block:"start"});
 }
 
 /* ===================== STATE ===================== */
 const STATE = { cr:null, rr:{} };
 
-/* ===================== CR PARSER ===================== */
+/* ===================== CR PARSER (solo flotta e perdite, loot ignorabile) ===================== */
 function parseCRText(text){
-  const out = { attackers:{}, defenders:{}, coords:null, loot:{m:0,c:0,d:0}, df_float:{m:0,c:0,d:0}, moonChance:null };
+  const out = { attackers:{}, defenders:{}, loot:{m:0,c:0,d:0} };
 
-  const coordM = text.match(/\b\[(\d+:\d+:\d+)\]|\b(\d+:\d+:\d+)\b/);
-  if(coordM) out.coords = (coordM[1]||coordM[2]||null);
-
-  const moonM = text.match(/possibilit[aà].*?luna.*?(\d+)%/i);
-  if(moonM) out.moonChance = parseNum(moonM[1]);
-
+  // loot (lo leggiamo ma poi possiamo azzerarlo)
   const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
-  if(lootM){
-    out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]);
-  }
+  if(lootM){ out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]); }
   if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
 
-  const dfLine = text.match(/(At these space coordinates now float|Alle coordinate.*fluttuano|A queste coordinate.*fluttuano)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)[\s\S]*?([\d\.,]+)/i);
-  if(dfLine){
-    out.df_float.m=parseNum(dfLine[2]); out.df_float.c=parseNum(dfLine[3]); out.df_float.d=parseNum(dfLine[4]);
-  }
-
+  // separa iniziale/finale
   let pre=text, post="";
   const idx=text.search(/\bDopo\s+la\s+battaglia\b/i);
   if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
 
-  function debugLossesByPlayer(cr){
-  const out = {};
-  for(const [name, p] of Object.entries(cr.attackers)){
-    let m=0, c=0, d=0;
-
-    const ships = new Set([
-      ...Object.keys(p.initial||{}),
-      ...Object.keys(p.final||{})
-    ]);
-
-    for(const ship of ships){
-      const lost = Math.max(0, (p.initial[ship]||0) - (p.final[ship]||0));
-      if(!lost) continue;
-      const cost = COSTS[ship];
-      if(!cost) continue;
-
-      m += cost[0] * lost;
-      c += cost[1] * lost;
-      d += cost[2] * lost;
-    }
-
-    out[name] = { m, c, d, total: m+c+d };
-  }
-  return out;
-}
-
   function parseSideBlocks(blockText, phase){
-    const lines=blockText.split(/\r?\n/);
-    let current=null;
+    const lines = blockText.split(/\r?\n/);
+    let current=null, side=null;
 
     for(const raw of lines){
-      const line=raw.trim();
+      const line = raw.trim();
       if(!line) continue;
 
       const h=line.match(/^(Attaccante|Difensore)\s+(.+?)\s+\[(.+?)\]\s*$/i);
       if(h){
-        const side=h[1].toLowerCase().startsWith("att")?"att":"def";
+        side = h[1].toLowerCase().startsWith("att") ? "att" : "def";
         const name=h[2].trim(), tag=h[3].trim();
-        if(side==="att"){
-          if(!out.attackers[name]) out.attackers[name]={tag,initial:{},final:{}};
-          out.attackers[name].tag=tag; current=out.attackers[name];
-        }else{
-          if(!out.defenders[name]) out.defenders[name]={tag,initial:{},final:{}};
-          out.defenders[name].tag=tag; current=out.defenders[name];
-        }
+        const bucket = side==="att" ? out.attackers : out.defenders;
+        if(!bucket[name]) bucket[name]={tag,initial:{},final:{}};
+        bucket[name].tag=tag;
+        current=bucket[name];
         continue;
       }
 
       if(!current) continue;
       if(line.startsWith("_")) continue;
+
+      // se difensore "Distrutto!" salta
       if(line.toLowerCase().includes("distrutto")) continue;
 
       const m=line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-[\d\.,]+\s*\))?\s*$/);
       if(m){
-        const ship=m[1].trim();
+        const item=m[1].trim();
         const count=parseNum(m[2]);
-        if(phase==="initial") current.initial[ship]=(current.initial[ship]||0)+count;
-        else current.final[ship]=(current.final[ship]||0)+count;
+        if(phase==="initial") current.initial[item]=(current.initial[item]||0)+count;
+        else current.final[item]=(current.final[item]||0)+count;
       }
     }
   }
@@ -461,54 +350,59 @@ function parseCRText(text){
   parseSideBlocks(pre,"initial");
   if(post) parseSideBlocks(post,"final");
 
-  // se final mancante, copia initial (evita perdite fantasma)
+  // se manca finale attaccante, assume uguale iniziale (alcuni CR “tagliati”)
   Object.values(out.attackers).forEach(p=>{
-    if(!p.final || Object.keys(p.final).length===0) p.final=JSON.parse(JSON.stringify(p.initial));
+    if(!p.final || Object.keys(p.final).length===0) p.final = JSON.parse(JSON.stringify(p.initial));
   });
 
   return out;
 }
 
-/* ===================== SHEET LOGIC (perdite & gain) ===================== */
+/* ===================== LOGICA SPARTIZIONE (come foglio) ===================== */
 function computeFromSheetLogic(cr, rrTotals, mode){
-  const players=Object.keys(cr.attackers);
-  const n=players.length||1;
+  const players = Object.keys(cr.attackers);
+  const n = players.length || 1;
 
   const losses={}, fleetValue={};
   players.forEach(name=>{
-    const p=cr.attackers[name];
+    const p = cr.attackers[name];
     losses[name]={m:0,c:0,d:0};
     fleetValue[name]=0;
 
+    // valore flotta iniziale (per modalità equa)
     for(const [ship,cnt] of Object.entries(p.initial)){
       const cost=COSTS[ship];
-      if(cost) fleetValue[name]+=(cost[0]+cost[1]+cost[2])*cnt;
+      if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2]) * cnt;
     }
 
-    const ships=new Set([...Object.keys(p.initial),...Object.keys(p.final)]);
+    // perdite = (iniziale - finale) * costo (non include bottino)
+    const ships = new Set([...Object.keys(p.initial), ...Object.keys(p.final)]);
     for(const ship of ships){
-      const lostCnt=Math.max(0,(p.initial[ship]||0)-(p.final[ship]||0));
+      const lostCnt = Math.max(0,(p.initial[ship]||0) - (p.final[ship]||0));
       if(lostCnt<=0) continue;
       const cost=COSTS[ship];
       if(!cost) continue;
-      losses[name].m+=cost[0]*lostCnt;
-      losses[name].c+=cost[1]*lostCnt;
-      losses[name].d+=cost[2]*lostCnt;
+      losses[name].m += cost[0]*lostCnt;
+      losses[name].c += cost[1]*lostCnt;
+      losses[name].d += cost[2]*lostCnt;
     }
   });
 
-  const totLoss=players.reduce((a,nm)=>({m:a.m+losses[nm].m,c:a.c+losses[nm].c,d:a.d+losses[nm].d}),{m:0,c:0,d:0});
-  const totRec=players.reduce((a,nm)=>{
+  const totLoss = players.reduce((a,nm)=>({
+    m:a.m+losses[nm].m, c:a.c+losses[nm].c, d:a.d+losses[nm].d
+  }),{m:0,c:0,d:0});
+
+  const totRec = players.reduce((a,nm)=>{
     const r=rrTotals[nm]||{m:0,c:0,d:0};
-    return {m:a.m+r.m,c:a.c+r.c,d:a.d+r.d};
+    return {m:a.m+r.m, c:a.c+r.c, d:a.d+r.d};
   },{m:0,c:0,d:0});
 
-  const gain={m:totRec.m-totLoss.m,c:totRec.c-totLoss.c,d:totRec.d-totLoss.d};
+  const gain = { m:totRec.m-totLoss.m, c:totRec.c-totLoss.c, d:totRec.d-totLoss.d };
 
   const weights={};
   if(mode==="paritaria"){ players.forEach(nm=>weights[nm]=1/n); }
   else{
-    const totFleet=players.reduce((s,nm)=>s+(fleetValue[nm]||0),0)||1;
+    const totFleet = players.reduce((s,nm)=>s+(fleetValue[nm]||0),0)||1;
     players.forEach(nm=>weights[nm]=(fleetValue[nm]||0)/totFleet);
   }
 
@@ -548,72 +442,81 @@ function buildTransfers(players, quota, resKey){
   return moves;
 }
 
-/* ===================== RENDER (GAIN + TABLES) ===================== */
+/* ===================== RENDER ===================== */
 function renderRRTable(rrTotals){
   const el=document.getElementById("rrTable");
-  if(!el) return;
   const entries=Object.entries(rrTotals||{});
   if(!entries.length){ el.innerHTML='<div class="mini">Nessun RR caricato.</div>'; return; }
-  const rows=entries.map(([p,v])=>`<tr><td>${p}</td><td>${fmt(v.m)}</td><td>${fmt(v.c)}</td><td>${fmt(v.d)}</td><td>${v.count||0}</td></tr>`).join("");
-  el.innerHTML=`<table><thead><tr><th>Giocatore</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>RR</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+  const rows=entries.map(([p,v])=>`
+    <tr>
+      <td>${p}</td><td>${fmt(v.m)}</td><td>${fmt(v.c)}</td><td>${fmt(v.d)}</td><td>${v.count||0}</td>
+    </tr>`).join("");
+
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Giocatore</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>RR</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
-function renderGain(computed){
-  const {totLoss,totRec,gain} = computed;
-  const gv = document.getElementById("gainValue");
-  const meta = document.getElementById("gainMeta");
-  const sub = document.getElementById("gainSub");
-  if(!gv||!meta||!sub) return;
+function renderGainBox(computed){
+  const gainBox = document.getElementById("gainBox");
+  const gainValue = document.getElementById("gainValue");
+  const gainBreakdown = document.getElementById("gainBreakdown");
 
-  const gainTot = (gain.m||0)+(gain.c||0)+(gain.d||0);
-  gv.classList.remove("good","bad");
-  gv.classList.add(gainTot>=0 ? "good" : "bad");
-  gv.textContent = fmt(gainTot);
-
-  meta.textContent = `RR: ${fmt(totRec.m)}/${fmt(totRec.c)}/${fmt(totRec.d)} • Perdite: ${fmt(totLoss.m)}/${fmt(totLoss.c)}/${fmt(totLoss.d)}`;
-  sub.innerHTML = `<span>Gain M: <b class="${gain.m>=0?'good':'bad'}">${fmt(gain.m)}</b></span>
-                   <span>Gain C: <b class="${gain.c>=0?'good':'bad'}">${fmt(gain.c)}</b></span>
-                   <span>Gain D: <b class="${gain.d>=0?'good':'bad'}">${fmt(gain.d)}</b></span>`;
-}
-
-function renderResultsOrHint(computed){
-  const el=document.getElementById("resultsTables");
-  const tr=document.getElementById("transports");
-  if(!el||!tr) return;
-
-  const {players,totRec,totLoss,gain,quota} = computed;
-  const recTot = (totRec.m||0)+(totRec.c||0)+(totRec.d||0);
-
-  // se non ci sono RR -> niente quote/trasporti (evita “quote positive” senza dati)
-  if(recTot < 1){
-    el.innerHTML = `
-      <div class="mini">
-        Nessun RR caricato: inserisci e carica almeno un RR per calcolare quote e trasporti.
-      </div>`;
-    tr.innerHTML = `<div class="mini">Trasporti non calcolabili senza RR.</div>`;
+  if(!computed){
+    gainBox.classList.remove("good","bad");
+    gainValue.textContent="—";
+    gainBreakdown.textContent="—";
+    gainBox.querySelector(".label").textContent="GAIN (serve caricare RR)";
     return;
   }
 
+  const total = (computed.gain.m + computed.gain.c + computed.gain.d);
+  gainBox.classList.remove("good","bad");
+  gainBox.classList.add(total>=0 ? "good" : "bad");
+  gainBox.querySelector(".label").textContent="GAIN TOTALE (M+C+D)";
+  gainValue.textContent = fmt(total);
+  gainBreakdown.textContent = `M ${fmt(computed.gain.m)} • C ${fmt(computed.gain.c)} • D ${fmt(computed.gain.d)}`;
+}
+
+function renderResults(computed){
+  const resEl = document.getElementById("resultsTables");
+  const trEl = document.getElementById("transports");
+
+  if(!computed){
+    resEl.innerHTML = `<div class="mini">Inserisci e carica almeno un RR per calcolare gain/quote/trasporti.</div>`;
+    trEl.innerHTML = `<div class="mini">—</div>`;
+    return;
+  }
+
+  const {players,totLoss,totRec,gain,quota}=computed;
+
   const header=`
-    <div class="mini">
-      Riciclato totale: <b>${fmt(totRec.m)}/${fmt(totRec.c)}/${fmt(totRec.d)}</b> •
-      Perdite totali: <b>${fmt(totLoss.m)}/${fmt(totLoss.c)}/${fmt(totLoss.d)}</b>
+    <div class="kpi">
+      <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
+      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite totali (M/C/D)</div></div>
+      <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain (M/C/D)</div></div>
     </div>`;
 
   const rows=players.map(p=>{
     const q=quota[p];
+    const mClass=q.m>=0?"good":"bad";
+    const cClass=q.c>=0?"good":"bad";
+    const dClass=q.d>=0?"good":"bad";
     return `
       <tr>
         <td>${p} <span class="mini">[${(q.w*100).toFixed(2)}%]</span></td>
         <td>${fmt(q.lost.m)}</td><td>${fmt(q.lost.c)}</td><td>${fmt(q.lost.d)}</td>
         <td>${fmt(q.rec.m)}</td><td>${fmt(q.rec.c)}</td><td>${fmt(q.rec.d)}</td>
-        <td class="${q.m>=0?'good':'bad'}">${fmt(q.m)}</td>
-        <td class="${q.c>=0?'good':'bad'}">${fmt(q.c)}</td>
-        <td class="${q.d>=0?'good':'bad'}">${fmt(q.d)}</td>
+        <td class="${mClass}">${fmt(q.m)}</td>
+        <td class="${cClass}">${fmt(q.c)}</td>
+        <td class="${dClass}">${fmt(q.d)}</td>
       </tr>`;
   }).join("");
 
-  el.innerHTML = header + `
+  const table=`
     <table style="margin-top:10px">
       <thead>
         <tr>
@@ -625,8 +528,9 @@ function renderResultsOrHint(computed){
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="mini" style="margin-top:8px">Quota positiva = deve ricevere. Quota negativa = deve inviare.</div>
-  `;
+    <div class="mini" style="margin-top:8px">Quota positiva = deve ricevere. Quota negativa = deve inviare.</div>`;
+
+  resEl.innerHTML = header + table;
 
   const mt=buildTransfers(players,quota,"m");
   const ct=buildTransfers(players,quota,"c");
@@ -635,29 +539,64 @@ function renderResultsOrHint(computed){
   function renderMoveList(label,moves){
     if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato).</div>`;
     const r=moves.map(m=>`<tr><td>${m.from}</td><td>${m.to}</td><td>${fmt(m.amount)}</td></tr>`).join("");
-    return `<div style="margin-top:10px">
-      <div class="mini" style="margin:6px 0"><b>${label}</b></div>
-      <table><thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead><tbody>${r}</tbody></table>
-    </div>`;
+    return `
+      <div style="margin-top:10px">
+        <div class="mini" style="margin:6px 0"><b>${label}</b></div>
+        <table><thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead><tbody>${r}</tbody></table>
+      </div>`;
   }
-  tr.innerHTML = renderMoveList("Metallo",mt) + renderMoveList("Cristallo",ct) + renderMoveList("Deuterio",dt);
+
+  trEl.innerHTML =
+    renderMoveList("Metallo",mt) + renderMoveList("Cristallo",ct) + renderMoveList("Deuterio",dt);
 }
 
+/* ===================== RECOMPUTE ===================== */
+function hasAnyRR(){
+  return Object.keys(STATE.rr||{}).length>0;
+}
 function recomputeAndRender(){
-  if(!STATE.cr){ return; }
-  const mode=document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
+  if(!STATE.cr){
+    renderGainBox(null);
+    renderResults(null);
+    return;
+  }
+  if(!hasAnyRR()){
+    // evita “quote” senza riciclatrici inserite
+    renderGainBox(null);
+    renderResults(null);
+    return;
+  }
+  const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
   const computed = computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode);
-  renderGain(computed);
-  renderRRTable(STATE.rr);
-  renderResultsOrHint(computed);
+  renderGainBox(computed);
+  renderResults(computed);
 }
-
-document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",()=>{
-  log("Modalità: " + (document.querySelector('input[name="mode"]:checked')?.value||"paritaria"));
+document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change", ()=>{
+  log("Modalità: " + document.querySelector('input[name="mode"]:checked').value);
   recomputeAndRender();
 }));
 
-/* ===================== NMA → CLASSICO (CR) ===================== */
+/* ===================== FETCH HELPERS ===================== */
+function abortableFetch(url, timeoutMs){
+  const controller=new AbortController();
+  const id=setTimeout(()=>controller.abort(), timeoutMs);
+  return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(id));
+}
+async function fetchTextWithFallback(url, timeoutMs=12000){
+  try{
+    const res=await abortableFetch(url,timeoutMs);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.text();
+  }catch(e1){
+    const clean=String(url).replace(/^https?:\/\//i,"");
+    const jinaUrl="https://r.jina.ai/http://" + clean;
+    const res2=await abortableFetch(jinaUrl,timeoutMs);
+    if(!res2.ok) throw new Error("HTTP "+res2.status);
+    return await res2.text();
+  }
+}
+
+/* ===================== NMA → CLASSICO (conversione minima) ===================== */
 const shipNameMapEN2IT = {
   "Small Cargo":"Cargo leggero","Large Cargo":"Cargo Pesante","Light Fighter":"Caccia Leggero","Heavy Fighter":"Caccia Pesante",
   "Cruiser":"Incrociatore","Battleship":"Nave da battaglia","Colony Ship":"Colonizzatrice","Recycler":"Riciclatrice",
@@ -796,86 +735,53 @@ function parseNmaApiReaderToClassic(raw){
     lines.push("_________________________________________\n");
   }
 
+  // manteniamo la riga DF del CR originale, ma NON la usiamo nei calcoli
   const dfM=(t.match(/Metal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
   const dfC=(t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
   const dfD=(t.match(/Deuterium to debrisfield:\s*([\d\.,]+)/i)||[])[1];
   if(dfM||dfC||dfD){
     lines.push(`At these space coordinates now float ${dfM||"0"} metal, ${dfC||"0"} crystal and ${dfD||"0"} deuterium.`);
   }
+
   return lines.join("\n");
 }
 
-/* ===================== FETCH HELPERS ===================== */
-function abortableFetch(url, timeoutMs){
-  const controller=new AbortController();
-  const id=setTimeout(()=>controller.abort(), timeoutMs);
-  return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(id));
-}
-async function fetchTextWithFallback(url, timeoutMs=12000){
-  try{
-    const res=await abortableFetch(url,timeoutMs);
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    return await res.text();
-  }catch(e1){
-    const clean=String(url).replace(/^https?:\/\//i,"");
-    const jinaUrl="https://r.jina.ai/http://" + clean;
-    const res2=await abortableFetch(jinaUrl,timeoutMs);
-    if(!res2.ok) throw new Error("HTTP "+res2.status);
-    return await res2.text();
-  }
-}
-
-/* ===================== CR LOAD FLOW ===================== */
-function analyzeCurrentCR(){
-  const text=document.getElementById("crText").value || "";
-  if(!text.trim()) throw new Error("CR vuoto");
-  const cr=parseCRText(text);
-  STATE.cr=cr;
-
-  // reset RR (opzionale: se preferisci mantenerli, togli queste 2 righe)
-  // STATE.rr={};
-  // document.getElementById("rrIds").value="";
-
-  recomputeAndRender();
-}
+/* ===================== CR LOADER ===================== */
+let CR_TEXT = ""; // interno, non in textarea visibile
 
 document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
   const apiId=(document.getElementById("crApiId").value||"").trim();
-  if(!apiId){ log("⚠️ Inserisci un API ID CR."); setCRStatus("bad","✖"); return; }
+  if(!apiId){ setCrStatus(false,"Inserisci un API ID CR."); return; }
 
-  setCRStatus("neutral","…");
-  log(`CR API: richiesta per ${apiId}...`);
+  setCrStatus(null,"Caricamento CR…");
+  log(`CR: richiesta NoMoreAngel per ${apiId}…`);
 
-  const timeoutMs=parseNum(document.getElementById("timeoutMs")?.value)||15000;
+  const timeoutMs = parseNum(document.getElementById("timeoutMs")?.value) || 15000;
   const url = /^https?:\/\//i.test(apiId)
     ? apiId
     : `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
 
   try{
-    const raw=await fetchTextWithFallback(url,timeoutMs);
-    const classic=parseNmaApiReaderToClassic(raw);
+    const raw = await fetchTextWithFallback(url, timeoutMs);
+    const classic = parseNmaApiReaderToClassic(raw);
     if(!classic){
-      setCRStatus("bad","✖");
-      log("❌ CR: conversione fallita (manca Initial/Round).");
+      setCrStatus(false,"Errore: non riesco a convertire (manca Initial/Round).");
+      log("❌ Conversione CR fallita.");
       return;
     }
-    document.getElementById("crText").value=classic;
+    CR_TEXT = classic;
+    STATE.cr = parseCRText(CR_TEXT);
 
-    // prova analisi
-    analyzeCurrentCR();
-
-    // ok -> check verde + passa pagina 2
-    setCRStatus("good","✓");
-    log("✅ CR letto correttamente. Passo alla pagina RR/Risultati.");
-    setTimeout(()=>showStage(2), 220);
-
+    setCrStatus(true,"CR OK.");
+    log("✅ CR caricato e analizzato.");
+    document.getElementById("app2").classList.remove("hidden");
+    showApp2();
+    recomputeAndRender(); // mostrerà “serve RR”
   }catch(e){
-    setCRStatus("bad","✖");
+    setCrStatus(false,"Errore fetch CR.");
     log("❌ Errore fetch CR: " + (e?.message || e));
   }
 });
-
-document.getElementById("btnBack").addEventListener("click", ()=>showStage(1));
 
 /* ===================== RR ===================== */
 function extractPre(html){
@@ -895,21 +801,22 @@ function parseRRFromPre(pre){
 }
 
 document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
-  if(!STATE.cr){ log("⚠️ Prima carica un CR."); return; }
+  if(!STATE.cr){ log("⚠️ Carica prima il CR."); return; }
 
   const base=(document.getElementById("proxyBase").value||"").trim();
   const timeoutMs=parseNum(document.getElementById("timeoutMs").value)||12000;
   const ids=(document.getElementById("rrIds").value||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  if(!ids.length){ log("⚠️ Nessun RR apiid inserito."); return; }
+  if(!ids.length){ log("⚠️ Nessun RR inserito."); return; }
 
-  log(`Carico ${ids.length} RR...`);
+  log(`Carico ${ids.length} RR…`);
   const rawLog=[];
   for(const id of ids){
     const url=base+encodeURIComponent(id);
     try{
       const res=await abortableFetch(url,timeoutMs);
       const text=await res.text();
-      rawLog.push(`--- ${id} status=${res.status} ok=${res.ok} url=${url} ---\n` + text.slice(0,1200));
+      rawLog.push(`--- ${id} status=${res.status} ok=${res.ok} ---\n` + text.slice(0,1200));
+
       const pre=extractPre(text)||text;
       const parsed=parseRRFromPre(pre);
       if(!parsed){ log(`❌ RR non parsato: ${id} (owner_name non trovato)`); continue; }
@@ -926,18 +833,22 @@ document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
       log(`❌ Errore fetch RR ${id}: ${e?.message || e}`);
     }
   }
+
   document.getElementById("rrRaw").textContent = rawLog.join("\n\n");
+  renderRRTable(STATE.rr);
   recomputeAndRender();
 });
 
 document.getElementById("btnClearRR").addEventListener("click", ()=>{
   STATE.rr={};
   document.getElementById("rrRaw").textContent="";
+  document.getElementById("rrIds").value="";
+  renderRRTable(STATE.rr);
   recomputeAndRender();
   log("RR puliti.");
 });
 
-/* ===================== SHARE ===================== */
+/* ===================== SHARE (stato minimale) ===================== */
 function encodeShareState(obj){
   const json=JSON.stringify(obj);
   return btoa(unescape(encodeURIComponent(json))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
@@ -950,30 +861,21 @@ function decodeShareState(b64){
 }
 function collectShareState(){
   return {
-    v: 7,
-    crText:(document.getElementById("crText").value||"").trim(),
+    v: 1,
+    crApiId:(document.getElementById("crApiId").value||"").trim(),
     rrIds:(document.getElementById("rrIds").value||"").trim(),
     rrTotals: STATE.rr || {}
   };
 }
 function applyShareState(st){
   if(!st || typeof st!=="object") return;
-  if(typeof st.crText==="string") document.getElementById("crText").value=st.crText;
+  if(typeof st.crApiId==="string") document.getElementById("crApiId").value=st.crApiId;
   if(typeof st.rrIds==="string") document.getElementById("rrIds").value=st.rrIds;
-  if(st.rrTotals && typeof st.rrTotals==="object") STATE.rr=st.rrTotals;
 
-  if((document.getElementById("crText").value||"").trim()){
-    try{
-      analyzeCurrentCR();
-      setCRStatus("good","✓");
-      showStage(2);
-      log("🔗 Stato caricato dal link.");
-    }catch(e){
-      setCRStatus("bad","✖");
-      log("⚠️ Stato link: CR non valido ("+(e?.message||e)+")");
-    }
+  if(st.rrTotals && typeof st.rrTotals==="object" && Object.keys(st.rrTotals).length){
+    STATE.rr=st.rrTotals;
+    renderRRTable(STATE.rr);
   }
-  recomputeAndRender();
 }
 function shareLink(){
   const token=encodeShareState(collectShareState());
@@ -981,6 +883,13 @@ function shareLink(){
 }
 async function doShare(){
   const url=shareLink();
+  try{
+    if(navigator.share){
+      await navigator.share({title:"Spartizione Detriti OGame", text:"Link precompilato", url});
+      log("✅ Link condiviso.");
+      return;
+    }
+  }catch(e){}
   try{
     await navigator.clipboard.writeText(url);
     log("✅ Link copiato negli appunti.");
@@ -994,14 +903,16 @@ document.getElementById("btnShare").addEventListener("click", ()=>doShare());
 (() => {
   const m=(location.hash||"").match(/#s=([A-Za-z0-9\-_]+)/);
   if(!m) return;
-  try{ applyShareState(decodeShareState(m[1])); }catch(e){
-    log("⚠️ Hash di condivisione non valido: " + (e?.message || e));
+  try{
+    applyShareState(decodeShareState(m[1]));
+    log("🔗 Stato caricato dal link.");
+  }catch(e){
+    log("⚠️ Hash non valido: " + (e?.message || e));
   }
 })();
 
-/* init */
-setCRStatus("neutral","…");
-log("Pronto. 1) Inserisci CR apiid 2) Carica 3) Poi RR e risultati.");
+setCrStatus(null,"In attesa del CR…");
+log("Pronto. 1) Carica CR. 2) Carica RR. 3) Vedi gain/risultati/trasporti.");
 </script>
 </body>
 </html>
