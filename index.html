@@ -161,7 +161,6 @@ tr:last-child td{border-bottom:none}
 
 <div class="wrap">
 
-  <!-- SEZIONE 1: CR -->
   <div class="card">
     <h2 class="min-title">1) Carica CR</h2>
 
@@ -175,13 +174,12 @@ tr:last-child td{border-bottom:none}
       <div class="mini" id="crStatusText">In attesa del CR…</div>
     </div>
 
-    <details class="logTab" style="margin-top:10px">
+    <details style="margin-top:10px">
       <summary>Log</summary>
       <pre id="logBox" style="margin-top:10px"></pre>
     </details>
   </div>
 
-  <!-- SEZIONE 2: RR + RISULTATI -->
   <div id="app2" class="hidden">
     <div class="grid">
       <div class="card">
@@ -231,13 +229,12 @@ tr:last-child td{border-bottom:none}
 
       <div class="card">
         <h2 class="min-title">Risultati</h2>
-
         <div id="resultsTables" style="margin-top:10px"></div>
 
         <details style="margin-top:12px" open>
-          <summary>Trasporti finali suggeriti</summary>
+          <summary>Trasporti finali suggeriti (SOLO su riciclato)</summary>
           <div class="mini" style="margin-top:8px">
-            Trasferimenti minimi tra chi deve inviare (negativo) e chi deve ricevere (positivo).
+            Questi trasferimenti agiscono solo sul totale riciclato: chi ha riciclato “troppo” invia a chi ha riciclato “meno” rispetto alla sua %.
           </div>
           <div id="transports" style="margin-top:8px"></div>
         </details>
@@ -291,23 +288,20 @@ function setCrStatus(ok, text){
 function showApp2(){
   const el = document.getElementById("app2");
   el.classList.remove("hidden");
-  // scroll “pulito” sempre in alto della sezione
   el.scrollIntoView({behavior:"auto", block:"start"});
 }
 
 /* ===================== STATE ===================== */
 const STATE = { cr:null, rr:{} };
 
-/* ===================== CR PARSER (solo flotta e perdite, loot ignorabile) ===================== */
+/* ===================== CR PARSER ===================== */
 function parseCRText(text){
   const out = { attackers:{}, defenders:{}, loot:{m:0,c:0,d:0} };
 
-  // loot (lo leggiamo ma poi possiamo azzerarlo)
   const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
   if(lootM){ out.loot.m=parseNum(lootM[1]); out.loot.c=parseNum(lootM[2]); out.loot.d=parseNum(lootM[3]); }
   if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
 
-  // separa iniziale/finale
   let pre=text, post="";
   const idx=text.search(/\bDopo\s+la\s+battaglia\b/i);
   if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
@@ -333,8 +327,6 @@ function parseCRText(text){
 
       if(!current) continue;
       if(line.startsWith("_")) continue;
-
-      // se difensore "Distrutto!" salta
       if(line.toLowerCase().includes("distrutto")) continue;
 
       const m=line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-[\d\.,]+\s*\))?\s*$/);
@@ -350,7 +342,6 @@ function parseCRText(text){
   parseSideBlocks(pre,"initial");
   if(post) parseSideBlocks(post,"final");
 
-  // se manca finale attaccante, assume uguale iniziale (alcuni CR “tagliati”)
   Object.values(out.attackers).forEach(p=>{
     if(!p.final || Object.keys(p.final).length===0) p.final = JSON.parse(JSON.stringify(p.initial));
   });
@@ -358,7 +349,7 @@ function parseCRText(text){
   return out;
 }
 
-/* ===================== LOGICA SPARTIZIONE (come foglio) ===================== */
+/* ===================== LOGICA ECONOMICA (saldo) ===================== */
 function computeFromSheetLogic(cr, rrTotals, mode){
   const players = Object.keys(cr.attackers);
   const n = players.length || 1;
@@ -369,13 +360,11 @@ function computeFromSheetLogic(cr, rrTotals, mode){
     losses[name]={m:0,c:0,d:0};
     fleetValue[name]=0;
 
-    // valore flotta iniziale (per modalità equa)
     for(const [ship,cnt] of Object.entries(p.initial)){
       const cost=COSTS[ship];
       if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2]) * cnt;
     }
 
-    // perdite = (iniziale - finale) * costo (non include bottino)
     const ships = new Set([...Object.keys(p.initial), ...Object.keys(p.final)]);
     for(const ship of ships){
       const lostCnt = Math.max(0,(p.initial[ship]||0) - (p.final[ship]||0));
@@ -406,10 +395,11 @@ function computeFromSheetLogic(cr, rrTotals, mode){
     players.forEach(nm=>weights[nm]=(fleetValue[nm]||0)/totFleet);
   }
 
-  const quota={};
+  // SALDO = perdite + (gain * %) - riciclato
+  const saldo={};
   players.forEach(nm=>{
     const r=rrTotals[nm]||{m:0,c:0,d:0};
-    quota[nm]={
+    saldo[nm]={
       m:losses[nm].m + gain.m*weights[nm] - r.m,
       c:losses[nm].c + gain.c*weights[nm] - r.c,
       d:losses[nm].d + gain.d*weights[nm] - r.d,
@@ -419,30 +409,39 @@ function computeFromSheetLogic(cr, rrTotals, mode){
     };
   });
 
-  return {players,totLoss,totRec,gain,quota};
+  return {players,totLoss,totRec,gain,weights,saldo};
 }
 
-function buildTransfersByTargetShare(players, quota, totRec, resKey){
-  // Target = totRec * weight
-  const recv=[], send=[];
+/* ===================== TRASPORTI SOLO SU RICICLATO (ΔRR) ===================== */
+function computeDeltaRR(players, rrTotals, weights){
+  const totRR = players.reduce((a,p)=>{
+    const r = rrTotals[p] || {m:0,c:0,d:0};
+    return { m:a.m+r.m, c:a.c+r.c, d:a.d+r.d };
+  },{m:0,c:0,d:0});
 
+  const delta = {};
   players.forEach(p=>{
-    const w = quota[p].w || 0;
-    const target = (totRec?.[resKey] || 0) * w;
-    const actual = quota[p].rec?.[resKey] || 0;
-    const delta = target - actual;
-
-    if(delta > 0.5) recv.push([p, delta]);
-    else if(delta < -0.5) send.push([p, -delta]); // surplus reale riciclato
+    const r = rrTotals[p] || {m:0,c:0,d:0};
+    delta[p] = {
+      m: totRR.m*weights[p] - r.m,
+      c: totRR.c*weights[p] - r.c,
+      d: totRR.d*weights[p] - r.d
+    };
   });
+  return {totRR, delta};
+}
 
-  recv.sort((a,b)=>b[1]-a[1]);
-  send.sort((a,b)=>b[1]-a[1]);
-
+function buildTransfers(players, bucket, resKey){
+  const recv=[], send=[];
+  players.forEach(p=>{
+    const v=bucket[p][resKey];
+    if(v>0.5) recv.push([p,v]);
+    else if(v<-0.5) send.push([p,-v]);
+  });
+  recv.sort((a,b)=>b[1]-a[1]); send.sort((a,b)=>b[1]-a[1]);
   const moves=[]; let i=0,j=0;
   while(i<send.length && j<recv.length){
-    const [sp,sv]=send[i];
-    const [rp,rv]=recv[j];
+    const [sp,sv]=send[i], [rp,rv]=recv[j];
     const x=Math.min(sv,rv);
     if(x>0.5) moves.push({from:sp,to:rp,amount:x});
     send[i][1]-=x; recv[j][1]-=x;
@@ -496,23 +495,12 @@ function renderResults(computed){
   const trEl = document.getElementById("transports");
 
   if(!computed){
-    resEl.innerHTML = `<div class="mini">Inserisci e carica almeno un RR per calcolare gain/quote/trasporti.</div>`;
+    resEl.innerHTML = `<div class="mini">Inserisci e carica almeno un RR per calcolare gain/saldi/trasporti.</div>`;
     trEl.innerHTML = `<div class="mini">—</div>`;
     return;
   }
 
-  const {players,totLoss,totRec,gain,quota}=computed;
-  
-  // ✅ Desired recycled per player (divide SOLO ciò che è stato riciclato)
-// desired = losses + gain * weight, ma non può andare sotto 0
-players.forEach(p=>{
-  const w = quota[p].w || 0;
-  const desiredM = Math.max(0, quota[p].lost.m + gain.m * w);
-  const desiredC = Math.max(0, quota[p].lost.c + gain.c * w);
-  const desiredD = Math.max(0, quota[p].lost.d + gain.d * w);
-  quota[p].desiredRec = { m: desiredM, c: desiredC, d: desiredD };
-});
-
+  const {players,totLoss,totRec,gain,weights,saldo}=computed;
 
   const header=`
     <div class="kpi">
@@ -522,7 +510,7 @@ players.forEach(p=>{
     </div>`;
 
   const rows=players.map(p=>{
-    const q=quota[p];
+    const q=saldo[p];
     const mClass=q.m>=0?"good":"bad";
     const cClass=q.c>=0?"good":"bad";
     const dClass=q.d>=0?"good":"bad";
@@ -543,22 +531,24 @@ players.forEach(p=>{
         <tr>
           <th>Giocatore</th>
           <th>Perse M</th><th>Perse C</th><th>Perse D</th>
-          <th>Raccolto M</th><th>Raccolto C</th><th>Raccolto D</th>
-          <th>Quota M</th><th>Quota C</th><th>Quota D</th>
+          <th>Riciclato M</th><th>Riciclato C</th><th>Riciclato D</th>
+          <th>Saldo M</th><th>Saldo C</th><th>Saldo D</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="mini" style="margin-top:8px">Quota positiva = deve ricevere. Quota negativa = deve inviare.</div>`;
+    <div class="mini" style="margin-top:8px">Saldo = Perdite + (Gain×%) − Riciclato. (Informativo)</div>`;
 
   resEl.innerHTML = header + table;
 
-const mt = buildTransfersByTargetShare(players, quota, totRec, "m");
-const ct = buildTransfersByTargetShare(players, quota, totRec, "c");
-const dt = buildTransfersByTargetShare(players, quota, totRec, "d");
+  // ✅ TRASPORTI SOLO SU RICICLATO
+  const {delta} = computeDeltaRR(players, STATE.rr, weights);
+  const mt=buildTransfers(players,delta,"m");
+  const ct=buildTransfers(players,delta,"c");
+  const dt=buildTransfers(players,delta,"d");
 
   function renderMoveList(label,moves){
-    if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato).</div>`;
+    if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato sul riciclato).</div>`;
     const r=moves.map(m=>`<tr><td>${m.from}</td><td>${m.to}</td><td>${fmt(m.amount)}</td></tr>`).join("");
     return `
       <div style="margin-top:10px">
@@ -566,7 +556,6 @@ const dt = buildTransfersByTargetShare(players, quota, totRec, "d");
         <table><thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead><tbody>${r}</tbody></table>
       </div>`;
   }
-
   trEl.innerHTML =
     renderMoveList("Metallo",mt) + renderMoveList("Cristallo",ct) + renderMoveList("Deuterio",dt);
 }
@@ -576,13 +565,7 @@ function hasAnyRR(){
   return Object.keys(STATE.rr||{}).length>0;
 }
 function recomputeAndRender(){
-  if(!STATE.cr){
-    renderGainBox(null);
-    renderResults(null);
-    return;
-  }
-  if(!hasAnyRR()){
-    // evita “quote” senza riciclatrici inserite
+  if(!STATE.cr || !hasAnyRR()){
     renderGainBox(null);
     renderResults(null);
     return;
@@ -756,7 +739,6 @@ function parseNmaApiReaderToClassic(raw){
     lines.push("_________________________________________\n");
   }
 
-  // manteniamo la riga DF del CR originale, ma NON la usiamo nei calcoli
   const dfM=(t.match(/Metal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
   const dfC=(t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
   const dfD=(t.match(/Deuterium to debrisfield:\s*([\d\.,]+)/i)||[])[1];
@@ -768,7 +750,7 @@ function parseNmaApiReaderToClassic(raw){
 }
 
 /* ===================== CR LOADER ===================== */
-let CR_TEXT = ""; // interno, non in textarea visibile
+let CR_TEXT = "";
 
 document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
   const apiId=(document.getElementById("crApiId").value||"").trim();
@@ -795,9 +777,8 @@ document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
 
     setCrStatus(true,"CR OK.");
     log("✅ CR caricato e analizzato.");
-    document.getElementById("app2").classList.remove("hidden");
     showApp2();
-    recomputeAndRender(); // mostrerà “serve RR”
+    recomputeAndRender();
   }catch(e){
     setCrStatus(false,"Errore fetch CR.");
     log("❌ Errore fetch CR: " + (e?.message || e));
@@ -823,6 +804,9 @@ function parseRRFromPre(pre){
 
 document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
   if(!STATE.cr){ log("⚠️ Carica prima il CR."); return; }
+
+  // reset stato RR (evita accumuli involontari quando ricarichi)
+  STATE.rr = {};
 
   const base=(document.getElementById("proxyBase").value||"").trim();
   const timeoutMs=parseNum(document.getElementById("timeoutMs").value)||12000;
@@ -857,7 +841,12 @@ document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
 
   document.getElementById("rrRaw").textContent = rawLog.join("\n\n");
   renderRRTable(STATE.rr);
-  recomputeAndRender();
+
+  // calcolo e render
+  const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
+  const computed = computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode);
+  renderGainBox(computed);
+  renderResults(computed);
 });
 
 document.getElementById("btnClearRR").addEventListener("click", ()=>{
@@ -869,7 +858,7 @@ document.getElementById("btnClearRR").addEventListener("click", ()=>{
   log("RR puliti.");
 });
 
-/* ===================== SHARE (stato minimale) ===================== */
+/* ===================== SHARE ===================== */
 function encodeShareState(obj){
   const json=JSON.stringify(obj);
   return btoa(unescape(encodeURIComponent(json))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
@@ -882,21 +871,15 @@ function decodeShareState(b64){
 }
 function collectShareState(){
   return {
-    v: 1,
+    v: 2,
     crApiId:(document.getElementById("crApiId").value||"").trim(),
-    rrIds:(document.getElementById("rrIds").value||"").trim(),
-    rrTotals: STATE.rr || {}
+    rrIds:(document.getElementById("rrIds").value||"").trim()
   };
 }
 function applyShareState(st){
   if(!st || typeof st!=="object") return;
   if(typeof st.crApiId==="string") document.getElementById("crApiId").value=st.crApiId;
   if(typeof st.rrIds==="string") document.getElementById("rrIds").value=st.rrIds;
-
-  if(st.rrTotals && typeof st.rrTotals==="object" && Object.keys(st.rrTotals).length){
-    STATE.rr=st.rrTotals;
-    renderRRTable(STATE.rr);
-  }
 }
 function shareLink(){
   const token=encodeShareState(collectShareState());
@@ -933,7 +916,7 @@ document.getElementById("btnShare").addEventListener("click", ()=>doShare());
 })();
 
 setCrStatus(null,"In attesa del CR…");
-log("Pronto. 1) Carica CR. 2) Carica RR. 3) Vedi gain/risultati/trasporti.");
+log("Pronto. 1) Carica CR. 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
 </script>
 </body>
 </html>
