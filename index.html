@@ -351,8 +351,9 @@ function parseCRText(text){
         const count=parseNum(m[2]);
 
         // ✅ NON sommare: se la riga ricompare, prendi il valore più grande
-        if(phase==="initial"){
-          current.initial[item] = Math.max(current.initial[item]||0, count);
+if(phase==="initial"){
+  current.initial[item] = (current.initial[item] || 0) + count;
+}
         }else{
           current.final[item] = Math.max(current.final[item]||0, count);
         }
