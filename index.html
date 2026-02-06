@@ -343,26 +343,29 @@ syncHeaderHeight();
 
 /* ===================== STAGES ===================== */
 function showStage(id){
-  const s1=document.getElementById("stage1");
-  const s2=document.getElementById("stage2");
-  if(!s1||!s2) return;
+  const s1 = document.getElementById('stage1');
+  const s2 = document.getElementById('stage2');
+  if(!s1 || !s2) return;
 
-  if(id===1){
-    s2.classList.remove("show");
-    s2.classList.add("hidden");
-    s1.classList.remove("hidden","fadeout");
-    window.scrollTo({top:0,behavior:"instant"});
+  const goTop = () => window.scrollTo(0, 0); // ✅ compatibile ovunque
+
+  if(id === 1){
+    s2.classList.remove('show');
+    s2.classList.add('hidden');
+    s1.classList.remove('hidden','fadeout');
+    goTop();
     return;
   }
-  s1.classList.add("fadeout");
+
+  s1.classList.add('fadeout');
   setTimeout(()=>{
-    s1.classList.add("hidden");
-    s2.classList.remove("hidden");
+    s1.classList.add('hidden');
+    s2.classList.remove('hidden');
     requestAnimationFrame(()=>{
-      s2.classList.add("show");
-      window.scrollTo({top:0,behavior:"instant"});
+      s2.classList.add('show');
+      goTop(); // ✅ adesso la pagina 2 “prende il posto” subito sotto l’header
     });
-  },260);
+  }, 260);
 }
 
 /* ===================== STATE ===================== */
