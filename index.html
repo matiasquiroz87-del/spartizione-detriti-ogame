@@ -123,7 +123,7 @@ tr:last-child td{border-bottom:none}
     <div class="topbar">
       <div class="title">
         <h1>Spartizione Detriti OGame</h1>
-        <span class="badge">CR (OGotcha) + RR API</span>
+        <span class="badge">CR (NoMoreAngel API) + RR API</span>
       </div>
     </div>
   </div>
@@ -132,16 +132,19 @@ tr:last-child td{border-bottom:none}
 <div class="wrap">
 
   <div class="card">
-    <h2 class="min-title">1) Carica CR (da OGotcha)</h2>
+    <h2 class="min-title">1) Carica CR (NoMoreAngel)</h2>
 
-    <div class="mini">Incolla il link del report OGotcha (es. ogotcha.oplanet.eu/.../report/ID) <b>oppure</b> incolla direttamente il testo CR qui sotto.</div>
+    <div class="mini">
+      Inserisci la <b>CR-KEY</b> (es. <code>cr-it-...</code>) e carico il RAW da NoMoreAngel,
+      <b>oppure</b> incolla direttamente qui sotto il RAW <code>stdClass Object (...)</code>.
+    </div>
 
     <div class="row" style="gap:8px;margin-top:8px">
-      <input id="crUrl" placeholder="Link report OGotcha (opzionale)">
+      <input id="crApiId" placeholder="CR-KEY (es. cr-it-269-...)" />
       <button id="btnLoadCR" type="button">Carica CR</button>
     </div>
 
-    <textarea id="crRawInput" placeholder="(Opzionale) Incolla qui il CR già convertito in formato classico..."></textarea>
+    <textarea id="crRawInput" placeholder="(Opzionale) Incolla qui il RAW NoMoreAngel (stdClass Object ...)"></textarea>
 
     <div class="statusLine">
       <div id="crStatusDot" class="statusDot" title="Stato CR">•</div>
@@ -227,7 +230,7 @@ tr:last-child td{border-bottom:none}
 
 <script>
 /* ===================== CONFIG ===================== */
-const INCLUDE_LOOT = false; // non usiamo bottino nella logica (lasciato per compatibilità)
+const INCLUDE_LOOT = false; // compatibilità: non usiamo bottino nella logica, ma lo leggiamo
 const COSTS = {
   "Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],
   "Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],
@@ -237,6 +240,38 @@ const COSTS = {
   "Lanciamissili":[2000,0,0],"Laser leggero":[1500,500,0],"Laser pesante":[6000,2000,0],"Cannone Gauss":[20000,15000,2000],
   "Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]
 };
+
+// ship_type (OGame) -> chiave COSTS (IT)
+const SHIP_ID_TO_NAME = {
+  202:"Cargo leggero",
+  203:"Cargo Pesante",
+  204:"Caccia Leggero",
+  205:"Caccia Pesante",
+  206:"Incrociatore",
+  207:"Nave da battaglia",
+  208:"Colonizzatrice",
+  209:"Riciclatrice",
+  210:"Sonda spia",
+  211:"Bombardiere",
+  212:"Satellite Solare",
+  213:"Corazzata",                 // Destroyer
+  214:"Morte Nera",
+  215:"Incrociatore da Battaglia",
+  217:"Crawler",
+  218:"Reaper",
+  219:"Pathfinder",
+
+  // difese (se mai ti serviranno)
+  401:"Lanciamissili",
+  402:"Laser leggero",
+  403:"Laser pesante",
+  404:"Cannone Gauss",
+  405:"Cannone ionico",
+  406:"Cannone al Plasma",
+  407:"Cupola scudo piccola",
+  408:"Cupola scudo potenziata"
+};
+
 /* ===================== UTILS ===================== */
 function fmt(n){
   if(n===null||n===undefined||isNaN(n)) return "—";
@@ -270,6 +305,7 @@ function showApp2(){
   el.classList.remove("hidden");
   el.scrollIntoView({behavior:"auto", block:"start"});
 }
+
 /* ===================== STATE ===================== */
 const STATE = { cr:null, rr:{} };
 
@@ -293,183 +329,225 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
     return await res2.text();
   }
 }
-function decodeHtmlEntities(str){
-  const t=document.createElement("textarea");
-  t.innerHTML = str;
-  return t.value;
-}
 
-/* ===================== OGotcha extractor ===================== */
-function extractCRFromOgotchaHtml(html){
-  if(!html) return null;
-  let t = String(html);
-
-  // se arriva da jina può includere "Markdown Content:" o wrapper
+/* ===================== NoMoreAngel loader + parser ===================== */
+function stripJinaWrapper(t){
+  // quando arriva da jina può includere wrapper
   const mdIdx=t.indexOf("Markdown Content:");
   if(mdIdx>=0) t=t.slice(mdIdx+"Markdown Content:".length);
-
-  t = t.replace(/<br\s*\/?\s*>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<\/div>/gi,"\n");
-  t = t.replace(/<script[\s\S]*?<\/script>/gi," ");
-  t = t.replace(/<style[\s\S]*?<\/style>/gi," ");
-  t = t.replace(/<[^>]+>/g," ");
-  t = decodeHtmlEntities(t);
-  t = t.replace(/\r/g,"");
-  t = t.replace(/\n[ \t]+/g,"\n");
-  t = t.replace(/[ \t]{2,}/g," ");
-  t = t.replace(/\n{3,}/g,"\n\n").trim();
-
-  const start = t.search(/\bOn\s+\d{2}-\d{2}-\d{4}[\s\S]{0,80}fleets\s+met\s+in\s+battle\b/i);
-  if(start<0) return null;
-
-  let end = t.search(/\bSummary\s+of\s+profit\/losses\b/i);
-  if(end<0) end = t.search(/\bThe\s+chance\s+for\s+a\s+moon\b/i);
-  if(end<0) end = t.length;
-
-  const cr = t.slice(start, end).trim();
-  // normalizza separatori
-  return cr.replace(/\n{3,}/g,"\n\n").trim();
+  return t.replace(/\r/g,"").trim();
 }
 
-/* ===================== CR PARSER (prende anche i -lost) ===================== */
-function parseCRText(text){
-  const out = { attackers:{}, defenders:{}, loot:{m:0,c:0,d:0} };
+/**
+ * Parser minimale del RAW "print_r" (stdClass Object (...)).
+ * Estrae:
+ * - generic.* (units_lost_attackers, loot, debris, coords, ecc)
+ * - fleet_composition per gli attaccanti: owner + tag + navi
+ */
+function parseNoMoreAngelRaw(raw){
+  const text = stripJinaWrapper(String(raw||""));
+  if(!text.includes("stdClass Object")) throw new Error("RAW non riconosciuto: manca 'stdClass Object'.");
 
-  // loot (inglese e italiano)
-  const lootM = text.match(/captured:\s*([\d\.,]+)\s*metal,\s*([\d\.,]+)\s*crystal\s*and\s*([\d\.,]+)\s*deuterium/i)
-            || text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
-  if(lootM){
-    out.loot.m = parseNum(lootM[1]);
-    out.loot.c = parseNum(lootM[2]);
-    out.loot.d = parseNum(lootM[3]);
+  const out = {
+    source:"nomoreangel",
+    generic:{},
+    attackers:{}, // name -> {tag, initial:{shipName:count}, fleetRes:{m,c,d}}
+    loot:{m:0,c:0,d:0},
+    debris:{m:0,c:0,d:0},
+    meta:{cr_id:"", event_time:"", coords:"", rounds:0, winner:""}
+  };
+
+  // ---------- generic ----------
+  function pick(key){
+    const m = text.match(new RegExp("\\["+key.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")+"\\]\\s*=>\\s*([^\\r\\n]+)"));
+    return m ? m[1].trim() : "";
   }
-  if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
+  out.meta.cr_id = pick("cr_id");
+  out.meta.event_time = pick("event_time");
+  out.meta.coords = pick("combat_coordinates");
+  out.meta.rounds = parseNum(pick("combat_rounds"));
+  out.meta.winner = pick("winner");
 
-  let pre=text, post="";
-  const idx = text.search(/\b(Dopo\s+la\s+battaglia|After\s+the\s+battle)\b/i);
-  if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
+  out.generic.units_lost_attackers = parseNum(pick("units_lost_attackers"));
+  out.generic.units_lost_defenders = parseNum(pick("units_lost_defenders"));
+  out.generic.loot_percentage = parseNum(pick("loot_percentage"));
+  out.generic.moon_chance = parseNum(pick("moon_chance"));
 
-  function ensure(bucket,name,tag){
-    if(!bucket[name]) bucket[name]={ tag, initial:{}, final:{}, lost:{} };
-    bucket[name].tag = tag;
-    bucket[name].lost = bucket[name].lost || {};
-    return bucket[name];
+  out.loot.m = parseNum(pick("loot_metal"));
+  out.loot.c = parseNum(pick("loot_crystal"));
+  out.loot.d = parseNum(pick("loot_deuterium"));
+
+  out.debris.m = parseNum(pick("debris_metal"));
+  out.debris.c = parseNum(pick("debris_crystal"));
+  out.debris.d = parseNum(pick("debris_deuterium"));
+
+  if(!INCLUDE_LOOT) out.loot = {m:0,c:0,d:0};
+
+  // ---------- fleet blocks ----------
+  // Strategia: trova tutti i blocchi "( [fleet_owner] => X ... [fleet_composition] => Array ( ... ) )"
+  // e considera come ATTACKER solo quelli che hanno 'fleet_owner_alliance_tag' e (molto spesso) fanno parte di attacker_count.
+  // Nel RAW non c'è un flag attacker/defender per ogni blocco; però in pratica la difesa è 1 e ha anche difese/ships,
+  // ma noi per spartizione ci servono gli ATTACKER: filtriamo quelli con ship_type tra 202-219 (navi) e owner != defender unico
+  // e soprattutto che compaiono più volte (stack flotte).
+  //
+  // Nota: se vuoi includere anche difensori in futuro, si può espandere con un vero parser ad albero.
+  const lines = text.split("\n");
+  let i=0;
+
+  function addShip(owner, shipType, count, tag){
+    const shipName = SHIP_ID_TO_NAME[shipType];
+    if(!shipName) return; // ignora roba non mappata
+    if(!out.attackers[owner]) out.attackers[owner] = {tag: tag||"", initial:{}, fleetRes:{m:0,c:0,d:0}};
+    if(tag && !out.attackers[owner].tag) out.attackers[owner].tag = tag;
+
+    out.attackers[owner].initial[shipName] = (out.attackers[owner].initial[shipName]||0) + count;
+
+    const cost = COSTS[shipName];
+    if(cost){
+      out.attackers[owner].fleetRes.m += cost[0]*count;
+      out.attackers[owner].fleetRes.c += cost[1]*count;
+      out.attackers[owner].fleetRes.d += cost[2]*count;
+    }
   }
-  function normKey(s){
-    return String(s||"").replace(/\u00A0/g," ").replace(/\s+/g," ").trim();
-  }
 
-  function parseSideBlocks(blockText, phase){
-    const lines = String(blockText||"").split(/\n/);
-    let current=null;
+  while(i<lines.length){
+    const line = lines[i];
 
-    for(const raw of lines){
-      const line = raw.trim();
-      if(!line) continue;
+    if(line.includes("[fleet_owner] =>")){
+      const owner = (line.split("=>")[1]||"").trim();
+      let tag = "";
+      let hasFleetComposition = false;
 
-      const h=line.match(/^(Attaccante|Attacker|Difensore|Defender)\s+(.+?)\s+\[(.+?)\]\s*$/i);
-      if(h){
-        const sideIsAtt = /^(Attaccante|Attacker)$/i.test(h[1]);
-        const name=normKey(h[2]);
-        const tag=normKey(h[3]);
-        const bucket = sideIsAtt ? out.attackers : out.defenders;
-        current = ensure(bucket, name, tag);
-        continue;
-      }
+      // scan fino a fine blocco fleet (grezzo)
+      let j=i;
+      while(j<lines.length && !lines[j].includes("[fleet_owner] =>") || j===i){
+        const l = lines[j];
 
-      if(!current) continue;
-      if(line.startsWith("_")) continue;
-      if(/destroyed!/i.test(line)) continue;
-      if(line.toLowerCase().includes("distrutto")) continue;
-
-      // "Light Fighter 13.898.751 ( -39.642.469 )"
-      const m=line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-\s*([\d\.,]+)\s*\))?\s*$/);
-      if(!m) continue;
-
-      const item = normKey(m[1]);
-      const count = parseNum(m[2]);
-      const lostCap = (m[3]!==undefined) ? parseNum(m[3]) : null;
-
-      if(phase==="initial"){
-        current.initial[item] = (current.initial[item]||0) + count;
-      }else{
-        current.final[item] = Math.max(current.final[item]||0, count);
-        if(lostCap!==null && lostCap>0){
-          current.lost[item] = Math.max(current.lost[item]||0, lostCap);
+        if(l.includes("[fleet_owner_alliance_tag] =>")){
+          tag = (l.split("=>")[1]||"").trim();
         }
+        if(l.includes("[fleet_composition] => Array")) hasFleetComposition = true;
+
+        // dentro la composition cerchiamo ship_type/count
+        if(l.includes("[ship_type] =>")){
+          const shipType = parseNum((l.split("=>")[1]||"").trim());
+          // cerca count nelle righe successive vicine
+          let k=j+1;
+          let cnt=0;
+          while(k<lines.length && k<j+15){
+            if(lines[k].includes("[count] =>")){
+              cnt = parseNum((lines[k].split("=>")[1]||"").trim());
+              break;
+            }
+            k++;
+          }
+          if(shipType>=200 && cnt>0){
+            addShip(owner, shipType, cnt, tag);
+          }
+        }
+
+        j++;
+        // stop “soft”: quando troviamo una riga che chiude parecchie parentesi e dopo parte un altro grande blocco,
+        // oppure quando troviamo un nuovo [fleet_owner] => (ma gestito dal while sopra con la condizione)
+        if(j<lines.length && lines[j].includes("[fleet_owner] =>")) break;
       }
+
+      i = j;
+      continue;
     }
+
+    i++;
   }
 
-  parseSideBlocks(pre,"initial");
-  if(post) parseSideBlocks(post,"final");
+  // filtro: tieni solo owner che hanno almeno 1 nave "vera" mappata e almeno una tra 202-219
+  const cleaned = {};
+  for(const [p,obj] of Object.entries(out.attackers)){
+    const ships = Object.keys(obj.initial||{});
+    if(!ships.length) continue;
+    cleaned[p]=obj;
+  }
+  out.attackers = cleaned;
 
-  // se manca il blocco finale (es. solo pre), copia initial
-  Object.values(out.attackers).forEach(p=>{
-    if(!p.final || Object.keys(p.final).length===0){
-      p.final = JSON.parse(JSON.stringify(p.initial));
-    }
-  });
+  if(!Object.keys(out.attackers).length){
+    throw new Error("Nessun attaccante trovato nel RAW (fleet_composition non parsata).");
+  }
 
   return out;
 }
 
-/* ===================== LOGICA ECONOMICA (saldo) ===================== */
-function computeFromSheetLogic(cr, rrTotals, mode){
-  const players = Object.keys(cr.attackers);
+/* ===================== LOGICA ECONOMICA (NoMoreAngel-based) ===================== */
+/**
+ * Qui NON abbiamo (sempre) le flotte “after”, quindi le perdite per player le stimiamo così:
+ * - totale perdite attackers = generic.units_lost_attackers (M+C+D)
+ * - quota per player = in modalità:
+ *    - paritaria: 1/N
+ *    - equa: peso = valore flotta (M+C+D) in campo
+ * - split M/C/D per player seguendo la composizione della sua flotta (fleetRes m/c/d)
+ */
+function computeFromNoMoreAngel(cr, rrTotals, mode){
+  const players = Object.keys(cr.attackers||{});
   const n = players.length || 1;
 
-  const losses={}, fleetValue={};
-  players.forEach(name=>{
-    const p = cr.attackers[name];
-    losses[name]={m:0,c:0,d:0};
-    fleetValue[name]=0;
+  // valori flotta per pesi
+  const fleetRes = {};
+  const fleetTot = {};
+  let sumFleetTot = 0;
 
-    for(const [ship,cnt] of Object.entries(p.initial)){
-      const cost=COSTS[ship];
-      if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2]) * cnt;
-    }
-
-    const ships = new Set([...Object.keys(p.initial), ...Object.keys(p.final)]);
-    for(const ship of ships){
-      const lostCnt = (p.lost && p.lost[ship]!=null)
-        ? p.lost[ship]
-        : Math.max(0,(p.initial[ship]||0) - (p.final[ship]||0));
-      if(lostCnt<=0) continue;
-      const cost=COSTS[ship];
-      if(!cost) continue;
-      losses[name].m += cost[0]*lostCnt;
-      losses[name].c += cost[1]*lostCnt;
-      losses[name].d += cost[2]*lostCnt;
-    }
+  players.forEach(p=>{
+    const fr = cr.attackers[p].fleetRes || {m:0,c:0,d:0};
+    fleetRes[p] = fr;
+    fleetTot[p] = (fr.m+fr.c+fr.d);
+    sumFleetTot += fleetTot[p];
   });
 
-  const totLoss = players.reduce((a,nm)=>({
-    m:a.m+losses[nm].m, c:a.c+losses[nm].c, d:a.d+losses[nm].d
+  const weights = {};
+  if(mode==="paritaria"){
+    players.forEach(p=>weights[p]=1/n);
+  }else{
+    const den = sumFleetTot || 1;
+    players.forEach(p=>weights[p]=(fleetTot[p]||0)/den);
+  }
+
+  const totalLossUnits = cr.generic?.units_lost_attackers || 0;
+
+  // perdite per player (stima)
+  const losses = {};
+  players.forEach(p=>{
+    const w = weights[p];
+    const playerLossTot = totalLossUnits * w;
+
+    const fr = fleetRes[p];
+    const denom = (fr.m+fr.c+fr.d) || 1;
+
+    losses[p] = {
+      m: playerLossTot * (fr.m/denom),
+      c: playerLossTot * (fr.c/denom),
+      d: playerLossTot * (fr.d/denom),
+      tot: playerLossTot
+    };
+  });
+
+  const totLoss = players.reduce((a,p)=>({
+    m:a.m+losses[p].m, c:a.c+losses[p].c, d:a.d+losses[p].d
   }),{m:0,c:0,d:0});
 
-  const totRec = players.reduce((a,nm)=>{
-    const r=rrTotals[nm]||{m:0,c:0,d:0};
+  const totRec = players.reduce((a,p)=>{
+    const r=rrTotals[p]||{m:0,c:0,d:0};
     return {m:a.m+r.m, c:a.c+r.c, d:a.d+r.d};
   },{m:0,c:0,d:0});
 
+  // gain = riciclato - perdite (loot escluso come nel tuo tool)
   const gain = { m:totRec.m-totLoss.m, c:totRec.c-totLoss.c, d:totRec.d-totLoss.d };
 
-  const weights={};
-  if(mode==="paritaria"){ players.forEach(nm=>weights[nm]=1/n); }
-  else{
-    const totFleet = players.reduce((s,nm)=>s+(fleetValue[nm]||0),0)||1;
-    players.forEach(nm=>weights[nm]=(fleetValue[nm]||0)/totFleet);
-  }
-
-  const saldo={};
-  players.forEach(nm=>{
-    const r=rrTotals[nm]||{m:0,c:0,d:0};
-    saldo[nm]={
-      m:losses[nm].m + gain.m*weights[nm] - r.m,
-      c:losses[nm].c + gain.c*weights[nm] - r.c,
-      d:losses[nm].d + gain.d*weights[nm] - r.d,
-      w:weights[nm],
-      lost:losses[nm],
+  const saldo = {};
+  players.forEach(p=>{
+    const r=rrTotals[p]||{m:0,c:0,d:0};
+    saldo[p]={
+      m:losses[p].m + gain.m*weights[p] - r.m,
+      c:losses[p].c + gain.c*weights[p] - r.c,
+      d:losses[p].d + gain.d*weights[p] - r.d,
+      w:weights[p],
+      lost:{m:losses[p].m,c:losses[p].c,d:losses[p].d},
       rec:r
     };
   });
@@ -495,7 +573,6 @@ function computeDeltaRR(players, rrTotals, weights){
   });
   return {totRR, delta};
 }
-
 function buildTransfers(players, bucket, resKey){
   const recv=[], send=[];
   players.forEach(p=>{
@@ -568,7 +645,7 @@ function renderResults(computed){
   const header=`
     <div class="kpi">
       <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
-      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite totali (M/C/D)</div></div>
+      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite stimate (M/C/D)</div></div>
       <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain (M/C/D)</div></div>
     </div>`;
 
@@ -600,7 +677,10 @@ function renderResults(computed){
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="mini" style="margin-top:8px">Saldo = Perdite + (Gain×%) − Riciclato. (Informativo)</div>`;
+    <div class="mini" style="margin-top:8px">
+      Saldo = Perdite(stimate) + (Gain×%) − Riciclato. •
+      Perdite(stimate) derivate da <b>units_lost_attackers</b> e composizione flotta.
+    </div>`;
 
   resEl.innerHTML = header + table;
 
@@ -631,7 +711,7 @@ function recomputeAndRender(){
     return;
   }
   const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
-  const computed = computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode);
+  const computed = computeFromNoMoreAngel(STATE.cr, STATE.rr||{}, mode);
   renderGainBox(computed);
   renderResults(computed);
 }
@@ -640,35 +720,34 @@ document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("c
   recomputeAndRender();
 }));
 
-/* ===================== CR LOADER (OGotcha) ===================== */
+/* ===================== CR LOADER (NoMoreAngel) ===================== */
 document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
-  const url=(document.getElementById("crUrl").value||"").trim();
+  const apiid=(document.getElementById("crApiId").value||"").trim();
   const pasted=(document.getElementById("crRawInput").value||"").trim();
   const timeoutMs = parseNum(document.getElementById("timeoutMs")?.value) || 15000;
 
   setCrStatus(null,"Caricamento CR…");
 
   try{
-    let crText = pasted;
+    let raw = pasted;
 
-    if(!crText){
-      if(!url) throw new Error("Incolla un link OGotcha oppure il testo CR.");
-      log("CR: fetch OGotcha…");
-      const raw = await fetchTextWithFallback(url, timeoutMs);
-      crText = extractCRFromOgotchaHtml(raw);
-      if(!crText) throw new Error("Non riesco a estrarre il CR dal report (prova a incollare direttamente il testo).");
+    if(!raw){
+      if(!apiid) throw new Error("Inserisci la CR-KEY oppure incolla il RAW.");
+      const url = `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiid)}&rawOut=on`;
+      log("CR: fetch NoMoreAngel RAW…");
+      raw = await fetchTextWithFallback(url, timeoutMs);
     }
 
-    // debug
-    document.getElementById("crDebug").textContent = crText;
+    document.getElementById("crDebug").textContent = raw;
 
-    STATE.cr = parseCRText(crText);
+    STATE.cr = parseNoMoreAngelRaw(raw);
 
     const players = Object.keys(STATE.cr.attackers||{});
     if(!players.length) throw new Error("CR letto ma nessun attaccante trovato (formato non riconosciuto).");
 
-    setCrStatus(true,"CR OK.");
-    log("✅ CR caricato e analizzato. Attaccanti: " + players.join(", "));
+    setCrStatus(true,`CR OK. Attaccanti: ${players.length} • Rounds: ${STATE.cr.meta.rounds||"?"} • ${STATE.cr.meta.coords||""}`);
+    log("✅ CR caricato. Attaccanti: " + players.join(", "));
+    log(`units_lost_attackers=${fmt(STATE.cr.generic.units_lost_attackers)} • DF(M/C/D)=${fmt(STATE.cr.debris.m)}/${fmt(STATE.cr.debris.c)}/${fmt(STATE.cr.debris.d)}`);
     showApp2();
     recomputeAndRender();
   }catch(e){
@@ -743,7 +822,7 @@ document.getElementById("btnClearRR").addEventListener("click", ()=>{
 
 /* ===================== INIT ===================== */
 setCrStatus(null,"In attesa del CR…");
-log("Pronto. 1) Carica CR (OGotcha). 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
+log("Pronto. 1) Carica CR (NoMoreAngel). 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
 </script>
 </body>
 </html>
