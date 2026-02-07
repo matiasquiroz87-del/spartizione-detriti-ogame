@@ -115,9 +115,6 @@ tr:last-child td{border-bottom:none}
 .statusDot.ok{border-color:rgba(57,217,138,.55); color:var(--good)}
 .statusDot.err{border-color:rgba(255,92,92,.55); color:var(--bad)}
 .hidden{display:none !important}
-
-/* ✅ MOD: modalità SOLO CR-KEY (RAW on) */
-#crRawInput{ display:none !important; } /* nasconde il textarea "incolla HTML" */
 </style>
 </head>
 <body>
@@ -126,7 +123,7 @@ tr:last-child td{border-bottom:none}
     <div class="topbar">
       <div class="title">
         <h1>Spartizione Detriti OGame</h1>
-        <span class="badge">CR-KEY (RAW on) + RR API</span>
+        <span class="badge">CR (RAW NoMoreAngel) + RR API</span>
       </div>
     </div>
   </div>
@@ -135,19 +132,17 @@ tr:last-child td{border-bottom:none}
 <div class="wrap">
 
   <div class="card">
-    <h2 class="min-title">1) Carica CR (NoMoreAngel)</h2>
+    <h2 class="min-title">1) Carica CR (RAW)</h2>
 
     <div class="mini">
-      Inserisci la <b>CR-KEY</b> (es. <code>cr-it-...</code>). Il CR viene caricato automaticamente in <b>modalità RAW (rawOut=on)</b>.
+      Inserisci la <b>CR-KEY</b> (es. <code>cr-it-...</code>). Verrà usato <b>solo</b> <code>rawOut=on</code>.
+      Il RAW viene <b>nascosto</b> (non mostrato in chiaro).
     </div>
 
     <div class="row" style="gap:8px;margin-top:8px">
       <input id="crApiId" placeholder="CR-KEY (es. cr-it-269-...)" />
-      <button id="btnLoadCR" type="button">Carica CR</button>
+      <button id="btnLoadCR" type="button">Carica CR (RAW)</button>
     </div>
-
-    <!-- textarea mantenuto per compatibilità ma nascosto via CSS -->
-    <textarea id="crRawInput" placeholder="(Disabilitato) Incolla HTML"></textarea>
 
     <div class="statusLine">
       <div id="crStatusDot" class="statusDot" title="Stato CR">•</div>
@@ -160,7 +155,7 @@ tr:last-child td{border-bottom:none}
     </details>
 
     <details style="margin-top:10px">
-      <summary>RAW letto (debug)</summary>
+      <summary>Debug (RAW nascosto)</summary>
       <pre id="crDebug" style="margin-top:10px"></pre>
     </details>
   </div>
@@ -215,6 +210,12 @@ tr:last-child td{border-bottom:none}
 
       <div class="card">
         <h2 class="min-title">Risultati</h2>
+
+        <details open>
+          <summary>Attaccanti + Difensori + Perdite (da RAW)</summary>
+          <div id="sidesTable" style="margin-top:10px"></div>
+        </details>
+
         <div id="resultsTables" style="margin-top:10px"></div>
 
         <details style="margin-top:12px" open>
@@ -234,6 +235,7 @@ tr:last-child td{border-bottom:none}
 <script>
 /* ===================== CONFIG ===================== */
 const INCLUDE_LOOT = false;
+
 const COSTS = {
   "Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],
   "Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],
@@ -242,6 +244,35 @@ const COSTS = {
   "Crawler":[2000,2000,1000],"Morte Nera":[5000000,4000000,1000000],
   "Lanciamissili":[2000,0,0],"Laser leggero":[1500,500,0],"Laser pesante":[6000,2000,0],"Cannone Gauss":[20000,15000,2000],
   "Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]
+};
+
+// ship_type (OGame) -> chiave COSTS (IT)
+const SHIP_ID_TO_NAME = {
+  202:"Cargo leggero",
+  203:"Cargo Pesante",
+  204:"Caccia Leggero",
+  205:"Caccia Pesante",
+  206:"Incrociatore",
+  207:"Nave da battaglia",
+  208:"Colonizzatrice",
+  209:"Riciclatrice",
+  210:"Sonda spia",
+  211:"Bombardiere",
+  212:"Satellite Solare",
+  213:"Corazzata",
+  214:"Morte Nera",
+  215:"Incrociatore da Battaglia",
+  217:"Crawler",
+  218:"Reaper",
+  219:"Pathfinder",
+  401:"Lanciamissili",
+  402:"Laser leggero",
+  403:"Laser pesante",
+  404:"Cannone Gauss",
+  405:"Cannone ionico",
+  406:"Cannone al Plasma",
+  407:"Cupola scudo piccola",
+  408:"Cupola scudo potenziata"
 };
 
 /* ===================== UTILS ===================== */
@@ -284,6 +315,7 @@ function showApp2(){
   el.classList.remove("hidden");
   el.scrollIntoView({behavior:"auto", block:"start"});
 }
+function safeText(s){ return String(s||"").replace(/[<>]/g, ""); }
 
 /* ===================== STATE ===================== */
 const STATE = { cr:null, rr:{} };
@@ -313,169 +345,216 @@ function stripJinaWrapper(t){
   return String(t||"").replace(/\r/g,"").trim();
 }
 
-/* ===================== NoMoreAngel RAW ONLY ===================== */
-
-// ship_type (OGame) -> chiave COSTS (IT)
-const SHIP_ID_TO_NAME = {
-  202:"Cargo leggero",
-  203:"Cargo Pesante",
-  204:"Caccia Leggero",
-  205:"Caccia Pesante",
-  206:"Incrociatore",
-  207:"Nave da battaglia",
-  208:"Colonizzatrice",
-  209:"Riciclatrice",
-  210:"Sonda spia",
-  211:"Bombardiere",
-  212:"Satellite Solare",
-  213:"Corazzata",
-  214:"Morte Nera",
-  215:"Incrociatore da Battaglia",
-  217:"Crawler",
-  218:"Reaper",
-  219:"Pathfinder",
-  401:"Lanciamissili",
-  402:"Laser leggero",
-  403:"Laser pesante",
-  404:"Cannone Gauss",
-  405:"Cannone ionico",
-  406:"Cannone al Plasma",
-  407:"Cupola scudo piccola",
-  408:"Cupola scudo potenziata"
-};
-
+/* ===================== RAW PARSER (attacker/defender + ship losses) ===================== */
 function parseNoMoreAngelRaw(raw){
   const text = stripJinaWrapper(String(raw||""));
   if(!text.includes("stdClass Object")) throw new Error("RAW non riconosciuto: manca 'stdClass Object'.");
-
-  const out = {
-    source:"nomoreangel-raw",
-    generic:{},
-    attackers:{}, // name -> {tag, initial:{shipName:count}, fleetRes:{m,c,d}}
-    loot:{m:0,c:0,d:0},
-    debris:{m:0,c:0,d:0},
-    meta:{cr_id:"", event_time:"", coords:"", rounds:0, winner:""}
-  };
 
   function pick(key){
     const m = text.match(new RegExp("\\["+key.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")+"\\]\\s*=>\\s*([^\\r\\n]+)"));
     return m ? m[1].trim() : "";
   }
 
-  out.meta.cr_id = pick("cr_id");
-  out.meta.event_time = pick("event_time");
-  out.meta.coords = pick("combat_coordinates") || pick("combat_coordinates ") || pick("combat_coordinates\t");
-  out.meta.rounds = parseNum(pick("combat_rounds"));
-  out.meta.winner = pick("winner");
-
-  out.generic.units_lost_attackers = parseNum(pick("units_lost_attackers"));
-  out.generic.units_lost_defenders = parseNum(pick("units_lost_defenders"));
-  out.generic.loot_percentage = parseNum(pick("loot_percentage"));
-  out.generic.moon_chance = parseNum(pick("moon_chance"));
-
-  out.loot.m = parseNum(pick("loot_metal"));
-  out.loot.c = parseNum(pick("loot_crystal"));
-  out.loot.d = parseNum(pick("loot_deuterium"));
-
-  out.debris.m = parseNum(pick("debris_metal"));
-  out.debris.c = parseNum(pick("debris_crystal"));
-  out.debris.d = parseNum(pick("debris_deuterium"));
+  const out = {
+    source:"nomoreangel-raw",
+    meta:{
+      cr_id: pick("cr_id") || "",
+      event_time: pick("event_time") || "",
+      coords: pick("combat_coordinates") || "",
+      rounds: parseNum(pick("combat_rounds")),
+      winner: pick("winner") || ""
+    },
+    generic:{
+      units_lost_attackers: parseNum(pick("units_lost_attackers")),
+      units_lost_defenders: parseNum(pick("units_lost_defenders")),
+      moon_chance: parseNum(pick("moon_chance")),
+      loot_percentage: parseNum(pick("loot_percentage"))
+    },
+    loot:{
+      m: parseNum(pick("loot_metal")),
+      c: parseNum(pick("loot_crystal")),
+      d: parseNum(pick("loot_deuterium"))
+    },
+    debris:{
+      m: parseNum(pick("debris_metal")),
+      c: parseNum(pick("debris_crystal")),
+      d: parseNum(pick("debris_deuterium"))
+    },
+    attackers:{},  // name -> {tag, initial:{}, lostShips:{}, lostRes:{m,c,d}, fleetRes:{m,c,d}}
+    defenders:{}   // name -> same
+  };
 
   if(!INCLUDE_LOOT) out.loot = {m:0,c:0,d:0};
 
   const lines = text.split("\n");
-  let i=0;
 
-  function addShip(owner, shipType, count, tag){
-    const shipName = SHIP_ID_TO_NAME[shipType];
-    if(!shipName) return;
+  function parseSide(sideKey){ // "[attackers]" / "[defenders]"
+    const side = {};
+    let idxStart = lines.findIndex(l => l.includes("[" + sideKey + "]") && l.includes("=> Array"));
+    if(idxStart < 0) return side;
 
-    if(!out.attackers[owner]) out.attackers[owner] = {tag: tag||"", initial:{}, fleetRes:{m:0,c:0,d:0}, lost:{}};
-    if(tag && !out.attackers[owner].tag) out.attackers[owner].tag = tag;
+    // scansione “debole”: ogni volta che vedo [fleet_owner] => considero un nuovo player nel side, finché non arrivo al prossimo blocco di pari livello
+    // stop quando incontro "[attacker_ship_losses]" / "[defender_ship_losses]" o l'altro side
+    const stopKeys = new Set([
+      "[attackers]", "[defenders]",
+      "[attacker_ship_losses]", "[defender_ship_losses]",
+      "[attacker_losses]", "[defender_losses]"
+    ]);
 
-    out.attackers[owner].initial[shipName] = (out.attackers[owner].initial[shipName]||0) + count;
+    let i = idxStart+1;
+    let currentName = "";
+    let currentTag = "";
 
-    const cost = COSTS[shipName];
-    if(cost){
-      out.attackers[owner].fleetRes.m += cost[0]*count;
-      out.attackers[owner].fleetRes.c += cost[1]*count;
-      out.attackers[owner].fleetRes.d += cost[2]*count;
+    function ensure(name, tag){
+      if(!side[name]) side[name] = {tag: tag||"", initial:{}, lostShips:{}, lostRes:{m:0,c:0,d:0}, fleetRes:{m:0,c:0,d:0}};
+      if(tag && !side[name].tag) side[name].tag = tag;
+      return side[name];
     }
-  }
 
-  // NOTA: qui leggiamo SOLO la composizione (initial). Il RAW non dà le "lost per nave" in modo semplice.
-  while(i<lines.length){
-    const line = lines[i];
+    while(i < lines.length){
+      const l = lines[i];
 
-    if(line.includes("[fleet_owner] =>")){
-      const owner = (line.split("=>")[1]||"").trim();
-      let tag = "";
+      // stop se comincia un blocco “grande” successivo
+      if([...stopKeys].some(k => l.includes(k) && k !== "["+sideKey+"]" && l.startsWith(k))) break;
 
-      let j=i;
-      while(j<lines.length){
-        const l = lines[j];
-
-        if(l.includes("[fleet_owner_alliance_tag] =>")){
-          tag = (l.split("=>")[1]||"").trim();
-        }
-
-        if(l.includes("[ship_type] =>")){
-          const shipType = parseNum((l.split("=>")[1]||"").trim());
-          let k=j+1, cnt=0;
-          while(k<lines.length && k<j+15){
-            if(lines[k].includes("[count] =>")){
-              cnt = parseNum((lines[k].split("=>")[1]||"").trim());
-              break;
-            }
-            k++;
-          }
-          if(shipType>=200 && cnt>0){
-            addShip(owner, shipType, cnt, tag);
-          }
-        }
-
-        j++;
-        if(j<lines.length && lines[j].includes("[fleet_owner] =>")) break;
+      if(l.includes("[fleet_owner] =>")){
+        currentName = (l.split("=>")[1]||"").trim();
+        currentTag = "";
+        ensure(currentName, "");
       }
 
-      i = j;
-      continue;
+      if(l.includes("[fleet_owner_alliance_tag] =>") && currentName){
+        currentTag = (l.split("=>")[1]||"").trim();
+        ensure(currentName, currentTag);
+      }
+
+      // ship_type + count: aggiungo all'initial del current player
+      if(currentName && l.includes("[ship_type] =>")){
+        const shipType = parseNum((l.split("=>")[1]||"").trim());
+        let cnt=0;
+        // cerca count vicino
+        for(let k=i+1; k<Math.min(lines.length, i+20); k++){
+          if(lines[k].includes("[count] =>")){
+            cnt = parseNum((lines[k].split("=>")[1]||"").trim());
+            break;
+          }
+        }
+        if(cnt>0){
+          const shipName = SHIP_ID_TO_NAME[shipType];
+          if(shipName){
+            const p = ensure(currentName, currentTag);
+            p.initial[shipName] = (p.initial[shipName]||0) + cnt;
+            const cost = COSTS[shipName];
+            if(cost){
+              p.fleetRes.m += cost[0]*cnt;
+              p.fleetRes.c += cost[1]*cnt;
+              p.fleetRes.d += cost[2]*cnt;
+            }
+          }
+        }
+      }
+
+      i++;
     }
 
-    i++;
+    // pulizia
+    const cleaned = {};
+    for(const [name, obj] of Object.entries(side)){
+      if(Object.keys(obj.initial||{}).length) cleaned[name]=obj;
+    }
+    return cleaned;
   }
 
-  // pulizia
-  const cleaned = {};
-  for(const [p,obj] of Object.entries(out.attackers)){
-    if(Object.keys(obj.initial||{}).length) cleaned[p]=obj;
-  }
-  out.attackers = cleaned;
+  out.attackers = parseSide("attackers");
+  out.defenders = parseSide("defenders");
 
-  if(!Object.keys(out.attackers).length){
-    throw new Error("Nessun attaccante trovato nel RAW (fleet_composition non parsata).");
+  // mappa ownerIndex (1..N) -> nome, nell'ordine di apparizione nel RAW
+  function buildOwnerIndexMap(sideObj){
+    const names = Object.keys(sideObj);
+    const map = {};
+    for(let i=0;i<names.length;i++) map[i+1] = names[i];
+    return map;
   }
+  const attOwnerMap = buildOwnerIndexMap(out.attackers);
+  const defOwnerMap = buildOwnerIndexMap(out.defenders);
+
+  function applyShipLosses(arrayKey, sideObj, ownerMap){
+    const startIdx = lines.findIndex(l => l.includes("[" + arrayKey + "]") && l.includes("=> Array"));
+    if(startIdx < 0) return;
+
+    let i = startIdx+1;
+    let currentOwner = 0, currentShip = 0, currentCount = 0;
+
+    function commit(){
+      if(!currentOwner || !currentShip || !currentCount) return;
+      const name = ownerMap[currentOwner];
+      if(!name || !sideObj[name]) return;
+
+      const shipName = SHIP_ID_TO_NAME[currentShip];
+      if(!shipName) return;
+
+      sideObj[name].lostShips[shipName] = (sideObj[name].lostShips[shipName]||0) + currentCount;
+
+      const cost = COSTS[shipName];
+      if(cost){
+        sideObj[name].lostRes.m += cost[0]*currentCount;
+        sideObj[name].lostRes.c += cost[1]*currentCount;
+        sideObj[name].lostRes.d += cost[2]*currentCount;
+      }
+    }
+
+    while(i < lines.length){
+      const l = lines[i];
+
+      // stop quando finisce l'array (riga che chiude e risale)
+      if(l.trim() === ")" || l.includes("[" ) && l.startsWith("[") && !l.startsWith("[" + arrayKey + "]")) {
+        // attenzione: questa euristica è “best effort”; commit prima di uscire
+        commit();
+        // se davvero inizia una nuova chiave top-level, esci
+        if(l.startsWith("[") && !l.startsWith("[" + arrayKey + "]")) break;
+      }
+
+      if(l.includes("[owner] =>")){
+        // commit del record precedente
+        commit();
+        currentOwner = parseNum((l.split("=>")[1]||"").trim());
+        currentShip = 0;
+        currentCount = 0;
+      }
+      if(l.includes("[ship_type] =>")){
+        currentShip = parseNum((l.split("=>")[1]||"").trim());
+      }
+      if(l.includes("[count] =>")){
+        currentCount = parseNum((l.split("=>")[1]||"").trim());
+      }
+
+      i++;
+    }
+
+    // commit finale
+    commit();
+  }
+
+  applyShipLosses("attacker_ship_losses", out.attackers, attOwnerMap);
+  applyShipLosses("defender_ship_losses", out.defenders, defOwnerMap);
+
+  if(!Object.keys(out.attackers).length && !Object.keys(out.defenders).length){
+    throw new Error("RAW letto ma nessun attaccante/difensore trovato.");
+  }
+
   return out;
 }
 
-/* ===================== LOGICA ECONOMICA ===================== */
-function computeFromNoMoreAngelRaw(cr, rrTotals, mode){
+/* ===================== ECONOMIA (split su ATTACCANTI) ===================== */
+function computeFromCRRaw(cr, rrTotals, mode){
   const players = Object.keys(cr.attackers||{});
   const n = players.length || 1;
 
-  // Perdite reali per nave NON disponibili in modo affidabile dal RAW: usiamo 0.
-  // Quindi: gain = totRec - 0 = totRec, e saldo è solo redistribuzione sul riciclato + peso.
   const losses={}, fleetValue={};
   players.forEach(name=>{
     const p = cr.attackers[name];
-    losses[name]={m:0,c:0,d:0};
-    fleetValue[name]=0;
-
-    // valore flotta (peso) dall'initial
-    for(const [ship,cnt] of Object.entries(p.initial||{})){
-      const cost=COSTS[ship];
-      if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2]) * cnt;
-    }
+    losses[name] = {m:p.lostRes?.m||0, c:p.lostRes?.c||0, d:p.lostRes?.d||0};
+    fleetValue[name] = (p.fleetRes?.m||0) + (p.fleetRes?.c||0) + (p.fleetRes?.d||0);
   });
 
   const totLoss = players.reduce((a,nm)=>({
@@ -558,7 +637,7 @@ function renderRRTable(rrTotals){
 
   const rows=entries.map(([p,v])=>`
     <tr>
-      <td>${p}</td><td>${fmt(v.m)}</td><td>${fmt(v.c)}</td><td>${fmt(v.d)}</td><td>${v.count||0}</td>
+      <td>${safeText(p)}</td><td>${fmt(v.m)}</td><td>${fmt(v.c)}</td><td>${fmt(v.d)}</td><td>${v.count||0}</td>
     </tr>`).join("");
 
   el.innerHTML = `
@@ -567,6 +646,52 @@ function renderRRTable(rrTotals){
       <tbody>${rows}</tbody>
     </table>`;
 }
+
+function renderSides(cr){
+  const el = document.getElementById("sidesTable");
+  if(!cr){ el.innerHTML = `<div class="mini">—</div>`; return; }
+
+  function rowsOf(sideObj, label){
+    const names = Object.keys(sideObj||{});
+    if(!names.length) return `<tr><td colspan="7" class="mini">${label}: nessuno</td></tr>`;
+
+    return names.map(n=>{
+      const p = sideObj[n];
+      const lostTot = (p.lostRes?.m||0)+(p.lostRes?.c||0)+(p.lostRes?.d||0);
+      const fleetTot = (p.fleetRes?.m||0)+(p.fleetRes?.c||0)+(p.fleetRes?.d||0);
+      return `
+        <tr>
+          <td>${label}</td>
+          <td>${safeText(n)} <span class="mini">${p.tag? "["+safeText(p.tag)+"]":""}</span></td>
+          <td>${fmt(fleetTot)}</td>
+          <td>${fmt(p.lostRes?.m||0)}</td>
+          <td>${fmt(p.lostRes?.c||0)}</td>
+          <td>${fmt(p.lostRes?.d||0)}</td>
+          <td>${fmt(lostTot)}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Lato</th><th>Giocatore</th><th>Valore flotta (M+C+D)</th>
+          <th>Perse M</th><th>Perse C</th><th>Perse D</th><th>Perse tot</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsOf(cr.attackers, "Att")}
+        ${rowsOf(cr.defenders, "Def")}
+      </tbody>
+    </table>
+    <div class="mini" style="margin-top:8px">
+      Perdite per giocatore ricavate da <b>attacker_ship_losses</b> / <b>defender_ship_losses</b> del RAW (rawOut=on).
+    </div>
+  `;
+}
+
 function renderGainBox(computed){
   const gainBox = document.getElementById("gainBox");
   const gainValue = document.getElementById("gainValue");
@@ -587,6 +712,7 @@ function renderGainBox(computed){
   gainValue.textContent = fmt(total);
   gainBreakdown.textContent = `M ${fmt(computed.gain.m)} • C ${fmt(computed.gain.c)} • D ${fmt(computed.gain.d)}`;
 }
+
 function renderResults(computed){
   const resEl = document.getElementById("resultsTables");
   const trEl = document.getElementById("transports");
@@ -602,7 +728,7 @@ function renderResults(computed){
   const header=`
     <div class="kpi">
       <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
-      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite (RAW: non disponibili → 0)</div></div>
+      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite (RAW ship_losses) (M/C/D)</div></div>
       <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain (M/C/D)</div></div>
     </div>`;
 
@@ -613,7 +739,7 @@ function renderResults(computed){
     const dClass=q.d>=0?"good":"bad";
     return `
       <tr>
-        <td>${p} <span class="mini">[${(q.w*100).toFixed(2)}%]</span></td>
+        <td>${safeText(p)} <span class="mini">[${(q.w*100).toFixed(2)}%]</span></td>
         <td>${fmt(q.lost.m)}</td><td>${fmt(q.lost.c)}</td><td>${fmt(q.lost.d)}</td>
         <td>${fmt(q.rec.m)}</td><td>${fmt(q.rec.c)}</td><td>${fmt(q.rec.d)}</td>
         <td class="${mClass}">${fmt(q.m)}</td>
@@ -626,7 +752,7 @@ function renderResults(computed){
     <table style="margin-top:10px">
       <thead>
         <tr>
-          <th>Giocatore</th>
+          <th>Giocatore (ATT)</th>
           <th>Perse M</th><th>Perse C</th><th>Perse D</th>
           <th>Riciclato M</th><th>Riciclato C</th><th>Riciclato D</th>
           <th>Saldo M</th><th>Saldo C</th><th>Saldo D</th>
@@ -635,8 +761,7 @@ function renderResults(computed){
       <tbody>${rows}</tbody>
     </table>
     <div class="mini" style="margin-top:8px">
-      Saldo = Perdite + (Gain×%) − Riciclato.
-      • In modalità <b>RAW-only</b> le perdite per nave non sono parse: qui Perdite=0 (redistribuzione basata sul riciclato e %).
+      Saldo = Perdite(RAW ship_losses) + (Gain×%) − Riciclato.
     </div>`;
 
   resEl.innerHTML = header + table;
@@ -648,7 +773,7 @@ function renderResults(computed){
 
   function renderMoveList(label,moves){
     if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato sul riciclato).</div>`;
-    const r=moves.map(m=>`<tr><td>${m.from}</td><td>${m.to}</td><td>${fmt(m.amount)}</td></tr>`).join("");
+    const r=moves.map(m=>`<tr><td>${safeText(m.from)}</td><td>${safeText(m.to)}</td><td>${fmt(m.amount)}</td></tr>`).join("");
     return `
       <div style="margin-top:10px">
         <div class="mini" style="margin:6px 0"><b>${label}</b></div>
@@ -667,7 +792,7 @@ function recomputeAndRender(){
     return;
   }
   const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
-  const computed = computeFromNoMoreAngelRaw(STATE.cr, STATE.rr||{}, mode);
+  const computed = computeFromCRRaw(STATE.cr, STATE.rr||{}, mode);
   renderGainBox(computed);
   renderResults(computed);
 }
@@ -681,7 +806,7 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
   const apiid=(document.getElementById("crApiId").value||"").trim();
   const timeoutMs = parseNum(document.getElementById("timeoutMs")?.value) || 15000;
 
-  setCrStatus(null,"Caricamento CR (RAW)…");
+  setCrStatus(null,"Caricamento CR RAW…");
 
   try{
     if(!apiid) throw new Error("Inserisci la CR-KEY.");
@@ -690,15 +815,24 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
     log("CR: fetch RAW (rawOut=on)…");
     const raw = await fetchTextWithFallback(rawUrl, timeoutMs);
 
-    document.getElementById("crDebug").textContent = String(raw).slice(0, 20000);
+    // NASCONDI RAW: debug solo riassunto
+    const size = String(raw||"").length;
+    const hasLossA = String(raw||"").includes("[attacker_ship_losses]");
+    const hasLossD = String(raw||"").includes("[defender_ship_losses]");
+    document.getElementById("crDebug").textContent =
+      `RAW ricevuto: ${fmt(size)} caratteri\n` +
+      `Contiene attacker_ship_losses: ${hasLossA ? "SI" : "NO"}\n` +
+      `Contiene defender_ship_losses: ${hasLossD ? "SI" : "NO"}\n` +
+      `(contenuto RAW nascosto)`;
 
     STATE.cr = parseNoMoreAngelRaw(raw);
 
-    const players = Object.keys(STATE.cr.attackers||{});
-    setCrStatus(true,`CR OK (RAW). Attaccanti: ${players.length} • ${STATE.cr.meta.coords||""}`);
-    log("✅ CR caricato (RAW). Attaccanti: " + players.join(", "));
-    if(STATE.cr.meta.cr_id) log("CR-ID: " + STATE.cr.meta.cr_id);
+    const att = Object.keys(STATE.cr.attackers||{}).length;
+    const def = Object.keys(STATE.cr.defenders||{}).length;
 
+    setCrStatus(true,`CR OK. Att: ${att} • Def: ${def} • ${STATE.cr.meta.coords||""}`);
+    log(`✅ CR caricato. Att=${att} Def=${def} • Winner=${STATE.cr.meta.winner||"?"} • Rounds=${STATE.cr.meta.rounds||"?"}`);
+    renderSides(STATE.cr);
     showApp2();
     recomputeAndRender();
   }catch(e){
@@ -773,7 +907,8 @@ document.getElementById("btnClearRR").addEventListener("click", ()=>{
 
 /* ===================== INIT ===================== */
 setCrStatus(null,"In attesa del CR…");
-log("Pronto. 1) Carica CR via CR-KEY (RAW on). 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
+renderSides(null);
+log("Pronto. 1) Carica CR (RAW). 2) Carica RR. 3) Vedi perdite (RAW) + gain/saldi + trasporti (solo su riciclato).");
 </script>
 </body>
 </html>
