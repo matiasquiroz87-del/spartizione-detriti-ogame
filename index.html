@@ -123,7 +123,7 @@ tr:last-child td{border-bottom:none}
     <div class="topbar">
       <div class="title">
         <h1>Spartizione Detriti OGame</h1>
-        <span class="badge">CR (NoMoreAngel API) + RR API</span>
+        <span class="badge">CR (NoMoreAngel HTML) + RR API</span>
       </div>
     </div>
   </div>
@@ -135,8 +135,8 @@ tr:last-child td{border-bottom:none}
     <h2 class="min-title">1) Carica CR (NoMoreAngel)</h2>
 
     <div class="mini">
-      Inserisci la <b>CR-KEY</b> (es. <code>cr-it-...</code>) e carico il RAW da NoMoreAngel,
-      <b>oppure</b> incolla direttamente qui sotto il RAW <code>stdClass Object (...)</code>.
+      Inserisci la <b>CR-KEY</b> (es. <code>cr-it-...</code>) e carico l’HTML da NoMoreAngel,
+      <b>oppure</b> incolla direttamente qui sotto l’HTML completo.
     </div>
 
     <div class="row" style="gap:8px;margin-top:8px">
@@ -144,7 +144,7 @@ tr:last-child td{border-bottom:none}
       <button id="btnLoadCR" type="button">Carica CR</button>
     </div>
 
-    <textarea id="crRawInput" placeholder="(Opzionale) Incolla qui il RAW NoMoreAngel (stdClass Object ...)"></textarea>
+    <textarea id="crRawInput" placeholder="(Opzionale) Incolla qui l'HTML NoMoreAngel (intera pagina)"></textarea>
 
     <div class="statusLine">
       <div id="crStatusDot" class="statusDot" title="Stato CR">•</div>
@@ -241,37 +241,6 @@ const COSTS = {
   "Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]
 };
 
-// ship_type (OGame) -> chiave COSTS (IT)
-const SHIP_ID_TO_NAME = {
-  202:"Cargo leggero",
-  203:"Cargo Pesante",
-  204:"Caccia Leggero",
-  205:"Caccia Pesante",
-  206:"Incrociatore",
-  207:"Nave da battaglia",
-  208:"Colonizzatrice",
-  209:"Riciclatrice",
-  210:"Sonda spia",
-  211:"Bombardiere",
-  212:"Satellite Solare",
-  213:"Corazzata",                 // Destroyer
-  214:"Morte Nera",
-  215:"Incrociatore da Battaglia",
-  217:"Crawler",
-  218:"Reaper",
-  219:"Pathfinder",
-
-  // difese (se mai ti serviranno)
-  401:"Lanciamissili",
-  402:"Laser leggero",
-  403:"Laser pesante",
-  404:"Cannone Gauss",
-  405:"Cannone ionico",
-  406:"Cannone al Plasma",
-  407:"Cupola scudo piccola",
-  408:"Cupola scudo potenziata"
-};
-
 /* ===================== UTILS ===================== */
 function fmt(n){
   if(n===null||n===undefined||isNaN(n)) return "—";
@@ -282,6 +251,13 @@ function parseNum(str){
   const s = String(str).replace(/\./g,"").replace(/,/g,"").replace(/\s+/g,"").trim();
   const n = Number(s);
   return isNaN(n)?0:n;
+}
+function mergeCounts(a,b){
+  const out = {...(a||{})};
+  for(const [k,v] of Object.entries(b||{})){
+    out[k] = (out[k]||0) + (v||0);
+  }
+  return out;
 }
 const LOG=[];
 function log(msg){
@@ -329,225 +305,280 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
     return await res2.text();
   }
 }
-
-/* ===================== NoMoreAngel loader + parser ===================== */
 function stripJinaWrapper(t){
-  // quando arriva da jina può includere wrapper
-  const mdIdx=t.indexOf("Markdown Content:");
-  if(mdIdx>=0) t=t.slice(mdIdx+"Markdown Content:".length);
-  return t.replace(/\r/g,"").trim();
+  const mdIdx=String(t||"").indexOf("Markdown Content:");
+  if(mdIdx>=0) t=String(t).slice(mdIdx+"Markdown Content:".length);
+  return String(t||"").replace(/\r/g,"").trim();
 }
 
-/**
- * Parser minimale del RAW "print_r" (stdClass Object (...)).
- * Estrae:
- * - generic.* (units_lost_attackers, loot, debris, coords, ecc)
- * - fleet_composition per gli attaccanti: owner + tag + navi
- */
-function parseNoMoreAngelRaw(raw){
-  const text = stripJinaWrapper(String(raw||""));
-  if(!text.includes("stdClass Object")) throw new Error("RAW non riconosciuto: manca 'stdClass Object'.");
-
+/* ===================== NoMoreAngel HTML PARSER ===================== */
+function stripTags(html){
+  return String(html||"")
+    .replace(/<script[\s\S]*?<\/script>/gi," ")
+    .replace(/<style[\s\S]*?<\/style>/gi," ")
+    .replace(/<br\s*\/?>/gi,"\n")
+    .replace(/<\/(p|div|tr|h\d)>/gi,"\n")
+    .replace(/<[^>]+>/g," ")
+    .replace(/&nbsp;/g," ")
+    .replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&")
+    .replace(/\r/g,"");
+}
+function normShipName(s){
+  return String(s||"").replace(/\u00A0/g," ").replace(/\s+/g," ").trim();
+}
+function ensurePlayer(bucket, name, tag){
+  if(!bucket[name]) bucket[name] = { tag: tag||"", initial:{}, final:{}, lost:{} };
+  if(tag && !bucket[name].tag) bucket[name].tag = tag;
+  return bucket[name];
+}
+function findGeneralBlockText(html){
+  const m = String(html||"").match(/<h3>\s*General Information:\s*<\/h3>([\s\S]*?)<\/div>/i);
+  return m ? stripTags(m[1]) : "";
+}
+function parseGeneralInfoFromHtml(html){
+  const t = findGeneralBlockText(html);
   const out = {
-    source:"nomoreangel",
-    generic:{},
-    attackers:{}, // name -> {tag, initial:{shipName:count}, fleetRes:{m,c,d}}
+    date:"", time:"", tz:"", coords:"", winner:"", moonChance:0,
     loot:{m:0,c:0,d:0},
-    debris:{m:0,c:0,d:0},
-    meta:{cr_id:"", event_time:"", coords:"", rounds:0, winner:""}
+    lostUnitsAtt:0,
+    debris:{m:0,c:0}
   };
+  const dateM = t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i);
+  const timeM = t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i);
+  const tzM   = t.match(/Timezone:\s*([+\-][0-9]{2}:[0-9]{2})/i);
+  const coM   = t.match(/Combat coordinates:\s*([0-9]+:[0-9]+:[0-9]+)/i);
+  const winM  = t.match(/Winner:\s*(Attacker|Defender)/i);
+  const moonM = t.match(/Moon chance:\s*([0-9]+)\s*%/i);
+  if(dateM) out.date=dateM[1];
+  if(timeM) out.time=timeM[1];
+  if(tzM) out.tz=tzM[1];
+  if(coM) out.coords=coM[1];
+  if(winM) out.winner=winM[1];
+  if(moonM) out.moonChance=parseNum(moonM[1]);
 
-  // ---------- generic ----------
-  function pick(key){
-    const m = text.match(new RegExp("\\["+key.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")+"\\]\\s*=>\\s*([^\\r\\n]+)"));
-    return m ? m[1].trim() : "";
-  }
-  out.meta.cr_id = pick("cr_id");
-  out.meta.event_time = pick("event_time");
-  out.meta.coords = pick("combat_coordinates");
-  out.meta.rounds = parseNum(pick("combat_rounds"));
-  out.meta.winner = pick("winner");
-
-  out.generic.units_lost_attackers = parseNum(pick("units_lost_attackers"));
-  out.generic.units_lost_defenders = parseNum(pick("units_lost_defenders"));
-  out.generic.loot_percentage = parseNum(pick("loot_percentage"));
-  out.generic.moon_chance = parseNum(pick("moon_chance"));
-
-  out.loot.m = parseNum(pick("loot_metal"));
-  out.loot.c = parseNum(pick("loot_crystal"));
-  out.loot.d = parseNum(pick("loot_deuterium"));
-
-  out.debris.m = parseNum(pick("debris_metal"));
-  out.debris.c = parseNum(pick("debris_crystal"));
-  out.debris.d = parseNum(pick("debris_deuterium"));
-
+  const lm = t.match(/Metal loot:\s*([\d\.,]+)/i);
+  const lc = t.match(/Crystal loot:\s*([\d\.,]+)/i);
+  const ld = t.match(/Deuterium loot:\s*([\d\.,]+)/i);
+  if(lm) out.loot.m=parseNum(lm[1]);
+  if(lc) out.loot.c=parseNum(lc[1]);
+  if(ld) out.loot.d=parseNum(ld[1]);
   if(!INCLUDE_LOOT) out.loot = {m:0,c:0,d:0};
 
-  // ---------- fleet blocks ----------
-  // Strategia: trova tutti i blocchi "( [fleet_owner] => X ... [fleet_composition] => Array ( ... ) )"
-  // e considera come ATTACKER solo quelli che hanno 'fleet_owner_alliance_tag' e (molto spesso) fanno parte di attacker_count.
-  // Nel RAW non c'è un flag attacker/defender per ogni blocco; però in pratica la difesa è 1 e ha anche difese/ships,
-  // ma noi per spartizione ci servono gli ATTACKER: filtriamo quelli con ship_type tra 202-219 (navi) e owner != defender unico
-  // e soprattutto che compaiono più volte (stack flotte).
-  //
-  // Nota: se vuoi includere anche difensori in futuro, si può espandere con un vero parser ad albero.
-  const lines = text.split("\n");
-  let i=0;
+  const lostA = t.match(/Units attacker lost:\s*([\d\.,]+)/i);
+  if(lostA) out.lostUnitsAtt=parseNum(lostA[1]);
 
-  function addShip(owner, shipType, count, tag){
-    const shipName = SHIP_ID_TO_NAME[shipType];
-    if(!shipName) return; // ignora roba non mappata
-    if(!out.attackers[owner]) out.attackers[owner] = {tag: tag||"", initial:{}, fleetRes:{m:0,c:0,d:0}};
-    if(tag && !out.attackers[owner].tag) out.attackers[owner].tag = tag;
-
-    out.attackers[owner].initial[shipName] = (out.attackers[owner].initial[shipName]||0) + count;
-
-    const cost = COSTS[shipName];
-    if(cost){
-      out.attackers[owner].fleetRes.m += cost[0]*count;
-      out.attackers[owner].fleetRes.c += cost[1]*count;
-      out.attackers[owner].fleetRes.d += cost[2]*count;
-    }
-  }
-
-  while(i<lines.length){
-    const line = lines[i];
-
-    if(line.includes("[fleet_owner] =>")){
-      const owner = (line.split("=>")[1]||"").trim();
-      let tag = "";
-      let hasFleetComposition = false;
-
-      // scan fino a fine blocco fleet (grezzo)
-      let j=i;
-      while(j<lines.length && !lines[j].includes("[fleet_owner] =>") || j===i){
-        const l = lines[j];
-
-        if(l.includes("[fleet_owner_alliance_tag] =>")){
-          tag = (l.split("=>")[1]||"").trim();
-        }
-        if(l.includes("[fleet_composition] => Array")) hasFleetComposition = true;
-
-        // dentro la composition cerchiamo ship_type/count
-        if(l.includes("[ship_type] =>")){
-          const shipType = parseNum((l.split("=>")[1]||"").trim());
-          // cerca count nelle righe successive vicine
-          let k=j+1;
-          let cnt=0;
-          while(k<lines.length && k<j+15){
-            if(lines[k].includes("[count] =>")){
-              cnt = parseNum((lines[k].split("=>")[1]||"").trim());
-              break;
-            }
-            k++;
-          }
-          if(shipType>=200 && cnt>0){
-            addShip(owner, shipType, cnt, tag);
-          }
-        }
-
-        j++;
-        // stop “soft”: quando troviamo una riga che chiude parecchie parentesi e dopo parte un altro grande blocco,
-        // oppure quando troviamo un nuovo [fleet_owner] => (ma gestito dal while sopra con la condizione)
-        if(j<lines.length && lines[j].includes("[fleet_owner] =>")) break;
-      }
-
-      i = j;
-      continue;
-    }
-
-    i++;
-  }
-
-  // filtro: tieni solo owner che hanno almeno 1 nave "vera" mappata e almeno una tra 202-219
-  const cleaned = {};
-  for(const [p,obj] of Object.entries(out.attackers)){
-    const ships = Object.keys(obj.initial||{});
-    if(!ships.length) continue;
-    cleaned[p]=obj;
-  }
-  out.attackers = cleaned;
-
-  if(!Object.keys(out.attackers).length){
-    throw new Error("Nessun attaccante trovato nel RAW (fleet_composition non parsata).");
-  }
+  const dm = t.match(/Metal to debrisfield:\s*([\d\.,]+)/i);
+  const dc = t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i);
+  if(dm) out.debris.m=parseNum(dm[1]);
+  if(dc) out.debris.c=parseNum(dc[1]);
 
   return out;
 }
+function parseCrIdFromHtml(html){
+  const m = String(html||"").match(/\bID:\s*(cr-[a-z]{2}-[0-9]+-[a-f0-9]+)\b/i);
+  return m ? m[1].trim() : "";
+}
+function parseInitialAttackersFromHtml(html){
+  const attackers = {};
 
-/* ===================== LOGICA ECONOMICA (NoMoreAngel-based) ===================== */
-/**
- * Qui NON abbiamo (sempre) le flotte “after”, quindi le perdite per player le stimiamo così:
- * - totale perdite attackers = generic.units_lost_attackers (M+C+D)
- * - quota per player = in modalità:
- *    - paritaria: 1/N
- *    - equa: peso = valore flotta (M+C+D) in campo
- * - split M/C/D per player seguendo la composizione della sua flotta (fleetRes m/c/d)
- */
-function computeFromNoMoreAngel(cr, rrTotals, mode){
+  // blocco "Initial:" (primo)
+  const m = String(html||"").match(/<h3>\s*Combat Report:\s*<\/h3>[\s\S]*?<h4>\s*Initial:\s*<\/h4>([\s\S]*?)<\/div>\s*<div class="clear"/i);
+  const part = m ? m[1] : "";
+
+  // ogni "td><table class=cr" è un pacchetto; dentro cerchiamo header Attacker e la tabellina Type/Count
+  const blocks = part.split(/<td><table class="cr">/i);
+  for(const b of blocks){
+    if(!/Attacker<br>/i.test(b)) continue;
+
+    const header = (b.match(/Attacker<br>\s*([\s\S]*?)<\/td>/i)||[])[1] || "";
+    const headerText = stripTags(header);
+
+    // [2:96:10] Pablito
+    const nameM = headerText.match(/\[[0-9]+:[0-9]+:[0-9]+\]\s*([^\n]+)/);
+    const name = nameM ? nameM[1].trim() : "";
+
+    // [B V]Barboni volanti
+    const tagM = headerText.match(/\[([^\]]+)\]\s*/);
+    const tag = tagM ? tagM[1].trim() : "";
+
+    if(!name) continue;
+    const p = ensurePlayer(attackers, name, tag);
+
+    const typeRow = b.match(/<tr><td class="cr">Type<\/td>[\s\S]*?<\/tr>/i);
+    const countRow= b.match(/<tr><td class="cr">Count<\/td>[\s\S]*?<\/tr>/i);
+    if(!typeRow || !countRow) continue;
+
+    const types = (typeRow[0].match(/<td class="cr">([^<]+)<\/td>/gi) || [])
+      .map(x=>stripTags(x)).map(x=>x.trim()).filter(x=>x && x!=="Type");
+
+    const counts = (countRow[0].match(/<td class="cr">([^<]+)<\/td>/gi) || [])
+      .map(x=>stripTags(x)).map(x=>x.trim()).filter(x=>x && x!=="Count");
+
+    for(let i=0;i<Math.min(types.length, counts.length);i++){
+      const ship = normShipName(types[i]);
+      const cnt  = parseNum(counts[i]);
+      if(!ship || !cnt) continue;
+      p.initial[ship] = (p.initial[ship]||0) + cnt;
+    }
+  }
+
+  return attackers;
+}
+function parseLostFromLastRoundHtml(html){
+  const lostByPlayer = {};
+  const rounds=[];
+  const re = /<h4>\s*Round\s+([0-9]+)\s*<\/h4>/gi;
+  let mm;
+  while((mm=re.exec(html))!==null) rounds.push(parseInt(mm[1],10));
+  const lastRound = rounds.length ? Math.max(...rounds) : 0;
+  if(!lastRound) return {lastRound:0, lost: lostByPlayer};
+
+  const roundRe = new RegExp(`<h4>\\s*Round\\s+${lastRound}\\s*<\\/h4>([\\s\\S]*?)(?:<h4>\\s*Round\\s+\\d+\\s*<\\/h4>|<footer|<\\/body)`, "i");
+  const pm = String(html||"").match(roundRe);
+  const part = pm ? pm[1] : "";
+
+  // blocchi: <td><table class="cr"><tr><td class="cr">Attacker NAME</td></tr>...
+  const chunkRe = /<td><table class="cr"><tr><td class="cr">Attacker\s+([^<]+)<\/td><\/tr>[\s\S]*?<tr><td class="cr"><table class="cr">([\s\S]*?)<\/table><\/td><\/tr><\/table><\/td>/gi;
+  let m2;
+  while((m2 = chunkRe.exec(part)) !== null){
+    const name = stripTags(m2[1]).trim();
+    const table = m2[2] || "";
+    if(!name) continue;
+    if(!lostByPlayer[name]) lostByPlayer[name] = {};
+
+    // types nel round: prima riga ha <td class="cr"><td class="cr">Ship1</td>...
+    const typeRow = (table.match(/<tr><td class="cr"><td class="cr">[\s\S]*?<\/tr>/i) || [])[0] || "";
+    const types = (typeRow.match(/<td class="cr">([^<]+)<\/td>/gi) || [])
+      .map(x=>stripTags(x)).map(x=>x.trim()).filter(Boolean);
+
+    const lostRow = (table.match(/<tr><td class="cr">Lost<\/td>[\s\S]*?<\/tr>/i) || [])[0] || "";
+    const losts = (lostRow.match(/<td class="cr">([^<]+)<\/td>/gi) || [])
+      .map(x=>stripTags(x)).map(x=>x.trim()).filter(x=>x && x!=="Lost");
+
+    // types può includere roba vuota: teniamo solo nomi plausibili (non numeri)
+    const cleanTypes = types.filter(x => x && isNaN(parseNum(x)));
+
+    for(let i=0;i<Math.min(cleanTypes.length, losts.length);i++){
+      const ship = normShipName(cleanTypes[i]);
+      const l = parseNum(losts[i]);
+      if(!ship || !l) continue;
+      lostByPlayer[name][ship] = (lostByPlayer[name][ship]||0) + l;
+    }
+  }
+
+  return {lastRound, lost: lostByPlayer};
+}
+function parseNoMoreAngelHtmlPage(html){
+  const clean = stripJinaWrapper(html);
+  if(!/<title>\s*API-Reader\s*<\/title>/i.test(clean) && !/General Information:/i.test(clean)){
+    // comunque proviamo, ma avvisiamo
+    log("⚠️ HTML non sembra NoMoreAngel standard, provo a parsare lo stesso.");
+  }
+
+  const g = parseGeneralInfoFromHtml(clean);
+  const crId = parseCrIdFromHtml(clean);
+  const attackers = parseInitialAttackersFromHtml(clean);
+  const {lastRound, lost} = parseLostFromLastRoundHtml(clean);
+
+  // applica perdite
+  for(const [pName, plost] of Object.entries(lost)){
+    const p = ensurePlayer(attackers, pName, attackers[pName]?.tag || "");
+    p.lost = mergeCounts(p.lost, plost);
+  }
+
+  // final = initial - lost (se non abbiamo lost per quel player, final=initial)
+  for(const [pName,p] of Object.entries(attackers)){
+    p.final = {};
+    const keys = new Set([...Object.keys(p.initial||{}), ...Object.keys(p.lost||{})]);
+    for(const k of keys){
+      const ini = p.initial?.[k] || 0;
+      const lo  = p.lost?.[k] || 0;
+      const fin = Math.max(0, ini - lo);
+      if(fin>0) p.final[k]=fin;
+    }
+  }
+
+  if(!Object.keys(attackers).length){
+    throw new Error("Nessun attaccante trovato nell'HTML (Initial non riconosciuto).");
+  }
+
+  return {
+    source:"nomoreangel-html",
+    meta:{
+      cr_id: crId,
+      date: g.date,
+      time: g.time,
+      tz: g.tz,
+      coords: g.coords,
+      winner: g.winner,
+      lastRound
+    },
+    loot: g.loot,
+    debris: { m:g.debris.m, c:g.debris.c, d:0 },
+    generic:{
+      units_lost_attackers: g.lostUnitsAtt,
+      moon_chance: g.moonChance
+    },
+    attackers
+  };
+}
+
+/* ===================== LOGICA ECONOMICA (usa perdite REALI se presenti) ===================== */
+function computeFromNoMoreAngelHtml(cr, rrTotals, mode){
   const players = Object.keys(cr.attackers||{});
   const n = players.length || 1;
 
-  // valori flotta per pesi
-  const fleetRes = {};
-  const fleetTot = {};
-  let sumFleetTot = 0;
+  // perdite reali (da lost per nave) + fleetValue (peso flotta)
+  const losses={}, fleetValue={};
 
-  players.forEach(p=>{
-    const fr = cr.attackers[p].fleetRes || {m:0,c:0,d:0};
-    fleetRes[p] = fr;
-    fleetTot[p] = (fr.m+fr.c+fr.d);
-    sumFleetTot += fleetTot[p];
+  players.forEach(name=>{
+    const p = cr.attackers[name];
+    losses[name]={m:0,c:0,d:0};
+    fleetValue[name]=0;
+
+    // valore flotta (initial)
+    for(const [ship,cnt] of Object.entries(p.initial||{})){
+      const cost=COSTS[ship];
+      if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2]) * cnt;
+    }
+
+    // perdite reali (lost)
+    for(const [ship,lostCnt] of Object.entries(p.lost||{})){
+      const cost=COSTS[ship];
+      if(!cost) continue;
+      losses[name].m += cost[0]*lostCnt;
+      losses[name].c += cost[1]*lostCnt;
+      losses[name].d += cost[2]*lostCnt;
+    }
   });
 
-  const weights = {};
-  if(mode==="paritaria"){
-    players.forEach(p=>weights[p]=1/n);
-  }else{
-    const den = sumFleetTot || 1;
-    players.forEach(p=>weights[p]=(fleetTot[p]||0)/den);
-  }
-
-  const totalLossUnits = cr.generic?.units_lost_attackers || 0;
-
-  // perdite per player (stima)
-  const losses = {};
-  players.forEach(p=>{
-    const w = weights[p];
-    const playerLossTot = totalLossUnits * w;
-
-    const fr = fleetRes[p];
-    const denom = (fr.m+fr.c+fr.d) || 1;
-
-    losses[p] = {
-      m: playerLossTot * (fr.m/denom),
-      c: playerLossTot * (fr.c/denom),
-      d: playerLossTot * (fr.d/denom),
-      tot: playerLossTot
-    };
-  });
-
-  const totLoss = players.reduce((a,p)=>({
-    m:a.m+losses[p].m, c:a.c+losses[p].c, d:a.d+losses[p].d
+  const totLoss = players.reduce((a,nm)=>({
+    m:a.m+losses[nm].m, c:a.c+losses[nm].c, d:a.d+losses[nm].d
   }),{m:0,c:0,d:0});
 
-  const totRec = players.reduce((a,p)=>{
-    const r=rrTotals[p]||{m:0,c:0,d:0};
+  const totRec = players.reduce((a,nm)=>{
+    const r=rrTotals[nm]||{m:0,c:0,d:0};
     return {m:a.m+r.m, c:a.c+r.c, d:a.d+r.d};
   },{m:0,c:0,d:0});
 
-  // gain = riciclato - perdite (loot escluso come nel tuo tool)
   const gain = { m:totRec.m-totLoss.m, c:totRec.c-totLoss.c, d:totRec.d-totLoss.d };
 
-  const saldo = {};
-  players.forEach(p=>{
-    const r=rrTotals[p]||{m:0,c:0,d:0};
-    saldo[p]={
-      m:losses[p].m + gain.m*weights[p] - r.m,
-      c:losses[p].c + gain.c*weights[p] - r.c,
-      d:losses[p].d + gain.d*weights[p] - r.d,
-      w:weights[p],
-      lost:{m:losses[p].m,c:losses[p].c,d:losses[p].d},
+  const weights={};
+  if(mode==="paritaria"){ players.forEach(nm=>weights[nm]=1/n); }
+  else{
+    const totFleet = players.reduce((s,nm)=>s+(fleetValue[nm]||0),0)||1;
+    players.forEach(nm=>weights[nm]=(fleetValue[nm]||0)/totFleet);
+  }
+
+  const saldo={};
+  players.forEach(nm=>{
+    const r=rrTotals[nm]||{m:0,c:0,d:0};
+    saldo[nm]={
+      m:losses[nm].m + gain.m*weights[nm] - r.m,
+      c:losses[nm].c + gain.c*weights[nm] - r.c,
+      d:losses[nm].d + gain.d*weights[nm] - r.d,
+      w:weights[nm],
+      lost:losses[nm],
       rec:r
     };
   });
@@ -645,7 +676,7 @@ function renderResults(computed){
   const header=`
     <div class="kpi">
       <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
-      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite stimate (M/C/D)</div></div>
+      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite reali (M/C/D)</div></div>
       <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain (M/C/D)</div></div>
     </div>`;
 
@@ -678,13 +709,12 @@ function renderResults(computed){
       <tbody>${rows}</tbody>
     </table>
     <div class="mini" style="margin-top:8px">
-      Saldo = Perdite(stimate) + (Gain×%) − Riciclato. •
-      Perdite(stimate) derivate da <b>units_lost_attackers</b> e composizione flotta.
+      Saldo = Perdite(reali) + (Gain×%) − Riciclato.
+      • Perdite(reali) derivate dal <b>Last Round</b> (colonna Lost) dell'HTML NoMoreAngel.
     </div>`;
 
   resEl.innerHTML = header + table;
 
-  // ✅ TRASPORTI SOLO SU RICICLATO
   const {delta} = computeDeltaRR(players, STATE.rr, weights);
   const mt=buildTransfers(players,delta,"m");
   const ct=buildTransfers(players,delta,"c");
@@ -711,7 +741,7 @@ function recomputeAndRender(){
     return;
   }
   const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
-  const computed = computeFromNoMoreAngel(STATE.cr, STATE.rr||{}, mode);
+  const computed = computeFromNoMoreAngelHtml(STATE.cr, STATE.rr||{}, mode);
   renderGainBox(computed);
   renderResults(computed);
 }
@@ -720,7 +750,7 @@ document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("c
   recomputeAndRender();
 }));
 
-/* ===================== CR LOADER (NoMoreAngel) ===================== */
+/* ===================== CR LOADER (NoMoreAngel HTML) ===================== */
 document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
   const apiid=(document.getElementById("crApiId").value||"").trim();
   const pasted=(document.getElementById("crRawInput").value||"").trim();
@@ -729,25 +759,26 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
   setCrStatus(null,"Caricamento CR…");
 
   try{
-    let raw = pasted;
+    let html = pasted;
 
-    if(!raw){
-      if(!apiid) throw new Error("Inserisci la CR-KEY oppure incolla il RAW.");
-      const url = `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiid)}&rawOut=on`;
-      log("CR: fetch NoMoreAngel RAW…");
-      raw = await fetchTextWithFallback(url, timeoutMs);
+    if(!html){
+      if(!apiid) throw new Error("Inserisci la CR-KEY oppure incolla l'HTML.");
+      const url = `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiid)}`;
+      log("CR: fetch NoMoreAngel HTML…");
+      html = await fetchTextWithFallback(url, timeoutMs);
     }
 
-    document.getElementById("crDebug").textContent = raw;
+    document.getElementById("crDebug").textContent = html.slice(0, 20000); // evita debug infinito
 
-    STATE.cr = parseNoMoreAngelRaw(raw);
+    STATE.cr = parseNoMoreAngelHtmlPage(html);
 
     const players = Object.keys(STATE.cr.attackers||{});
     if(!players.length) throw new Error("CR letto ma nessun attaccante trovato (formato non riconosciuto).");
 
-    setCrStatus(true,`CR OK. Attaccanti: ${players.length} • Rounds: ${STATE.cr.meta.rounds||"?"} • ${STATE.cr.meta.coords||""}`);
+    setCrStatus(true,`CR OK. Attaccanti: ${players.length} • Round: ${STATE.cr.meta.lastRound||"?"} • ${STATE.cr.meta.coords||""}`);
     log("✅ CR caricato. Attaccanti: " + players.join(", "));
-    log(`units_lost_attackers=${fmt(STATE.cr.generic.units_lost_attackers)} • DF(M/C/D)=${fmt(STATE.cr.debris.m)}/${fmt(STATE.cr.debris.c)}/${fmt(STATE.cr.debris.d)}`);
+    log(`Perdite totali (calcolate dal Lost): ${fmt(players.reduce((s,p)=>s + (STATE.cr.attackers[p]?.lost ? Object.entries(STATE.cr.attackers[p].lost).reduce((a,[ship,c])=>a + ((COSTS[ship]?.[0]||0)+(COSTS[ship]?.[1]||0)+(COSTS[ship]?.[2]||0))*c,0):0),0))}`);
+    log(`DF(M/C)=${fmt(STATE.cr.debris.m)}/${fmt(STATE.cr.debris.c)} • Moon=${STATE.cr.generic.moon_chance||0}% • Winner=${STATE.cr.meta.winner||"?"}`);
     showApp2();
     recomputeAndRender();
   }catch(e){
@@ -822,7 +853,7 @@ document.getElementById("btnClearRR").addEventListener("click", ()=>{
 
 /* ===================== INIT ===================== */
 setCrStatus(null,"In attesa del CR…");
-log("Pronto. 1) Carica CR (NoMoreAngel). 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
+log("Pronto. 1) Carica CR (NoMoreAngel HTML). 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
 </script>
 </body>
 </html>
