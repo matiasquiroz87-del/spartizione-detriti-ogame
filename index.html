@@ -666,7 +666,7 @@ function parseNmaApiReaderToClassic(raw){
   const date=((t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i)||[])[1])||"--";
   const time=((t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i)||[])[1])||"--";
 
-  // ---- max round (1..6) ----
+  // Trova round massimo (cap a 6)
   let maxRound=0;
   const roundRe=/####\s*Round\s+(\d+)/gi;
   let rm;
@@ -676,168 +676,161 @@ function parseNmaApiReaderToClassic(raw){
   }
   if(maxRound<1) maxRound=1;
 
-  // ---- helper: somma in mappa ----
-  function add(target, playerKey, shipIt, qty){
-    if(!qty || qty<=0) return;
-    if(!target[playerKey]) target[playerKey]={};
-    target[playerKey][shipIt]=(target[playerKey][shipIt]||0)+qty;
-  }
-
-  // ---- INITIAL (somma, non max) ----
   const idxR1=t.search(/####\s*Round\s+1/i);
   const initEnd=idxR1>=0?idxR1:t.length;
   const initTxt=t.slice(idxInit,initEnd);
 
   const initial={attackers:{},defenders:{}};
-  const nameToTag={};
 
+  // mappa nome -> tag e nome -> fullKey (per usare sempre la stessa chiave)
+  const nameToTag={};
+  const nameToFullKey={};
+
+  // ====== PARSE INITIAL (SOMMA, NON MAX) ======
   const initEntityRe=/(Attacker|Defender)\s+\[[0-9:]+\]\s+([^\[]+?)\s+\[([^\]]+)\][\s\S]*?Type\s+([\s\S]*?)\s+Count\s+([\s\S]*?)(?=Weapon\s*:|Weapon\s|Shield\s*:|Shield\s|Armor\s*:|Armor\s|Attacker\s+\[|Defender\s+\[|$)/gi;
   let em;
   while((em=initEntityRe.exec(initTxt))!==null){
-    const side=em[1].toLowerCase(); // attacker/defender
-    const name=(em[2]||"").trim().replace(/\s+/g," ");
-    const tag=(em[3]||"").trim().replace(/\s+/g," ");
+    const side=em[1].toLowerCase();
+    const name=(em[2]||"").trim();
+    const tag=(em[3]||"").trim();
     const key=`${name} [${tag}]`;
+
     nameToTag[name]=tag;
+    nameToFullKey[name]=key;
 
     const shipsEN=matchKnownShipsEN(em[4]||"");
     const nums=extractNums(em[5]||"").map(parseNum);
     if(!shipsEN.length || !nums.length) continue;
 
-    const bucket = side==="attacker" ? initial.attackers : initial.defenders;
+    const target = side==="attacker" ? initial.attackers : initial.defenders;
+    if(!target[key]) target[key]={};
+
     for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
       const itName=mapShipToIT(shipsEN[i]);
-      add(bucket, key, itName, nums[i]);
+      // ✅ somma perché lo stesso player può avere più blocchi/flotte
+      target[key][itName] = (target[key][itName]||0) + nums[i];
     }
   }
 
-  // ---- FINAL = SOLO maxRound (somma anche qui) ----
-  const idxRound=t.search(new RegExp(`####\\s*Round\\s+${maxRound}\\b`,"i"));
-  if(idxRound<0) return null;
-  const afterRound=t.slice(idxRound);
-  const nextAfter=afterRound.slice(12).search(/####\s*Round\s+\d+/i);
-  const endRound=nextAfter>=0?(12+nextAfter):afterRound.length;
-  const roundTxt=afterRound.slice(0,endRound);
+  // ====== ESTRAI TESTO DI TUTTI I ROUND (per sommare i Lost) ======
+  const roundsTxt=[];
+  for(let r=1;r<=maxRound;r++){
+    const idx=t.search(new RegExp(`####\\s*Round\\s+${r}\\b`,"i"));
+    if(idx<0) continue;
+    const after=t.slice(idx);
+    const next=after.slice(12).search(/####\s*Round\s+\d+/i);
+    const end=next>=0?(12+next):after.length;
+    roundsTxt.push(after.slice(0,end));
+  }
+  const allRoundsTxt = roundsTxt.join("\n");
 
+  // ====== PARSE FINALI + LOST TOTALI (SOMMA) ======
   const final={attackers:{},defenders:{}};
+  const totalLost={}; // totalLost[fullKey][ship] = somma lost su tutti i round
 
-  // parser line-based di Round: prende Type + Count, ignora Lost
-  const lines=roundTxt.split(/\r?\n/);
-  let currentSide=null; // "attackers"|"defenders"
-  let currentName=null; // key per attackers, o "Il Diavolo" per defenders
-  let shipsLine=null;
-  let wantCount=false;
+  // Nota: NMA “Round X” ha blocchi tipo:
+  // Attacker NAME ... Type ... Count ... Lost ...
+  // Defender ... (non ci serve per i tuoi calcoli)
+  const chunkRe=/Attacker\s+([A-Za-z0-9_À-ÿ]+)\s+([\s\S]*?)(?=Attacker\s+[A-Za-z0-9_À-ÿ]+|Defender\s+|$)/g;
+  let cm;
+  while((cm=chunkRe.exec(allRoundsTxt))!==null){
+    const shortName=(cm[1]||"").trim();
+    const body=(cm[2]||"");
 
-  function attackerKeyFromShort(shortName){
-    const nm=(shortName||"").trim().replace(/\s+/g," ");
-    const tag=nameToTag[nm];
-    return tag ? `${nm} [${tag}]` : nm;
-  }
+    const idxCount=body.search(/\bCount\b/i);
+    if(idxCount<0) continue;
 
-  for(const rawLine of lines){
-    const line=(rawLine||"").trim();
-    if(!line) continue;
+    const beforeCount=body.slice(0,idxCount);
+    const afterCount=body.slice(idxCount);
 
-    let m=line.match(/^Attacker\s+(.+?)\s*$/i);
-    if(m){
-      currentSide="attackers";
-      currentName=attackerKeyFromShort(m[1]);
-      shipsLine=null; wantCount=false;
-      continue;
-    }
-    m=line.match(/^Defender\s+(.+?)\s*$/i);
-    if(m){
-      currentSide="defenders";
-      currentName=(m[1]||"").trim().replace(/\s+/g," ");
-      shipsLine=null; wantCount=false;
-      continue;
-    }
+    const idxLost=afterCount.search(/\bLost\b/i);
+    const countsPart = idxLost>=0 ? afterCount.slice(0,idxLost) : afterCount;
+    const lostPart   = idxLost>=0 ? afterCount.slice(idxLost)   : "";
 
-    if(!currentSide || !currentName) continue;
+    const shipsEN=matchKnownShipsEN(beforeCount);
+    const countNums=extractNums(countsPart).map(parseNum);
+    const lostNums = extractNums(lostPart).map(parseNum);
 
-    // prendi la riga che contiene i nomi navi
-    if(!shipsLine && !/^Count\b/i.test(line) && !/^Lost\b/i.test(line)){
-      const shipsFound=matchKnownShipsEN(line);
-      if(shipsFound.length){
-        shipsLine=line;
-        wantCount=true;
-      }
-      continue;
-    }
+    if(!shipsEN.length || !countNums.length) continue;
 
-    // riga Count: salva come final del maxRound
-    if(wantCount && /^Count\b/i.test(line) && shipsLine){
-      const shipsEN=matchKnownShipsEN(shipsLine);
-      const nums=extractNums(line).map(parseNum);
+    const fullKey = nameToFullKey[shortName] || (nameToTag[shortName] ? `${shortName} [${nameToTag[shortName]}]` : shortName);
 
-      const bucket = currentSide==="attackers" ? final.attackers : final.defenders;
-      for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
-        const itName=mapShipToIT(shipsEN[i]);
-        add(bucket, currentName, itName, nums[i]);
-      }
+    if(!final.attackers[fullKey]) final.attackers[fullKey]={};
+    if(!totalLost[fullKey]) totalLost[fullKey]={};
 
-      // reset per prossima mini-tabella dello stesso player
-      shipsLine=null;
-      wantCount=false;
-      continue;
-    }
+    for(let i=0;i<shipsEN.length;i++){
+      const itName=mapShipToIT(shipsEN[i]);
 
-    // se arriva Lost, ignora ma resetta per sicurezza
-    if(/^Lost\b/i.test(line)){
-      shipsLine=null;
-      wantCount=false;
-      continue;
+      const c = (i<countNums.length) ? countNums[i] : 0;
+      const l = (i<lostNums.length)  ? lostNums[i]  : 0;
+
+      // ✅ Count in round = rimanenti DOPO quel round per quel blocco/flotta
+      // Sommiamo perché lo stesso player può essere spezzato in più blocchi
+      final.attackers[fullKey][itName] = (final.attackers[fullKey][itName]||0) + c;
+
+      // ✅ Lost è “persi in quel round” (non cumulativo) → va sommato su tutti i round
+      if(l>0) totalLost[fullKey][itName] = (totalLost[fullKey][itName]||0) + l;
     }
   }
 
-  // ---- costruisci classic con lost = initial - final ----
-  const linesOut=[];
-  linesOut.push(`On ${date} --:--:--, the following fleets met in battle:\n\n`);
+  // ====== BUILD CLASSIC ======
+  const lines=[];
+  lines.push(`Il ${date} ${time}, le seguenti flotte si scontrano in combattimento:\n`);
 
   for(const k of Object.keys(initial.attackers)){
-    linesOut.push(`Attacker ${k}`);
-    linesOut.push("________________________________________________\n");
-    for(const [ship,qty] of Object.entries(initial.attackers[k]).sort((a,b)=>a[0].localeCompare(b[0],"en"))){
-      linesOut.push(`${ship} ${fmt(qty)}`);
+    lines.push(`Attaccante ${k}`);
+    lines.push("________________________________________________");
+    lines.push("");
+    for(const [ship,qty] of Object.entries(initial.attackers[k]).sort((a,b)=>a[0].localeCompare(b[0],"it"))){
+      lines.push(`${ship} ${fmt(qty)}`);
     }
-    linesOut.push("_________________________________________\n");
+    lines.push("_________________________________________\n");
   }
+
   for(const k of Object.keys(initial.defenders)){
-    linesOut.push(`Defender ${k}`);
-    linesOut.push("________________________________________________\n");
-    for(const [ship,qty] of Object.entries(initial.defenders[k]).sort((a,b)=>a[0].localeCompare(b[0],"en"))){
-      linesOut.push(`${ship} ${fmt(qty)}`);
+    lines.push(`Difensore ${k}`);
+    lines.push("________________________________________________");
+    lines.push("");
+    for(const [ship,qty] of Object.entries(initial.defenders[k]).sort((a,b)=>a[0].localeCompare(b[0],"it"))){
+      lines.push(`${ship} ${fmt(qty)}`);
     }
-    linesOut.push("_________________________________________\n");
+    lines.push("_________________________________________\n");
   }
 
-  linesOut.push("\nAfter the battle ...\n");
+  lines.push("\nDopo la battaglia...\n");
 
   for(const k of Object.keys(initial.attackers)){
-    linesOut.push(`Attacker ${k}`);
-    linesOut.push("________________________________________________\n");
+    lines.push(`Attaccante ${k}`);
+    lines.push("________________________________________________");
+    lines.push("");
 
     const initShips=initial.attackers[k]||{};
-    const finShips=final.attackers[k]||{};
+    const finShips=final.attackers[k]||{}; // potrebbe mancare se parsing round non lo prende
     const shipSet=new Set([...Object.keys(initShips),...Object.keys(finShips)]);
 
-    for(const ship of Array.from(shipSet).sort((a,b)=>a.localeCompare(b,"en"))){
-      const a0=initShips[ship]||0;
-      const a1=finShips[ship]||0;
-      const lost=Math.max(0,a0-a1);
-      linesOut.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
+    for(const ship of Array.from(shipSet).sort((a,b)=>a.localeCompare(b,"it"))){
+      const a1 = finShips[ship] || 0;
+
+      // ✅ Lost “ufficiale” = somma Lost di tutti i round
+      // fallback: se non presente, usa diff init-final
+      const lost = (totalLost[k] && totalLost[k][ship]!=null)
+        ? totalLost[k][ship]
+        : Math.max(0,(initShips[ship]||0) - (finShips[ship]||0));
+
+      lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
     }
-    linesOut.push("_________________________________________\n");
+    lines.push("_________________________________________\n");
   }
 
+  // (opzionale) debris field da NMA
   const dfM=(t.match(/Metal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
   const dfC=(t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
   const dfD=(t.match(/Deuterium to debrisfield:\s*([\d\.,]+)/i)||[])[1];
   if(dfM||dfC||dfD){
-    linesOut.push(`At these space coordinates now float ${dfM||"0"} metal, ${dfC||"0"} crystal and ${dfD||"0"} deuterium.`);
+    lines.push(`At these space coordinates now float ${dfM||"0"} metal, ${dfC||"0"} crystal and ${dfD||"0"} deuterium.`);
   }
 
-  return linesOut.join("\n");
+  return lines.join("\n");
 }
 
   // ------------ OUTPUT CLASSICO ------------
