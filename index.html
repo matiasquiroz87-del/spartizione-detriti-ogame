@@ -91,6 +91,72 @@ const log=t=>document.getElementById("log").textContent+=t+"\n";
 /* ================= STATE ================= */
 const STATE={cr:null,rr:{}};
 
+  /* ===================== FETCH HELPERS (CORS SAFE) ===================== */
+function abortableFetch(url, timeoutMs){
+  const controller = new AbortController();
+  const id = setTimeout(()=>controller.abort(), timeoutMs);
+  return fetch(url, { signal: controller.signal }).finally(()=>clearTimeout(id));
+}
+
+async function fetchTextWithFallback(url, timeoutMs=15000){
+  try{
+    const res = await abortableFetch(url, timeoutMs);
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return await res.text();
+  }catch(e){
+    // fallback CORS: r.jina.ai
+    const clean = String(url).replace(/^https?:\/\//i,"");
+    const jinaUrl = "https://r.jina.ai/http://" + clean;
+    const res2 = await abortableFetch(jinaUrl, timeoutMs);
+    if(!res2.ok) throw new Error("HTTP " + res2.status);
+    return await res2.text();
+  }
+}
+
+/* ===================== CR LOADER (FIX ID) ===================== */
+let CR_TEXT = "";
+
+document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
+  const apiId = (document.getElementById("crApiId").value || "").trim();
+  if(!apiId){
+    setCrStatus(false, "Inserisci un API ID CR.");
+    return;
+  }
+
+  setCrStatus(null, "Caricamento CR…");
+  log(`CR: richiesta NoMoreAngel per ${apiId}…`);
+
+  const timeoutMs = parseNum(document.getElementById("timeoutMs")?.value) || 20000;
+
+  // accetta sia apiid che link completo
+  const url = /^https?:\/\//i.test(apiId)
+    ? apiId
+    : `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
+
+  try{
+    const raw = await fetchTextWithFallback(url, timeoutMs);
+
+    const classic = parseNmaApiReaderToClassic(raw);
+    if(!classic){
+      setCrStatus(false, "Errore: non riesco a convertire (manca Initial/Round).");
+      log("❌ Conversione CR fallita.");
+      return;
+    }
+
+    CR_TEXT = classic;
+    STATE.cr = parseCRText(CR_TEXT);
+
+    setCrStatus(true, "CR OK.");
+    log("✅ CR caricato e analizzato.");
+
+    showApp2();
+    recomputeAndRender();
+  }catch(e){
+    setCrStatus(false, "Errore fetch CR.");
+    log("❌ Errore fetch CR: " + (e?.message || e));
+  }
+});
+
 /* ================= NMA → CLASSIC (CORRETTO) ================= */
 function parseNmaApiReaderToClassic(raw){
   let t=raw;
