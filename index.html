@@ -666,6 +666,7 @@ function parseNmaApiReaderToClassic(raw){
   const date=((t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i)||[])[1])||"--";
   const time=((t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i)||[])[1])||"--";
 
+  // ------------ trova max round ------------
   let maxRound=0;
   const roundRe=/####\s*Round\s+(\d+)/gi;
   let rm;
@@ -675,6 +676,7 @@ function parseNmaApiReaderToClassic(raw){
   }
   if(maxRound<1) maxRound=1;
 
+  // ------------ INITIAL (come prima) ------------
   const idxR1=t.search(/####\s*Round\s+1/i);
   const initEnd=idxR1>=0?idxR1:t.length;
   const initTxt=t.slice(idxInit,initEnd);
@@ -692,50 +694,124 @@ function parseNmaApiReaderToClassic(raw){
     const shipsEN=matchKnownShipsEN(em[4]||"");
     const nums=extractNums(em[5]||"").map(parseNum);
     if(!shipsEN.length || !nums.length) continue;
+
     const target = side==="attacker" ? initial.attackers : initial.defenders;
     if(!target[key]) target[key]={};
     nameToTag[name]=tag;
+
     for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
       const itName=mapShipToIT(shipsEN[i]);
       target[key][itName] = Math.max(target[key][itName]||0, nums[i]);
     }
   }
 
-  const idxRound=t.search(new RegExp(`####\\s*Round\\s+${maxRound}\\b`,"i"));
-  if(idxRound<0) return null;
-  const afterRound=t.slice(idxRound);
-  const nextAfter=afterRound.slice(12).search(/####\s*Round\s+\d+/i);
-  const endRound=nextAfter>=0?(12+nextAfter):afterRound.length;
-  const roundTxt=afterRound.slice(0,endRound);
+  // ------------ helper chiave player attacker ------------
+  function normalizeAttKey(shortName){
+    const tag = nameToTag[shortName];
+    return tag ? `${shortName} [${tag}]` : shortName;
+  }
 
-  const final={attackers:{},defenders:{}};
+  // ------------ ROUND PARSE (TUTTI): final + totalLost ------------
+  const totalLost = { attackers:{}, defenders:{} };
+  const final = { attackers:{}, defenders:{} };
 
-  const chunkRe=/Attacker\s+([A-Za-z0-9_À-ÿ]+)\s+([\s\S]*?)(?=Attacker\s+[A-Za-z0-9_À-ÿ]+|Defender\s+|$)/g;
-  let cm;
-  while((cm=chunkRe.exec(roundTxt))!==null){
-    const shortName=(cm[1]||"").trim();
-    const body=(cm[2]||"");
-    const idxCount=body.search(/\bCount\b/i);
-    if(idxCount<0) continue;
-    const beforeCount=body.slice(0,idxCount);
-    const afterCount=body.slice(idxCount);
-    const idxLost=afterCount.search(/\bLost\b/i);
-    const countsPart=idxLost>=0?afterCount.slice(0,idxLost):afterCount;
-    const shipsEN=matchKnownShipsEN(beforeCount);
-    const nums=extractNums(countsPart).map(parseNum);
-    if(!shipsEN.length || !nums.length) continue;
-    const tag=nameToTag[shortName];
-    const key=tag?`${shortName} [${tag}]`:shortName;
-    if(!final.attackers[key]) final.attackers[key]={};
-    for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
-      const itName=mapShipToIT(shipsEN[i]);
-    final.attackers[key][itName] = Math.max(final.attackers[key][itName]||0, nums[i]);
-      const totalLost = {};
-if(!totalLost[key]) totalLost[key] = {};
-totalLost[key][itName] = (totalLost[key][itName] || 0) + lostValue;
+  const idxRoundsStart = t.search(/####\s*Round\s+1\b/i);
+  const roundsText = idxRoundsStart>=0 ? t.slice(idxRoundsStart) : "";
+  const linesAll = roundsText.split(/\r?\n/);
+
+  let currentSide = null;   // "attackers" | "defenders"
+  let currentName = null;   // key (attacker) o nome (defender)
+  let shipsLine = null;     // riga Type (navi EN)
+  let expectCount = false;
+  let expectLost = false;
+
+  function addLost(side, playerKey, shipIt, lostVal){
+    if(!lostVal || lostVal<=0) return;
+    if(!totalLost[side][playerKey]) totalLost[side][playerKey]={};
+    totalLost[side][playerKey][shipIt]=(totalLost[side][playerKey][shipIt]||0)+lostVal;
+  }
+
+  for(const rawLine of linesAll){
+    const line = (rawLine||"").trim();
+    if(!line) continue;
+
+    // nuovo blocco player round
+    let m = line.match(/^Attacker\s+(.+?)\s*$/i);
+    if(m){
+      currentSide="attackers";
+      currentName=normalizeAttKey(m[1].trim());
+      shipsLine=null; expectCount=false; expectLost=false;
+      continue;
+    }
+    m = line.match(/^Defender\s+(.+?)\s*$/i);
+    if(m){
+      currentSide="defenders";
+      currentName=m[1].trim();
+      shipsLine=null; expectCount=false; expectLost=false;
+      continue;
+    }
+
+    if(!currentSide || !currentName) continue;
+
+    // riga "Type ..." (contiene nomi navi)
+    if(!shipsLine && !/^Count\b/i.test(line) && !/^Lost\b/i.test(line)){
+      const shipsFound = matchKnownShipsEN(line);
+      if(shipsFound.length){
+        shipsLine=line;
+        expectCount=true;
+        continue;
+      }
+    }
+
+    // Count
+    if(expectCount && /^Count\b/i.test(line) && shipsLine){
+      const shipsEN = matchKnownShipsEN(shipsLine);
+      const nums = extractNums(line).map(parseNum);
+
+      if(currentSide==="attackers"){
+        if(!final.attackers[currentName]) final.attackers[currentName]={};
+        for(let i=0;i<Math.min(shipsEN.length, nums.length);i++){
+          const itName = mapShipToIT(shipsEN[i]);
+          final.attackers[currentName][itName] = nums[i]; // ultimo count visto
+        }
+      }else{
+        if(!final.defenders[currentName]) final.defenders[currentName]={};
+        for(let i=0;i<Math.min(shipsEN.length, nums.length);i++){
+          const itName = mapShipToIT(shipsEN[i]);
+          final.defenders[currentName][itName] = nums[i];
+        }
+      }
+
+      expectCount=false;
+      expectLost=true;
+      continue;
+    }
+
+    // Lost
+    if(expectLost && /^Lost\b/i.test(line) && shipsLine){
+      const shipsEN = matchKnownShipsEN(shipsLine);
+      const nums = extractNums(line).map(parseNum);
+
+      if(currentSide==="attackers"){
+        for(let i=0;i<Math.min(shipsEN.length, nums.length);i++){
+          const itName = mapShipToIT(shipsEN[i]);
+          addLost("attackers", currentName, itName, nums[i]);
+        }
+      }else{
+        for(let i=0;i<Math.min(shipsEN.length, nums.length);i++){
+          const itName = mapShipToIT(shipsEN[i]);
+          addLost("defenders", currentName, itName, nums[i]);
+        }
+      }
+
+      // chiudi blocco
+      shipsLine=null;
+      expectLost=false;
+      continue;
     }
   }
 
+  // ------------ OUTPUT CLASSICO ------------
   const lines=[];
   lines.push(`Il ${date} ${time}, le seguenti flotte si scontrano in combattimento:\n`);
 
@@ -763,14 +839,16 @@ totalLost[key][itName] = (totalLost[key][itName] || 0) + lostValue;
     lines.push(`Attaccante ${k}`);
     lines.push("________________________________________________");
     lines.push("");
+
     const initShips=initial.attackers[k]||{};
     const finShips=final.attackers[k]||{};
-    const shipSet=new Set([...Object.keys(initShips),...Object.keys(finShips)]);
+    const lostShips=totalLost.attackers[k]||{};
+
+    const shipSet=new Set([...Object.keys(initShips), ...Object.keys(finShips), ...Object.keys(lostShips)]);
     for(const ship of Array.from(shipSet).sort((a,b)=>a.localeCompare(b,"it"))){
-      const a0=initShips[ship]||0;
-      const a1=finShips[ship]||0;
-const lost = (totalLost[k] && totalLost[k][ship]) || 0;
-lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
+      const a1 = finShips[ship] ?? 0;
+      const lost = lostShips[ship] ?? 0;
+      lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
     }
     lines.push("_________________________________________\n");
   }
