@@ -4,1055 +4,188 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Spartizione Detriti OGame</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
-:root{
-  --bg:#050a10;
-  --text:#dbe7ff;
-  --muted:#93a6c7;
-  --line:rgba(120,160,220,.25);
-  --good:#39d98a;
-  --bad:#ff5c5c;
-  --accent:rgba(88,166,255,.18);
-  --accentLine:rgba(88,166,255,.65);
-  --font-ui:"Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
-  --font-title:"Orbitron","Rajdhani",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
+body{
+  margin:0;
+  font-family:Rajdhani,system-ui;
+  background:#050a10;
+  color:#dbe7ff;
 }
-*{box-sizing:border-box}
-body{margin:0;font-family:var(--font-ui);color:var(--text);background:var(--bg);}
-body::before{
-  content:"";position:fixed;inset:0;z-index:-1;
-  background:
-    radial-gradient(1200px 700px at 15% -10%, rgba(124,240,255,.10), transparent 55%),
-    radial-gradient(900px 600px at 110% 10%, rgba(255,179,77,.10), transparent 55%),
-    linear-gradient(180deg, rgba(15,25,40,.65), rgba(5,10,16,1));
-  filter:saturate(1.05) contrast(1.05);
-}
-header{
-  position:sticky;top:0;z-index:5;
-  background:linear-gradient(180deg, rgba(7,12,18,.92), rgba(7,12,18,.65));
-  backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--line);
-}
-.wrap{max-width:1100px;margin:0 auto;padding:14px;}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.title{display:flex;align-items:center;gap:10px;min-width:0;}
-.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
-h1{font-family:var(--font-title);font-size:16px;margin:0;letter-spacing:.8px;text-transform:uppercase}
-.badge{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:999px;background:rgba(16,26,46,.6)}
-
-.grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
-@media (min-width:980px){ .grid{grid-template-columns:1fr 1fr;} }
-
+.wrap{max-width:1100px;margin:auto;padding:16px}
 .card{
-  border:1px solid var(--line);
-  background:linear-gradient(180deg, rgba(16,26,46,.8), rgba(14,23,40,.75));
-  border-radius:16px;
-  padding:12px;
-  box-shadow:0 10px 30px rgba(0,0,0,.25);
+  background:#0e1728;
+  border:1px solid #233455;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:14px;
 }
-.min-title{font-family:var(--font-title);letter-spacing:.8px;text-transform:uppercase}
-.card h2{margin:0 0 8px 0;font-size:14px;color:var(--text)}
-.mini{font-size:12px;color:var(--muted)}
-
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.row > *{flex:1}
-
-input,textarea{
-  width:100%;
-  background:rgba(8,12,20,.65);
-  border:1px solid var(--line);
-  color:var(--text);
-  border-radius:12px;
-  padding:10px;
-  font-size:13px;
-  outline:none;
+h1,h2{font-family:Orbitron;margin:0 0 8px}
+input,textarea,button{
+  width:100%;margin:6px 0;padding:10px;
+  background:#0a1220;color:#dbe7ff;
+  border:1px solid #233455;border-radius:10px;
 }
-textarea{min-height:200px;resize:vertical;line-height:1.25}
-
-button{
-  border:1px solid var(--accentLine);
-  background:var(--accent);
-  color:var(--text);
-  padding:9px 12px;
-  border-radius:12px;
-  cursor:pointer;
-  font-weight:700;
-}
-button:hover{background:rgba(88,166,255,.24)}
-button.ghost{border-color:var(--line);background:rgba(16,26,46,.5)}
-button.ghost:hover{background:rgba(16,26,46,.75)}
-
-details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(8,12,20,.25)}
-summary{cursor:pointer;color:var(--muted);font-weight:800}
-pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
-
-table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
-th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
-th{color:var(--muted);font-weight:800;background:rgba(16,26,46,.55)}
+button{cursor:pointer;font-weight:600}
+pre{white-space:pre-wrap;font-size:12px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border-bottom:1px solid #233455;padding:6px;font-size:12px;text-align:right}
 th:first-child,td:first-child{text-align:left}
-tr:last-child td{border-bottom:none}
-.good{color:var(--good)}
-.bad{color:var(--bad)}
-
-.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-.kpi .box{border:1px solid var(--line);background:rgba(8,12,20,.35);border-radius:12px;padding:10px}
-.kpi .box .v{font-size:14px;font-weight:900}
-.kpi .box .l{font-size:12px;color:var(--muted)}
-
-.gainWrap{margin-top:6px}
-.gainBig{
-  font-family:var(--font-title);
-  letter-spacing:.6px;
-  text-transform:uppercase;
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:14px 14px;
-  background:rgba(8,12,20,.35);
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:12px;
-}
-.gainBig .label{font-size:12px;color:var(--muted)}
-.gainBig .value{font-size:22px;font-weight:900}
-.gainBig.good{border-color:rgba(57,217,138,.35)}
-.gainBig.bad{border-color:rgba(255,92,92,.35)}
-
-.hr{height:1px;background:var(--line);margin:10px 0;border-radius:999px}
-
-.statusLine{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
-.statusDot{
-  width:22px;height:22px;border-radius:999px;
-  border:1px solid var(--line);
-  display:inline-flex;align-items:center;justify-content:center;
-  font-weight:900;
-}
-.statusDot.ok{border-color:rgba(57,217,138,.55); color:var(--good)}
-.statusDot.err{border-color:rgba(255,92,92,.55); color:var(--bad)}
-.hidden{display:none !important}
-
-.ico{width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:currentColor;opacity:.9}
+.good{color:#39d98a}
+.bad{color:#ff5c5c}
+.hidden{display:none}
 </style>
 </head>
 
 <body>
-<header>
-  <div class="wrap">
-    <div class="topbar">
-      <div class="title">
-        <h1>Spartizione Detriti OGame</h1>
-        <span class="badge">CR API + RR API</span>
-      </div>
-      <div class="actions">
-        <button class="ghost" id="btnShare" type="button" title="Copia un link con la configurazione">
-          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M18 16a3 3 0 0 0-2.24 1.02L8.91 13.7a3.2 3.2 0 0 0 0-3.4l6.85-3.32A3 3 0 1 0 15 5a2.98 2.98 0 0 0 .07.63L8.22 8.95A3 3 0 1 0 9 12a2.98 2.98 0 0 0-.07-.63l6.85 3.32A3 3 0 1 0 18 16Z"/>
-          </svg>
-          Condividi
-        </button>
-      </div>
-    </div>
-  </div>
-</header>
-
 <div class="wrap">
 
-  <div class="card">
-    <h2 class="min-title">1) Carica CR</h2>
+<h1>Spartizione Detriti OGame</h1>
 
-    <div class="row" style="gap:8px;margin-top:6px">
-      <input id="crApiId" placeholder="API ID CR (es. cr-it-254-...) oppure link api-reader">
-      <button id="btnLoadCRApi" type="button">Carica CR</button>
-    </div>
+<div class="card">
+  <h2>1) Carica CR (NoMoreAngel)</h2>
+  <input id="crApiId" placeholder="cr-it-254-..." />
+  <button id="btnLoadCR">Carica CR</button>
+  <pre id="log"></pre>
+</div>
 
-    <div class="statusLine">
-      <div id="crStatusDot" class="statusDot" title="Stato CR">•</div>
-      <div class="mini" id="crStatusText">In attesa del CR…</div>
-    </div>
+<div id="app" class="hidden">
 
-    <details style="margin-top:10px">
-      <summary>Log</summary>
-      <pre id="logBox" style="margin-top:10px"></pre>
-    </details>
-  </div>
+<div class="card">
+  <h2>2) RR</h2>
+  <textarea id="rrIds" placeholder="rr-it-... (uno per riga)"></textarea>
+  <button id="btnLoadRR">Carica RR</button>
+</div>
 
-  <div id="app2" class="hidden">
-    <div class="grid">
-      <div class="card">
-        <h2 class="min-title">2) RR + Spartizione</h2>
+<div class="card">
+  <h2>Risultati</h2>
+  <div id="results"></div>
+</div>
 
-        <input id="proxyBase" type="hidden" value="https://ogame-api-proxy.matiasquiroz87.workers.dev/?apiid=" />
-        <input id="timeoutMs" type="hidden" value="12000" />
-
-        <div class="gainWrap">
-          <div id="gainBox" class="gainBig">
-            <div>
-              <div class="label">GAIN (serve caricare RR)</div>
-              <div class="mini" id="gainBreakdown">—</div>
-            </div>
-            <div class="value" id="gainValue">—</div>
-          </div>
-        </div>
-
-        <div class="hr"></div>
-
-        <label class="mini">Inserisci uno o più RR apiid (uno per riga)</label>
-        <textarea id="rrIds" placeholder="rr-it-..."></textarea>
-
-        <div class="row" style="margin-top:10px">
-          <button id="btnLoadRR" type="button">Carica RR</button>
-          <button id="btnClearRR" class="ghost" type="button">Pulisci</button>
-        </div>
-
-        <div class="row" style="margin-top:10px">
-          <label class="mini" style="flex:0 0 auto">
-            <input type="radio" name="mode" value="paritaria" checked> Paritaria
-          </label>
-          <label class="mini" style="flex:0 0 auto">
-            <input type="radio" name="mode" value="equa"> Equa (peso flotta in campo)
-          </label>
-        </div>
-
-        <details style="margin-top:10px">
-          <summary>Raccolte lette (RR)</summary>
-          <div id="rrTable" style="margin-top:8px"></div>
-          <details style="margin-top:10px">
-            <summary>Dettagli RR (debug)</summary>
-            <pre id="rrRaw"></pre>
-          </details>
-        </details>
-      </div>
-
-      <div class="card">
-        <h2 class="min-title">Risultati</h2>
-        <div id="resultsTables" style="margin-top:10px"></div>
-
-        <details style="margin-top:12px" open>
-          <summary>Trasporti finali suggeriti (SOLO su riciclato)</summary>
-          <div class="mini" style="margin-top:8px">
-            Questi trasferimenti agiscono solo sul totale riciclato: chi ha riciclato “troppo” invia a chi ha riciclato “meno” rispetto alla sua %.
-          </div>
-          <div id="transports" style="margin-top:8px"></div>
-        </details>
-      </div>
-    </div>
-  </div>
-
+</div>
 </div>
 
 <script>
-/* ===================== CONFIG ===================== */
-const INCLUDE_LOOT = false; // non usiamo bottino nella logica
-const COSTS = {
-  "Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],
-  "Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],
-  "Incrociatore da Battaglia":[30000,40000,15000],"Reaper":[85000,55000,20000],"Pathfinder":[8000,15000,8000],
-  "Riciclatrice":[10000,6000,2000],"Colonizzatrice":[10000,20000,10000],"Sonda spia":[0,1000,0],"Satellite Solare":[0,2000,500],
-  "Crawler":[2000,2000,1000],"Morte Nera":[5000000,4000000,1000000],
-  "Lanciamissili":[2000,0,0],"Laser leggero":[1500,500,0],"Laser pesante":[6000,2000,0],"Cannone Gauss":[20000,15000,2000],
-  "Cannone ionico":[2000,6000,0],"Cannone al Plasma":[50000,50000,30000],"Cupola scudo piccola":[10000,10000,0],"Cupola scudo potenziata":[50000,50000,0]
+/* ================= UTILS ================= */
+const COSTS={
+ "Caccia Leggero":[3000,1000,0],
+ "Caccia Pesante":[6000,4000,0],
+ "Incrociatore":[20000,7000,2000],
+ "Nave da battaglia":[45000,15000,0],
+ "Corazzata":[60000,50000,15000],
+ "Incrociatore da Battaglia":[30000,40000,15000],
+ "Reaper":[85000,55000,20000],
+ "Pathfinder":[8000,15000,8000],
+ "Cargo leggero":[2000,2000,0],
+ "Cargo Pesante":[6000,6000,0],
+ "Sonda spia":[0,1000,0],
+ "Morte Nera":[5000000,4000000,1000000]
 };
 
-/* ===================== UTILS ===================== */
-function fmt(n){
-  if(n===null||n===undefined||isNaN(n)) return "—";
-  return Math.round(n).toLocaleString("it-IT");
-}
-function parseNum(str){
-  if(str===null||str===undefined) return 0;
-  const s = String(str).replace(/\./g,"").replace(/,/g,"").replace(/\s+/g,"").trim();
-  const n = Number(s);
-  return isNaN(n)?0:n;
-}
-const LOG=[];
-function log(msg){
-  const t = new Date().toLocaleTimeString();
-  const line = `[${t}] ${msg}`;
-  LOG.push(line);
-  const el = document.getElementById("logBox");
-  if(el) el.textContent = LOG.join("\n");
-}
-function setCrStatus(ok, text){
-  const dot = document.getElementById("crStatusDot");
-  const label = document.getElementById("crStatusText");
-  dot.classList.remove("ok","err");
-  if(ok===true){ dot.classList.add("ok"); dot.textContent="✓"; }
-  else if(ok===false){ dot.classList.add("err"); dot.textContent="×"; }
-  else { dot.textContent="•"; }
-  label.textContent = text || "";
-}
-function showApp2(){
-  const el = document.getElementById("app2");
-  el.classList.remove("hidden");
-  el.scrollIntoView({behavior:"auto", block:"start"});
-}
+const fmt=n=>Math.round(n).toLocaleString("it-IT");
+const num=s=>Number(String(s).replace(/[^\d]/g,""))||0;
+const log=t=>document.getElementById("log").textContent+=t+"\n";
 
-/* ===================== STATE ===================== */
-const STATE = { cr:null, rr:{} };
+/* ================= STATE ================= */
+const STATE={cr:null,rr:{}};
 
-/* ===================== CR PARSER (CORRETTO) ===================== */
-function parseCRText(text){
-  const out = { attackers:{}, defenders:{}, loot:{m:0,c:0,d:0} };
+/* ================= NMA → CLASSIC (CORRETTO) ================= */
+function parseNmaApiReaderToClassic(raw){
+  let t=raw;
+  if(t.includes("Markdown Content:"))
+    t=t.split("Markdown Content:")[1];
 
-  const lootM = text.match(/saccheggia:\s*([\d\.,]+)\s*Metallo,\s*([\d\.,]+)\s*Cristallo\s*e\s*([\d\.,]+)\s*Deuterio/i);
-  if(lootM){
-    out.loot.m = parseNum(lootM[1]);
-    out.loot.c = parseNum(lootM[2]);
-    out.loot.d = parseNum(lootM[3]);
-  }
-  if(!INCLUDE_LOOT){ out.loot = {m:0,c:0,d:0}; }
+  const initial={}, final={}, lost={};
+  const nameMap={};
 
-  let pre=text, post="";
-  const idx = text.search(/\b(Dopo\s+la\s+battaglia|After\s+the\s+battle)\b/i);
-  if(idx>=0){ pre=text.slice(0,idx); post=text.slice(idx); }
+  // INITIAL
+  [...t.matchAll(/Attacker\s+\[[^\]]+\]\s+([^\[]+?)\s+\[([^\]]+)\][\s\S]*?Type\s+([\s\S]*?)\s+Count\s+([\s\S]*?)(?=Weapon|Attacker|Defender|$)/g)]
+  .forEach(m=>{
+    const key=`${m[1].trim()} [${m[2].trim()}]`;
+    nameMap[m[1].trim()]=key;
+    if(!initial[key]) initial[key]={};
 
-  function ensure(bucket,name,tag){
-    if(!bucket[name]) bucket[name]={ tag, initial:{}, final:{}, lost:{} };
-    bucket[name].tag = tag;
-    bucket[name].lost = bucket[name].lost || {};
-    return bucket[name];
-  }
+    const ships=[...m[3].matchAll(/[A-Za-z ]+/g)].map(x=>x[0].trim());
+    const nums=[...m[4].matchAll(/[\d\.,]+/g)].map(x=>num(x[0]));
 
-  function normKey(s){
-    return String(s||"")
-      .replace(/\u00A0/g," ")     // NBSP
-      .replace(/\s+/g," ")       // spazi multipli
-      .trim();
-  }
-
-  function parseSideBlocks(blockText, phase){
-    const lines = String(blockText||"").split(/\r?\n/);
-    let current=null, side=null;
-
-    for(const raw of lines){
-      const line = raw.trim();
-      if(!line) continue;
-
-      const h=line.match(/^(Attaccante|Difensore|Attacker|Defender)\s+(.+?)\s+\[(.+?)\]\s*$/i);
-      if(h){
-        side = /^(Attaccante|Attacker)$/i.test(h[1]) ? "att" : "def";
-        const name=normKey(h[2]), tag=normKey(h[3]);
-        const bucket = side==="att" ? out.attackers : out.defenders;
-        current = ensure(bucket, name, tag);
-        continue;
-      }
-
-      if(!current) continue;
-      if(line.startsWith("_")) continue;
-      if(line.toLowerCase().includes("distrutto")) continue;
-
-      // cattura anche il "(- 123.456)" se presente
-      const m=line.match(/^(.+?)\s+([\d\.,]+)(?:\s*\(\s*-\s*([\d\.,]+)\s*\))?\s*$/);
-      if(!m) continue;
-
-      const item = normKey(m[1]);
-      const count = parseNum(m[2]);
-      const lostCap = (m[3]!==undefined) ? parseNum(m[3]) : null;
-
-      if(phase==="initial"){
-        // se lo stesso player è spezzato in più blocchi, somma (ok)
-        current.initial[item] = (current.initial[item]||0) + count;
-      }else{
-        // finale: prendi l’ultimo/il max
-        current.final[item] = Math.max(current.final[item]||0, count);
-
-        // ✅ salva Lost ufficiale dal CR
-        if(lostCap!==null && lostCap>0){
-          current.lost[item] = Math.max(current.lost[item]||0, lostCap);
-        }
-      }
-    }
-  }
-
-  parseSideBlocks(pre,"initial");
-  if(post) parseSideBlocks(post,"final");
-
-  Object.values(out.attackers).forEach(p=>{
-    if(!p.final || Object.keys(p.final).length===0){
-      p.final = JSON.parse(JSON.stringify(p.initial));
-    }
+    ships.forEach((s,i)=>{
+      initial[key][s]=(initial[key][s]||0)+(nums[i]||0);
+    });
   });
 
+  // ROUNDS (LOST)
+  [...t.matchAll(/Attacker\s+([A-Za-z0-9_À-ÿ]+)[\s\S]*?Count[\s\S]*?Lost([\s\S]*?)(?=Attacker|Defender|$)/g)]
+  .forEach(m=>{
+    const key=nameMap[m[1]]; if(!key) return;
+    if(!lost[key]) lost[key]={};
+    const ships=[...m[0].matchAll(/[A-Za-z ]+/g)].map(x=>x[0].trim());
+    const nums=[...m[2].matchAll(/[\d\.,]+/g)].map(x=>num(x[0]));
+    ships.forEach((s,i)=>{
+      lost[key][s]=(lost[key][s]||0)+(nums[i]||0);
+    });
+  });
+
+  // FINAL = initial − lost
+  Object.entries(initial).forEach(([p,ships])=>{
+    final[p]={};
+    Object.entries(ships).forEach(([s,q])=>{
+      final[p][s]=Math.max(0,q-(lost[p]?.[s]||0));
+    });
+  });
+
+  return {initial,final,lost};
+}
+
+/* ================= CR TEXT PARSER ================= */
+function parseCRText(cr){
+  const out={attackers:{}};
+  Object.entries(cr.initial).forEach(([p,ships])=>{
+    out.attackers[p]={initial:ships,final:cr.final[p],lost:cr.lost[p]};
+  });
   return out;
 }
 
-/* ===================== LOGICA ECONOMICA (saldo) ===================== */
-function computeFromSheetLogic(cr, rrTotals, mode){
-  const players = Object.keys(cr.attackers);
-  const n = players.length || 1;
-
-  const losses={}, fleetValue={};
-  players.forEach(name=>{
-    const p = cr.attackers[name];
-    losses[name]={m:0,c:0,d:0};
-    fleetValue[name]=0;
-
-    for(const [ship,cnt] of Object.entries(p.initial)){
-      const cost=COSTS[ship];
-      if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2]) * cnt;
-    }
-
-    const ships = new Set([...Object.keys(p.initial), ...Object.keys(p.final)]);
-    for(const ship of ships){
-      const lostCnt = (p.lost && p.lost[ship]!=null)
-  ? p.lost[ship]
-  : Math.max(0,(p.initial[ship]||0) - (p.final[ship]||0));
-      if(lostCnt<=0) continue;
-      const cost=COSTS[ship];
-      if(!cost) continue;
-      losses[name].m += cost[0]*lostCnt;
-      losses[name].c += cost[1]*lostCnt;
-      losses[name].d += cost[2]*lostCnt;
-    }
-  });
-
-  const totLoss = players.reduce((a,nm)=>({
-    m:a.m+losses[nm].m, c:a.c+losses[nm].c, d:a.d+losses[nm].d
-  }),{m:0,c:0,d:0});
-
-  const totRec = players.reduce((a,nm)=>{
-    const r=rrTotals[nm]||{m:0,c:0,d:0};
-    return {m:a.m+r.m, c:a.c+r.c, d:a.d+r.d};
-  },{m:0,c:0,d:0});
-
-  const gain = { m:totRec.m-totLoss.m, c:totRec.c-totLoss.c, d:totRec.d-totLoss.d };
-
-  const weights={};
-  if(mode==="paritaria"){ players.forEach(nm=>weights[nm]=1/n); }
-  else{
-    const totFleet = players.reduce((s,nm)=>s+(fleetValue[nm]||0),0)||1;
-    players.forEach(nm=>weights[nm]=(fleetValue[nm]||0)/totFleet);
-  }
-
-  // SALDO = perdite + (gain * %) - riciclato
-  const saldo={};
-  players.forEach(nm=>{
-    const r=rrTotals[nm]||{m:0,c:0,d:0};
-    saldo[nm]={
-      m:losses[nm].m + gain.m*weights[nm] - r.m,
-      c:losses[nm].c + gain.c*weights[nm] - r.c,
-      d:losses[nm].d + gain.d*weights[nm] - r.d,
-      w:weights[nm],
-      lost:losses[nm],
-      rec:r
-    };
-  });
-
-  return {players,totLoss,totRec,gain,weights,saldo};
-}
-
-/* ===================== TRASPORTI SOLO SU RICICLATO (ΔRR) ===================== */
-function computeDeltaRR(players, rrTotals, weights){
-  const totRR = players.reduce((a,p)=>{
-    const r = rrTotals[p] || {m:0,c:0,d:0};
-    return { m:a.m+r.m, c:a.c+r.c, d:a.d+r.d };
-  },{m:0,c:0,d:0});
-
-  const delta = {};
+/* ================= CALCOLO ================= */
+function compute(){
+  const players=Object.keys(STATE.cr.attackers);
+  const res=[];
   players.forEach(p=>{
-    const r = rrTotals[p] || {m:0,c:0,d:0};
-    delta[p] = {
-      m: totRR.m*weights[p] - r.m,
-      c: totRR.c*weights[p] - r.c,
-      d: totRR.d*weights[p] - r.d
-    };
+    let m=0,c=0,d=0;
+    Object.entries(STATE.cr.attackers[p].lost||{}).forEach(([s,q])=>{
+      const cost=COSTS[s]; if(!cost) return;
+      m+=cost[0]*q; c+=cost[1]*q; d+=cost[2]*q;
+    });
+    res.push({p,m,c,d});
   });
-  return {totRR, delta};
+  return res;
 }
 
-function buildTransfers(players, bucket, resKey){
-  const recv=[], send=[];
-  players.forEach(p=>{
-    const v=bucket[p][resKey];
-    if(v>0.5) recv.push([p,v]);
-    else if(v<-0.5) send.push([p,-v]);
-  });
-  recv.sort((a,b)=>b[1]-a[1]); send.sort((a,b)=>b[1]-a[1]);
-  const moves=[]; let i=0,j=0;
-  while(i<send.length && j<recv.length){
-    const [sp,sv]=send[i], [rp,rv]=recv[j];
-    const x=Math.min(sv,rv);
-    if(x>0.5) moves.push({from:sp,to:rp,amount:x});
-    send[i][1]-=x; recv[j][1]-=x;
-    if(send[i][1]<=0.5) i++;
-    if(recv[j][1]<=0.5) j++;
-  }
-  return moves;
-}
+/* ================= UI ================= */
+document.getElementById("btnLoadCR").onclick=async()=>{
+  const id=crApiId.value.trim();
+  log("Carico CR...");
+  const r=await fetch(`https://nomoreangel.de/api-reader/?apiid=${id}&engOut=on`).then(r=>r.text());
+  const classic=parseNmaApiReaderToClassic(r);
+  STATE.cr=parseCRText(classic);
+  log("CR OK");
+  document.getElementById("app").classList.remove("hidden");
 
-/* ===================== RENDER ===================== */
-function renderRRTable(rrTotals){
-  const el=document.getElementById("rrTable");
-  const entries=Object.entries(rrTotals||{});
-  if(!entries.length){ el.innerHTML='<div class="mini">Nessun RR caricato.</div>'; return; }
-
-  const rows=entries.map(([p,v])=>`
+  const rows=compute().map(x=>`
     <tr>
-      <td>${p}</td><td>${fmt(v.m)}</td><td>${fmt(v.c)}</td><td>${fmt(v.d)}</td><td>${v.count||0}</td>
+      <td>${x.p}</td>
+      <td class="bad">${fmt(x.m)}</td>
+      <td class="bad">${fmt(x.c)}</td>
+      <td class="bad">${fmt(x.d)}</td>
     </tr>`).join("");
 
-  el.innerHTML = `
+  results.innerHTML=`
     <table>
-      <thead><tr><th>Giocatore</th><th>Metallo</th><th>Cristallo</th><th>Deuterio</th><th>RR</th></tr></thead>
+      <thead><tr><th>Giocatore</th><th>M</th><th>C</th><th>D</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
-}
-
-function renderGainBox(computed){
-  const gainBox = document.getElementById("gainBox");
-  const gainValue = document.getElementById("gainValue");
-  const gainBreakdown = document.getElementById("gainBreakdown");
-
-  if(!computed){
-    gainBox.classList.remove("good","bad");
-    gainValue.textContent="—";
-    gainBreakdown.textContent="—";
-    gainBox.querySelector(".label").textContent="GAIN (serve caricare RR)";
-    return;
-  }
-
-  const total = (computed.gain.m + computed.gain.c + computed.gain.d);
-  gainBox.classList.remove("good","bad");
-  gainBox.classList.add(total>=0 ? "good" : "bad");
-  gainBox.querySelector(".label").textContent="GAIN TOTALE (M+C+D)";
-  gainValue.textContent = fmt(total);
-  gainBreakdown.textContent = `M ${fmt(computed.gain.m)} • C ${fmt(computed.gain.c)} • D ${fmt(computed.gain.d)}`;
-}
-
-function renderResults(computed){
-  const resEl = document.getElementById("resultsTables");
-  const trEl = document.getElementById("transports");
-
-  if(!computed){
-    resEl.innerHTML = `<div class="mini">Inserisci e carica almeno un RR per calcolare gain/saldi/trasporti.</div>`;
-    trEl.innerHTML = `<div class="mini">—</div>`;
-    return;
-  }
-
-  const {players,totLoss,totRec,gain,weights,saldo}=computed;
-
-  const header=`
-    <div class="kpi">
-      <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale (M/C/D)</div></div>
-      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite totali (M/C/D)</div></div>
-      <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain (M/C/D)</div></div>
-    </div>`;
-
-  const rows=players.map(p=>{
-    const q=saldo[p];
-    const mClass=q.m>=0?"good":"bad";
-    const cClass=q.c>=0?"good":"bad";
-    const dClass=q.d>=0?"good":"bad";
-    return `
-      <tr>
-        <td>${p} <span class="mini">[${(q.w*100).toFixed(2)}%]</span></td>
-        <td>${fmt(q.lost.m)}</td><td>${fmt(q.lost.c)}</td><td>${fmt(q.lost.d)}</td>
-        <td>${fmt(q.rec.m)}</td><td>${fmt(q.rec.c)}</td><td>${fmt(q.rec.d)}</td>
-        <td class="${mClass}">${fmt(q.m)}</td>
-        <td class="${cClass}">${fmt(q.c)}</td>
-        <td class="${dClass}">${fmt(q.d)}</td>
-      </tr>`;
-  }).join("");
-
-  const table=`
-    <table style="margin-top:10px">
-      <thead>
-        <tr>
-          <th>Giocatore</th>
-          <th>Perse M</th><th>Perse C</th><th>Perse D</th>
-          <th>Riciclato M</th><th>Riciclato C</th><th>Riciclato D</th>
-          <th>Saldo M</th><th>Saldo C</th><th>Saldo D</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="mini" style="margin-top:8px">Saldo = Perdite + (Gain×%) − Riciclato. (Informativo)</div>`;
-
-  resEl.innerHTML = header + table;
-
-  // ✅ TRASPORTI SOLO SU RICICLATO
-  const {delta} = computeDeltaRR(players, STATE.rr, weights);
-  const mt=buildTransfers(players,delta,"m");
-  const ct=buildTransfers(players,delta,"c");
-  const dt=buildTransfers(players,delta,"d");
-
-  function renderMoveList(label,moves){
-    if(!moves.length) return `<div class="mini">Nessun trasferimento per ${label} (già bilanciato sul riciclato).</div>`;
-    const r=moves.map(m=>`<tr><td>${m.from}</td><td>${m.to}</td><td>${fmt(m.amount)}</td></tr>`).join("");
-    return `
-      <div style="margin-top:10px">
-        <div class="mini" style="margin:6px 0"><b>${label}</b></div>
-        <table><thead><tr><th>Da</th><th>A</th><th>Quantità</th></tr></thead><tbody>${r}</tbody></table>
-      </div>`;
-  }
-  trEl.innerHTML =
-    renderMoveList("Metallo",mt) + renderMoveList("Cristallo",ct) + renderMoveList("Deuterio",dt);
-}
-
-/* ===================== RECOMPUTE ===================== */
-function hasAnyRR(){
-  return Object.keys(STATE.rr||{}).length>0;
-}
-function recomputeAndRender(){
-  if(!STATE.cr || !hasAnyRR()){
-    renderGainBox(null);
-    renderResults(null);
-    return;
-  }
-  const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
-  const computed = computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode);
-  renderGainBox(computed);
-  renderResults(computed);
-}
-document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change", ()=>{
-  log("Modalità: " + document.querySelector('input[name="mode"]:checked').value);
-  recomputeAndRender();
-}));
-
-/* ===================== FETCH HELPERS ===================== */
-function abortableFetch(url, timeoutMs){
-  const controller=new AbortController();
-  const id=setTimeout(()=>controller.abort(), timeoutMs);
-  return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(id));
-}
-async function fetchTextWithFallback(url, timeoutMs=12000){
-  try{
-    const res=await abortableFetch(url,timeoutMs);
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    return await res.text();
-  }catch(e1){
-    const clean=String(url).replace(/^https?:\/\//i,"");
-    const jinaUrl="https://r.jina.ai/http://" + clean;
-    const res2=await abortableFetch(jinaUrl,timeoutMs);
-    if(!res2.ok) throw new Error("HTTP "+res2.status);
-    return await res2.text();
-  }
-}
-
-/* ===================== NMA → CLASSICO (conversione minima) ===================== */
-const shipNameMapEN2IT = {
-  "Small Cargo":"Cargo leggero","Large Cargo":"Cargo Pesante","Light Fighter":"Caccia Leggero","Heavy Fighter":"Caccia Pesante",
-  "Cruiser":"Incrociatore","Battleship":"Nave da battaglia","Colony Ship":"Colonizzatrice","Recycler":"Riciclatrice",
-  "Espionage Probe":"Sonda spia","Bomber":"Bombardiere","Solar Satellite":"Satellite Solare","Destroyer":"Corazzata",
-  "Deathstar":"Morte Nera","Battlecruiser":"Incrociatore da Battaglia","Crawler":"Crawler","Reaper":"Reaper","Pathfinder":"Pathfinder",
-  "Rocket Launcher":"Lanciamissili","Light Laser":"Laser leggero","Heavy Laser":"Laser pesante","Gauss Cannon":"Cannone Gauss",
-  "Ion Cannon":"Cannone ionico","Plasma Turret":"Cannone al Plasma","Small Shield Dome":"Cupola scudo piccola","Large Shield Dome":"Cupola scudo potenziata"
 };
-const knownShipNamesEN = Object.keys(shipNameMapEN2IT).sort((a,b)=>b.length-a.length);
-function mapShipToIT(name){ const n=(name||"").trim(); return shipNameMapEN2IT[n] || n; }
-function matchKnownShipsEN(text){
-  const out=[];
-  const esc=knownShipNamesEN.map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
-  const re=new RegExp(`\\b(${esc.join("|")})\\b`,"g");
-  let m;
-  while((m=re.exec(text||""))!==null) out.push(m[1]);
-  return out;
-}
-function extractNums(text){ return (String(text||"").match(/[\d\.,]+/g) || []); }
-
-function parseNmaApiReaderToClassic(raw){
-  if(!raw) return null;
-  let t=raw;
-  const mdIdx=t.indexOf("Markdown Content:");
-  if(mdIdx>=0) t=t.slice(mdIdx+"Markdown Content:".length);
-
-  const idxInit=t.search(/####\s*Initial\s*:/i);
-  if(idxInit<0) return null;
-
-  const date=((t.match(/Date:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})/i)||[])[1])||"--";
-  const time=((t.match(/Time:\s*([0-9]{2}:[0-9]{2}:[0-9]{2})/i)||[])[1])||"--";
-
-  // Trova round massimo (cap a 6)
-  let maxRound=0;
-  const roundRe=/####\s*Round\s+(\d+)/gi;
-  let rm;
-  while((rm=roundRe.exec(t))!==null){
-    const r=parseInt(rm[1],10);
-    if(!isNaN(r)) maxRound=Math.min(6,Math.max(maxRound,r));
-  }
-  if(maxRound<1) maxRound=1;
-
-  const idxR1=t.search(/####\s*Round\s+1/i);
-  const initEnd=idxR1>=0?idxR1:t.length;
-  const initTxt=t.slice(idxInit,initEnd);
-
-  const initial={attackers:{},defenders:{}};
-
-  // mappa nome -> tag e nome -> fullKey (per usare sempre la stessa chiave)
-  const nameToTag={};
-  const nameToFullKey={};
-
-  // ====== PARSE INITIAL (SOMMA, NON MAX) ======
-  const initEntityRe=/(Attacker|Defender)\s+\[[0-9:]+\]\s+([^\[]+?)\s+\[([^\]]+)\][\s\S]*?Type\s+([\s\S]*?)\s+Count\s+([\s\S]*?)(?=Weapon\s*:|Weapon\s|Shield\s*:|Shield\s|Armor\s*:|Armor\s|Attacker\s+\[|Defender\s+\[|$)/gi;
-  let em;
-  while((em=initEntityRe.exec(initTxt))!==null){
-    const side=em[1].toLowerCase();
-    const name=(em[2]||"").trim();
-    const tag=(em[3]||"").trim();
-    const key=`${name} [${tag}]`;
-
-    nameToTag[name]=tag;
-    nameToFullKey[name]=key;
-
-    const shipsEN=matchKnownShipsEN(em[4]||"");
-    const nums=extractNums(em[5]||"").map(parseNum);
-    if(!shipsEN.length || !nums.length) continue;
-
-    const target = side==="attacker" ? initial.attackers : initial.defenders;
-    if(!target[key]) target[key]={};
-
-    for(let i=0;i<Math.min(shipsEN.length,nums.length);i++){
-      const itName=mapShipToIT(shipsEN[i]);
-      // ✅ somma perché lo stesso player può avere più blocchi/flotte
-      target[key][itName] = (target[key][itName]||0) + nums[i];
-    }
-  }
-
-  // ====== ESTRAI TESTO DI TUTTI I ROUND (per sommare i Lost) ======
-  const roundsTxt=[];
-  for(let r=1;r<=maxRound;r++){
-    const idx=t.search(new RegExp(`####\\s*Round\\s+${r}\\b`,"i"));
-    if(idx<0) continue;
-    const after=t.slice(idx);
-    const next=after.slice(12).search(/####\s*Round\s+\d+/i);
-    const end=next>=0?(12+next):after.length;
-    roundsTxt.push(after.slice(0,end));
-  }
-  const allRoundsTxt = roundsTxt.join("\n");
-
-  // ====== PARSE FINALI + LOST TOTALI (SOMMA) ======
-  const final={attackers:{},defenders:{}};
-  const totalLost={}; // totalLost[fullKey][ship] = somma lost su tutti i round
-
-  // Nota: NMA “Round X” ha blocchi tipo:
-  // Attacker NAME ... Type ... Count ... Lost ...
-  // Defender ... (non ci serve per i tuoi calcoli)
-  const chunkRe=/Attacker\s+([A-Za-z0-9_À-ÿ]+)\s+([\s\S]*?)(?=Attacker\s+[A-Za-z0-9_À-ÿ]+|Defender\s+|$)/g;
-  let cm;
-  while((cm=chunkRe.exec(allRoundsTxt))!==null){
-    const shortName=(cm[1]||"").trim();
-    const body=(cm[2]||"");
-
-    const idxCount=body.search(/\bCount\b/i);
-    if(idxCount<0) continue;
-
-    const beforeCount=body.slice(0,idxCount);
-    const afterCount=body.slice(idxCount);
-
-    const idxLost=afterCount.search(/\bLost\b/i);
-    const countsPart = idxLost>=0 ? afterCount.slice(0,idxLost) : afterCount;
-    const lostPart   = idxLost>=0 ? afterCount.slice(idxLost)   : "";
-
-    const shipsEN=matchKnownShipsEN(beforeCount);
-    const countNums=extractNums(countsPart).map(parseNum);
-    const lostNums = extractNums(lostPart).map(parseNum);
-
-    if(!shipsEN.length || !countNums.length) continue;
-
-    const fullKey = nameToFullKey[shortName] || (nameToTag[shortName] ? `${shortName} [${nameToTag[shortName]}]` : shortName);
-
-    if(!final.attackers[fullKey]) final.attackers[fullKey]={};
-    if(!totalLost[fullKey]) totalLost[fullKey]={};
-
-    for(let i=0;i<shipsEN.length;i++){
-      const itName=mapShipToIT(shipsEN[i]);
-
-      const c = (i<countNums.length) ? countNums[i] : 0;
-      const l = (i<lostNums.length)  ? lostNums[i]  : 0;
-
-      // ✅ Count in round = rimanenti DOPO quel round per quel blocco/flotta
-      // Sommiamo perché lo stesso player può essere spezzato in più blocchi
-      final.attackers[fullKey][itName] = (final.attackers[fullKey][itName]||0) + c;
-
-      // ✅ Lost è “persi in quel round” (non cumulativo) → va sommato su tutti i round
-      if(l>0) totalLost[fullKey][itName] = (totalLost[fullKey][itName]||0) + l;
-    }
-  }
-
-  // ====== BUILD CLASSIC ======
-  const lines=[];
-  lines.push(`Il ${date} ${time}, le seguenti flotte si scontrano in combattimento:\n`);
-
-  for(const k of Object.keys(initial.attackers)){
-    lines.push(`Attaccante ${k}`);
-    lines.push("________________________________________________");
-    lines.push("");
-    for(const [ship,qty] of Object.entries(initial.attackers[k]).sort((a,b)=>a[0].localeCompare(b[0],"it"))){
-      lines.push(`${ship} ${fmt(qty)}`);
-    }
-    lines.push("_________________________________________\n");
-  }
-
-  for(const k of Object.keys(initial.defenders)){
-    lines.push(`Difensore ${k}`);
-    lines.push("________________________________________________");
-    lines.push("");
-    for(const [ship,qty] of Object.entries(initial.defenders[k]).sort((a,b)=>a[0].localeCompare(b[0],"it"))){
-      lines.push(`${ship} ${fmt(qty)}`);
-    }
-    lines.push("_________________________________________\n");
-  }
-
-  lines.push("\nDopo la battaglia...\n");
-
-  for(const k of Object.keys(initial.attackers)){
-    lines.push(`Attaccante ${k}`);
-    lines.push("________________________________________________");
-    lines.push("");
-
-    const initShips=initial.attackers[k]||{};
-    const finShips=final.attackers[k]||{}; // potrebbe mancare se parsing round non lo prende
-    const shipSet=new Set([...Object.keys(initShips),...Object.keys(finShips)]);
-
-    for(const ship of Array.from(shipSet).sort((a,b)=>a.localeCompare(b,"it"))){
-      const a1 = finShips[ship] || 0;
-
-      // ✅ Lost “ufficiale” = somma Lost di tutti i round
-      // fallback: se non presente, usa diff init-final
-      const lost = (totalLost[k] && totalLost[k][ship]!=null)
-        ? totalLost[k][ship]
-        : Math.max(0,(initShips[ship]||0) - (finShips[ship]||0));
-
-      lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
-    }
-    lines.push("_________________________________________\n");
-  }
-
-  // (opzionale) debris field da NMA
-  const dfM=(t.match(/Metal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  const dfC=(t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  const dfD=(t.match(/Deuterium to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  if(dfM||dfC||dfD){
-    lines.push(`At these space coordinates now float ${dfM||"0"} metal, ${dfC||"0"} crystal and ${dfD||"0"} deuterium.`);
-  }
-
-  return lines.join("\n");
-}
-
-  // ------------ OUTPUT CLASSICO ------------
-  const lines=[];
-  lines.push(`Il ${date} ${time}, le seguenti flotte si scontrano in combattimento:\n`);
-
-  for(const k of Object.keys(initial.attackers)){
-    lines.push(`Attaccante ${k}`);
-    lines.push("________________________________________________");
-    lines.push("");
-    for(const [ship,qty] of Object.entries(initial.attackers[k]).sort((a,b)=>a[0].localeCompare(b[0],"it"))){
-      lines.push(`${ship} ${fmt(qty)}`);
-    }
-    lines.push("_________________________________________\n");
-  }
-  for(const k of Object.keys(initial.defenders)){
-    lines.push(`Difensore ${k}`);
-    lines.push("________________________________________________");
-    lines.push("");
-    for(const [ship,qty] of Object.entries(initial.defenders[k]).sort((a,b)=>a[0].localeCompare(b[0],"it"))){
-      lines.push(`${ship} ${fmt(qty)}`);
-    }
-    lines.push("_________________________________________\n");
-  }
-
-  lines.push("\nDopo la battaglia...\n");
-  for(const k of Object.keys(initial.attackers)){
-    lines.push(`Attaccante ${k}`);
-    lines.push("________________________________________________");
-    lines.push("");
-
-    const initShips=initial.attackers[k]||{};
-    const finShips=final.attackers[k]||{};
-    const lostShips=totalLost.attackers[k]||{};
-
-    const shipSet=new Set([...Object.keys(initShips), ...Object.keys(finShips), ...Object.keys(lostShips)]);
-    for(const ship of Array.from(shipSet).sort((a,b)=>a.localeCompare(b,"it"))){
-      const a1 = finShips[ship] ?? 0;
-      const lost = lostShips[ship] ?? 0;
-      lines.push(`${ship} ${fmt(a1)} ( -${fmt(lost)} )`);
-    }
-    lines.push("_________________________________________\n");
-  }
-
-  const dfM=(t.match(/Metal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  const dfC=(t.match(/Crystal to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  const dfD=(t.match(/Deuterium to debrisfield:\s*([\d\.,]+)/i)||[])[1];
-  if(dfM||dfC||dfD){
-    lines.push(`At these space coordinates now float ${dfM||"0"} metal, ${dfC||"0"} crystal and ${dfD||"0"} deuterium.`);
-  }
-
-  return lines.join("\n");
-}
-
-/* ===================== CR LOADER ===================== */
-let CR_TEXT = "";
-
-document.getElementById("btnLoadCRApi").addEventListener("click", async ()=>{
-  const apiId=(document.getElementById("crApiId").value||"").trim();
-  if(!apiId){ setCrStatus(false,"Inserisci un API ID CR."); return; }
-
-  setCrStatus(null,"Caricamento CR…");
-  log(`CR: richiesta NoMoreAngel per ${apiId}…`);
-
-  const timeoutMs = parseNum(document.getElementById("timeoutMs")?.value) || 15000;
-  const url = /^https?:\/\//i.test(apiId)
-    ? apiId
-    : `https://nomoreangel.de/api-reader/?apiid=${encodeURIComponent(apiId)}&engOut=on`;
-
-  try{
-    const raw = await fetchTextWithFallback(url, timeoutMs);
-    const classic = parseNmaApiReaderToClassic(raw);
-    if(!classic){
-      setCrStatus(false,"Errore: non riesco a convertire (manca Initial/Round).");
-      log("❌ Conversione CR fallita.");
-      return;
-    }
-    CR_TEXT = classic;
-    STATE.cr = parseCRText(CR_TEXT);
-
-    setCrStatus(true,"CR OK.");
-    log("✅ CR caricato e analizzato.");
-    showApp2();
-    recomputeAndRender();
-  }catch(e){
-    setCrStatus(false,"Errore fetch CR.");
-    log("❌ Errore fetch CR: " + (e?.message || e));
-  }
-});
-
-/* ===================== RR ===================== */
-function extractPre(html){
-  const m=html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
-  if(!m) return null;
-  return m[1].replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&#039;/g,"'").replace(/&quot;/g,'"');
-}
-function parseRRFromPre(pre){
-  const owner=(pre.match(/\[owner_name\]\s*=>\s*([^\r\n]+)/)||[])[1];
-  if(!owner) return null;
-  const m=parseNum((pre.match(/\[metal_retrieved\]\s*=>\s*([\d\.,]+)/)||[])[1]);
-  const c=parseNum((pre.match(/\[crystal_retrieved\]\s*=>\s*([\d\.,]+)/)||[])[1]);
-  const d=parseNum((pre.match(/\[deuterium_retrieved\]\s*=>\s*([\d\.,]+)/)||[])[1]);
-  const coords=(pre.match(/\[coordinates\]\s*=>\s*([^\r\n]+)/)||[])[1]||"";
-  const rrid=(pre.match(/\[rr_id\]\s*=>\s*([^\r\n]+)/)||[])[1]||"";
-  return {owner:owner.trim(),m,c,d,coords:coords.trim(),rrid:rrid.trim()};
-}
-
-document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
-  if(!STATE.cr){ log("⚠️ Carica prima il CR."); return; }
-
-  // reset stato RR (evita accumuli involontari quando ricarichi)
-  STATE.rr = {};
-
-  const base=(document.getElementById("proxyBase").value||"").trim();
-  const timeoutMs=parseNum(document.getElementById("timeoutMs").value)||12000;
-  const ids=(document.getElementById("rrIds").value||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  if(!ids.length){ log("⚠️ Nessun RR inserito."); return; }
-
-  log(`Carico ${ids.length} RR…`);
-  const rawLog=[];
-  for(const id of ids){
-    const url=base+encodeURIComponent(id);
-    try{
-      const res=await abortableFetch(url,timeoutMs);
-      const text=await res.text();
-      rawLog.push(`--- ${id} status=${res.status} ok=${res.ok} ---\n` + text.slice(0,1200));
-
-      const pre=extractPre(text)||text;
-      const parsed=parseRRFromPre(pre);
-      if(!parsed){ log(`❌ RR non parsato: ${id} (owner_name non trovato)`); continue; }
-
-      const p=parsed.owner;
-      if(!STATE.rr[p]) STATE.rr[p]={m:0,c:0,d:0,count:0,list:[]};
-      STATE.rr[p].m += parsed.m;
-      STATE.rr[p].c += parsed.c;
-      STATE.rr[p].d += parsed.d;
-      STATE.rr[p].count += 1;
-      STATE.rr[p].list.push(parsed);
-      log(`✅ RR: ${p} +${fmt(parsed.m)}M +${fmt(parsed.c)}C +${fmt(parsed.d)}D (${parsed.coords})`);
-    }catch(e){
-      log(`❌ Errore fetch RR ${id}: ${e?.message || e}`);
-    }
-  }
-
-  document.getElementById("rrRaw").textContent = rawLog.join("\n\n");
-  renderRRTable(STATE.rr);
-
-  // calcolo e render
-  const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
-  const computed = computeFromSheetLogic(STATE.cr, STATE.rr||{}, mode);
-  renderGainBox(computed);
-  renderResults(computed);
-});
-
-document.getElementById("btnClearRR").addEventListener("click", ()=>{
-  STATE.rr={};
-  document.getElementById("rrRaw").textContent="";
-  document.getElementById("rrIds").value="";
-  renderRRTable(STATE.rr);
-  recomputeAndRender();
-  log("RR puliti.");
-});
-
-/* ===================== SHARE ===================== */
-function encodeShareState(obj){
-  const json=JSON.stringify(obj);
-  return btoa(unescape(encodeURIComponent(json))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
-}
-function decodeShareState(b64){
-  const pad="===".slice((b64.length+3)%4);
-  const s=(b64+pad).replace(/-/g,"+").replace(/_/g,"/");
-  const json=decodeURIComponent(escape(atob(s)));
-  return JSON.parse(json);
-}
-function collectShareState(){
-  return {
-    v: 2,
-    crApiId:(document.getElementById("crApiId").value||"").trim(),
-    rrIds:(document.getElementById("rrIds").value||"").trim()
-  };
-}
-function applyShareState(st){
-  if(!st || typeof st!=="object") return;
-  if(typeof st.crApiId==="string") document.getElementById("crApiId").value=st.crApiId;
-  if(typeof st.rrIds==="string") document.getElementById("rrIds").value=st.rrIds;
-}
-function shareLink(){
-  const token=encodeShareState(collectShareState());
-  return `${location.origin}${location.pathname}#s=${token}`;
-}
-async function doShare(){
-  const url=shareLink();
-  try{
-    if(navigator.share){
-      await navigator.share({title:"Spartizione Detriti OGame", text:"Link precompilato", url});
-      log("✅ Link condiviso.");
-      return;
-    }
-  }catch(e){}
-  try{
-    await navigator.clipboard.writeText(url);
-    log("✅ Link copiato negli appunti.");
-  }catch(e){
-    prompt("Copia questo link:", url);
-    log("ℹ️ Link mostrato in prompt (clipboard non disponibile).");
-  }
-}
-document.getElementById("btnShare").addEventListener("click", ()=>doShare());
-
-(() => {
-  const m=(location.hash||"").match(/#s=([A-Za-z0-9\-_]+)/);
-  if(!m) return;
-  try{
-    applyShareState(decodeShareState(m[1]));
-    log("🔗 Stato caricato dal link.");
-  }catch(e){
-    log("⚠️ Hash non valido: " + (e?.message || e));
-  }
-})();
-
-setCrStatus(null,"In attesa del CR…");
-log("Pronto. 1) Carica CR. 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
 </script>
 </body>
 </html>
