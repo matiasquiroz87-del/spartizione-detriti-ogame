@@ -230,7 +230,7 @@ tr:last-child td{border-bottom:none}
 
 <script>
 /* ===================== CONFIG ===================== */
-const INCLUDE_LOOT = false; // compatibilità: non usiamo bottino nella logica, ma lo leggiamo
+const INCLUDE_LOOT = false;
 const COSTS = {
   "Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],
   "Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],
@@ -297,7 +297,6 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
     if(!res.ok) throw new Error("HTTP "+res.status);
     return await res.text();
   }catch(e1){
-    // fallback: r.jina.ai per bypass CORS
     const clean=String(url).replace(/^https?:\/\//i,"");
     const jinaUrl="https://r.jina.ai/http://" + clean;
     const res2=await abortableFetch(jinaUrl,timeoutMs);
@@ -381,11 +380,9 @@ function parseCrIdFromHtml(html){
 function parseInitialAttackersFromHtml(html){
   const attackers = {};
 
-  // blocco "Initial:" (primo)
   const m = String(html||"").match(/<h3>\s*Combat Report:\s*<\/h3>[\s\S]*?<h4>\s*Initial:\s*<\/h4>([\s\S]*?)<\/div>\s*<div class="clear"/i);
   const part = m ? m[1] : "";
 
-  // ogni "td><table class=cr" è un pacchetto; dentro cerchiamo header Attacker e la tabellina Type/Count
   const blocks = part.split(/<td><table class="cr">/i);
   for(const b of blocks){
     if(!/Attacker<br>/i.test(b)) continue;
@@ -393,11 +390,9 @@ function parseInitialAttackersFromHtml(html){
     const header = (b.match(/Attacker<br>\s*([\s\S]*?)<\/td>/i)||[])[1] || "";
     const headerText = stripTags(header);
 
-    // [2:96:10] Pablito
     const nameM = headerText.match(/\[[0-9]+:[0-9]+:[0-9]+\]\s*([^\n]+)/);
     const name = nameM ? nameM[1].trim() : "";
 
-    // [B V]Barboni volanti
     const tagM = headerText.match(/\[([^\]]+)\]\s*/);
     const tag = tagM ? tagM[1].trim() : "";
 
@@ -437,7 +432,6 @@ function parseLostFromLastRoundHtml(html){
   const pm = String(html||"").match(roundRe);
   const part = pm ? pm[1] : "";
 
-  // blocchi: <td><table class="cr"><tr><td class="cr">Attacker NAME</td></tr>...
   const chunkRe = /<td><table class="cr"><tr><td class="cr">Attacker\s+([^<]+)<\/td><\/tr>[\s\S]*?<tr><td class="cr"><table class="cr">([\s\S]*?)<\/table><\/td><\/tr><\/table><\/td>/gi;
   let m2;
   while((m2 = chunkRe.exec(part)) !== null){
@@ -446,7 +440,6 @@ function parseLostFromLastRoundHtml(html){
     if(!name) continue;
     if(!lostByPlayer[name]) lostByPlayer[name] = {};
 
-    // types nel round: prima riga ha <td class="cr"><td class="cr">Ship1</td>...
     const typeRow = (table.match(/<tr><td class="cr"><td class="cr">[\s\S]*?<\/tr>/i) || [])[0] || "";
     const types = (typeRow.match(/<td class="cr">([^<]+)<\/td>/gi) || [])
       .map(x=>stripTags(x)).map(x=>x.trim()).filter(Boolean);
@@ -455,9 +448,7 @@ function parseLostFromLastRoundHtml(html){
     const losts = (lostRow.match(/<td class="cr">([^<]+)<\/td>/gi) || [])
       .map(x=>stripTags(x)).map(x=>x.trim()).filter(x=>x && x!=="Lost");
 
-    // types può includere roba vuota: teniamo solo nomi plausibili (non numeri)
     const cleanTypes = types.filter(x => x && isNaN(parseNum(x)));
-
     for(let i=0;i<Math.min(cleanTypes.length, losts.length);i++){
       const ship = normShipName(cleanTypes[i]);
       const l = parseNum(losts[i]);
@@ -470,23 +461,16 @@ function parseLostFromLastRoundHtml(html){
 }
 function parseNoMoreAngelHtmlPage(html){
   const clean = stripJinaWrapper(html);
-  if(!/<title>\s*API-Reader\s*<\/title>/i.test(clean) && !/General Information:/i.test(clean)){
-    // comunque proviamo, ma avvisiamo
-    log("⚠️ HTML non sembra NoMoreAngel standard, provo a parsare lo stesso.");
-  }
-
   const g = parseGeneralInfoFromHtml(clean);
   const crId = parseCrIdFromHtml(clean);
   const attackers = parseInitialAttackersFromHtml(clean);
   const {lastRound, lost} = parseLostFromLastRoundHtml(clean);
 
-  // applica perdite
   for(const [pName, plost] of Object.entries(lost)){
     const p = ensurePlayer(attackers, pName, attackers[pName]?.tag || "");
     p.lost = mergeCounts(p.lost, plost);
   }
 
-  // final = initial - lost (se non abbiamo lost per quel player, final=initial)
   for(const [pName,p] of Object.entries(attackers)){
     p.final = {};
     const keys = new Set([...Object.keys(p.initial||{}), ...Object.keys(p.lost||{})]);
@@ -528,21 +512,17 @@ function computeFromNoMoreAngelHtml(cr, rrTotals, mode){
   const players = Object.keys(cr.attackers||{});
   const n = players.length || 1;
 
-  // perdite reali (da lost per nave) + fleetValue (peso flotta)
   const losses={}, fleetValue={};
-
   players.forEach(name=>{
     const p = cr.attackers[name];
     losses[name]={m:0,c:0,d:0};
     fleetValue[name]=0;
 
-    // valore flotta (initial)
     for(const [ship,cnt] of Object.entries(p.initial||{})){
       const cost=COSTS[ship];
       if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2]) * cnt;
     }
 
-    // perdite reali (lost)
     for(const [ship,lostCnt] of Object.entries(p.lost||{})){
       const cost=COSTS[ship];
       if(!cost) continue;
@@ -768,7 +748,7 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
       html = await fetchTextWithFallback(url, timeoutMs);
     }
 
-    document.getElementById("crDebug").textContent = html.slice(0, 20000); // evita debug infinito
+    document.getElementById("crDebug").textContent = String(html).slice(0, 20000);
 
     STATE.cr = parseNoMoreAngelHtmlPage(html);
 
@@ -777,7 +757,6 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
 
     setCrStatus(true,`CR OK. Attaccanti: ${players.length} • Round: ${STATE.cr.meta.lastRound||"?"} • ${STATE.cr.meta.coords||""}`);
     log("✅ CR caricato. Attaccanti: " + players.join(", "));
-    log(`Perdite totali (calcolate dal Lost): ${fmt(players.reduce((s,p)=>s + (STATE.cr.attackers[p]?.lost ? Object.entries(STATE.cr.attackers[p].lost).reduce((a,[ship,c])=>a + ((COSTS[ship]?.[0]||0)+(COSTS[ship]?.[1]||0)+(COSTS[ship]?.[2]||0))*c,0):0),0))}`);
     log(`DF(M/C)=${fmt(STATE.cr.debris.m)}/${fmt(STATE.cr.debris.c)} • Moon=${STATE.cr.generic.moon_chance||0}% • Winner=${STATE.cr.meta.winner||"?"}`);
     showApp2();
     recomputeAndRender();
@@ -806,7 +785,7 @@ function parseRRFromPre(pre){
 document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
   if(!STATE.cr){ log("⚠️ Carica prima il CR."); return; }
 
-  STATE.rr = {}; // reset
+  STATE.rr = {};
   const base=(document.getElementById("proxyBase").value||"").trim();
   const timeoutMs=parseNum(document.getElementById("timeoutMs").value)||12000;
   const ids=(document.getElementById("rrIds").value||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
