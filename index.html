@@ -335,17 +335,25 @@ function ensurePlayer(bucket, name, tag){
  * Ignoriamo completamente i defender_* per la spartizione (per ora).
  */
 function parseNoMoreAngelRaw(raw){
-  const text = stripJinaWrapper(String(raw||""));
+  const text = stripJinaWrapperRaw(String(raw||""));
   if(!text.includes("stdClass Object")) throw new Error("RAW non riconosciuto: manca 'stdClass Object'.");
 
   const out = {
     source:"nomoreangel-raw",
-    meta:{ cr_id:"", event_time:"", coords:"", rounds:0, winner:"", attCount:0, defCount:0 },
+    meta:{cr_id:"", event_time:"", coords:"", rounds:0, winner:""},
     loot:{m:0,c:0,d:0},
     debris:{m:0,c:0,d:0},
     generic:{},
+
+    // ✅ nuovi:
+    attackersSlots:{},   // slot -> {name, tag, initial:{}, lost:{}, final:{}}
+    defendersSlots:{},   // slot -> {name, tag, initial:{}, lost:{}, final:{}}
+
+    // ✅ aggregati (per la spartizione): name -> {tag, initial, lost, final, slots:[...]}
     attackers:{},
-    defenders:{} // solo informativo (non usato nei conti)
+    defenders:{},
+
+    _maps:{ attOwnerNumToName:{}, defOwnerNumToName:{} } // owner(slot) -> name
   };
 
   function pick(key){
@@ -367,122 +375,172 @@ function parseNoMoreAngelRaw(raw){
   out.loot.m = parseNum(pick("loot_metal"));
   out.loot.c = parseNum(pick("loot_crystal"));
   out.loot.d = parseNum(pick("loot_deuterium"));
+
   out.debris.m = parseNum(pick("debris_metal"));
   out.debris.c = parseNum(pick("debris_crystal"));
   out.debris.d = parseNum(pick("debris_deuterium"));
+
   if(!INCLUDE_LOOT) out.loot = {m:0,c:0,d:0};
 
-  const lines = text.split("\n");
-
-  // modalità scan per blocchi "stdClass Object ( ... )"
-  let block = ""; // attackers_meta | defenders_meta | att_fleet | att_loss | def_fleet | def_loss
-  let tmp = {};
-
-  const attIdTo = new Map(); // id -> {name, tag}
-  const defIdTo = new Map();
-
-  function flushMeta(map){
-    if(tmp && tmp.id!=null && tmp.name){
-      map.set(String(tmp.id), {name: String(tmp.name).trim(), tag: (tmp.tag||"").trim()});
-    }
-    tmp = {};
-  }
-  function flushComp(targetArr){
-    if(tmp && tmp.owner!=null && tmp.ship_type!=null && tmp.count!=null){
-      targetArr.push({
-        owner: String(tmp.owner).trim(),
-        ship_type: parseNum(tmp.ship_type),
-        count: parseNum(tmp.count)
-      });
-    }
-    tmp = {};
+  function sliceBetween(a, b){
+    const i = text.indexOf(a);
+    if(i<0) return "";
+    const j = b ? text.indexOf(b, i) : -1;
+    return (j>0) ? text.slice(i, j) : text.slice(i);
   }
 
-  const attFleet = [];
-  const attLoss  = [];
-  const defFleet = [];
-  const defLoss  = [];
+  const attackersBlock = sliceBetween("[attackers] =>", "[defenders] =>");
+  const defendersBlock = sliceBetween("[defenders] =>", "[attacker_ship_losses] =>");
+  const attLossBlock   = sliceBetween("[attacker_ship_losses] =>", "[defender_ship_losses] =>");
+  const defLossBlock   = sliceBetween("[defender_ship_losses] =>", null);
 
-  for(const line0 of lines){
-    const line = String(line0||"").trim();
-
-    if(line.includes("[attackers] => Array")) { block="attackers_meta"; tmp={}; continue; }
-    if(line.includes("[defenders] => Array")) { block="defenders_meta"; tmp={}; continue; }
-
-    if(line.includes("[attacker_fleet_composition] => Array")) { block="att_fleet"; tmp={}; continue; }
-    if(line.includes("[attacker_ship_losses] => Array")) { block="att_loss"; tmp={}; continue; }
-    if(line.includes("[defender_fleet_composition] => Array")) { block="def_fleet"; tmp={}; continue; }
-    if(line.includes("[defender_ship_losses] => Array")) { block="def_loss"; tmp={}; continue; }
-
-    // parse key => value
-    const kv = line.match(/^\[([^\]]+)\]\s*=>\s*(.*)$/);
-    if(kv){
-      const k = kv[1].trim();
-      const v = kv[2];
-
-      if(block==="attackers_meta" || block==="defenders_meta"){
-        if(k==="id") tmp.id = v;
-        if(k==="name") tmp.name = v;
-        if(k==="alliance_tag") tmp.tag = v;
-      }else if(block==="att_fleet" || block==="att_loss" || block==="def_fleet" || block==="def_loss"){
-        if(k==="owner") tmp.owner = v;
-        if(k==="ship_type") tmp.ship_type = v;
-        if(k==="count") tmp.count = v;
-      }
-      continue;
+  function ensureSlot(slotsBucket, slot, name, tag){
+    const k = String(slot);
+    if(!slotsBucket[k]){
+      slotsBucket[k] = { slot:Number(slot), name:name||"", tag:tag||"", initial:{}, lost:{}, final:{} };
     }
-
-    // fine oggetto: una riga ")" nei dump raw è tipica chiusura stdClass
-    if(line === ")"){
-      if(block==="attackers_meta") flushMeta(attIdTo);
-      else if(block==="defenders_meta") flushMeta(defIdTo);
-      else if(block==="att_fleet") flushComp(attFleet);
-      else if(block==="att_loss") flushComp(attLoss);
-      else if(block==="def_fleet") flushComp(defFleet);
-      else if(block==="def_loss") flushComp(defLoss);
-    }
+    if(name && !slotsBucket[k].name) slotsBucket[k].name = name;
+    if(tag && !slotsBucket[k].tag) slotsBucket[k].tag = tag;
+    return slotsBucket[k];
   }
 
-  out.meta.attCount = attIdTo.size;
-  out.meta.defCount = defIdTo.size;
-
-  // helpers
-  function addShip(bucket, idMap, ownerId, shipType, count, isLost){
-    const meta = idMap.get(String(ownerId));
-    const name = meta?.name || ("ID:"+ownerId);
-    const tag  = meta?.tag || "";
+  function addShipToSlot(slotsBucket, slot, name, tag, shipType, cnt){
     const shipName = SHIP_ID_TO_NAME[shipType];
-    if(!shipName || count<=0) return;
-
-    const p = ensurePlayer(bucket, name, tag);
-    const dest = isLost ? p.lost : p.initial;
-    dest[shipName] = (dest[shipName]||0) + count;
+    if(!shipName || !cnt) return;
+    const s = ensureSlot(slotsBucket, slot, name, tag);
+    s.initial[shipName] = (s.initial[shipName]||0) + cnt;
   }
 
-  // ATTACKERS ONLY (fondamentale)
-  for(const e of attFleet) addShip(out.attackers, attIdTo, e.owner, e.ship_type, e.count, false);
-  for(const e of attLoss)  addShip(out.attackers, attIdTo, e.owner, e.ship_type, e.count, true);
+  // ✅ parse fleets: slot = (array index + 1)
+  function parseFleetsBlock(blockText, side /*"att"|"def"*/){
+    const lines = String(blockText||"").split("\n");
+    let curSlot = null;   // 1..N
+    let curName = "";
+    let curTag  = "";
+    let curShipType = 0;
 
-  // difensori solo informativi (NON usati nei conti)
-  for(const e of defFleet) addShip(out.defenders, defIdTo, e.owner, e.ship_type, e.count, false);
-  for(const e of defLoss)  addShip(out.defenders, defIdTo, e.owner, e.ship_type, e.count, true);
+    const slotsBucket = side==="att" ? out.attackersSlots : out.defendersSlots;
+    const mapNumToName = side==="att" ? out._maps.attOwnerNumToName : out._maps.defOwnerNumToName;
 
-  // final = initial - lost
-  for(const [pName,p] of Object.entries(out.attackers)){
-    p.final = {};
-    const keys = new Set([...Object.keys(p.initial||{}), ...Object.keys(p.lost||{})]);
-    for(const k of keys){
-      const ini = p.initial?.[k] || 0;
-      const lo  = p.lost?.[k] || 0;
-      const fin = Math.max(0, ini - lo);
-      if(fin>0) p.final[k]=fin;
+    for(let i=0;i<lines.length;i++){
+      const l = lines[i];
+
+      const idxM = l.match(/^\s*\[(\d+)\]\s*=>\s*stdClass Object/i);
+      if(idxM){
+        curSlot = parseInt(idxM[1],10) + 1;
+        curName = "";
+        curTag  = "";
+        curShipType = 0;
+        continue;
+      }
+
+      if(l.includes("[fleet_owner] =>")){
+        curName = (l.split("=>")[1]||"").trim();
+        if(curSlot && curName) mapNumToName[String(curSlot)] = curName;
+        ensureSlot(slotsBucket, curSlot, curName, curTag);
+        continue;
+      }
+      if(l.includes("[fleet_owner_alliance_tag] =>")){
+        curTag = (l.split("=>")[1]||"").trim();
+        ensureSlot(slotsBucket, curSlot, curName, curTag);
+        continue;
+      }
+
+      if(l.includes("[ship_type] =>")){
+        curShipType = parseNum((l.split("=>")[1]||"").trim());
+        continue;
+      }
+      if(l.includes("[count] =>") && curShipType && curSlot){
+        const cnt = parseNum((l.split("=>")[1]||"").trim());
+        if(cnt>0) addShipToSlot(slotsBucket, curSlot, curName, curTag, curShipType, cnt);
+        curShipType = 0;
+        continue;
+      }
     }
   }
+
+  parseFleetsBlock(attackersBlock, "att");
+  parseFleetsBlock(defendersBlock, "def");
+
+  // ✅ parse losses: owner = slot
+  function parseLossesBlock(blockText, ownerNumToName, slotsBucket){
+    const lines = String(blockText||"").split("\n");
+    let curOwner = null; // slot
+    let curShipType = 0;
+
+    for(let i=0;i<lines.length;i++){
+      const l = lines[i];
+
+      if(l.includes("[owner] =>")){
+        curOwner = String(parseNum((l.split("=>")[1]||"").trim()));
+        continue;
+      }
+      if(l.includes("[ship_type] =>")){
+        curShipType = parseNum((l.split("=>")[1]||"").trim());
+        continue;
+      }
+      if(l.includes("[count] =>") && curOwner && curShipType){
+        const cnt = parseNum((l.split("=>")[1]||"").trim());
+        const shipName = SHIP_ID_TO_NAME[curShipType];
+        const name = ownerNumToName[curOwner] || "";
+        if(shipName && cnt>0){
+          const s = ensureSlot(slotsBucket, curOwner, name, "");
+          s.lost[shipName] = (s.lost[shipName]||0) + cnt;
+        }
+        curShipType = 0;
+        continue;
+      }
+    }
+  }
+
+  parseLossesBlock(attLossBlock, out._maps.attOwnerNumToName, out.attackersSlots);
+  parseLossesBlock(defLossBlock, out._maps.defOwnerNumToName, out.defendersSlots);
+
+  // ✅ final per slot
+  function computeFinalForSlots(slotsBucket){
+    for(const s of Object.values(slotsBucket)){
+      s.final = {};
+      const keys = new Set([...Object.keys(s.initial||{}), ...Object.keys(s.lost||{})]);
+      for(const k of keys){
+        const ini = s.initial?.[k] || 0;
+        const lo  = s.lost?.[k] || 0;
+        const fin = Math.max(0, ini - lo);
+        if(fin>0) s.final[k]=fin;
+      }
+    }
+  }
+  computeFinalForSlots(out.attackersSlots);
+  computeFinalForSlots(out.defendersSlots);
+
+  // ✅ aggrega per nome (somma slot dello stesso owner)
+  function aggregateByName(slotsBucket){
+    const agg = {};
+    for(const s of Object.values(slotsBucket)){
+      const name = (s.name||"").trim();
+      if(!name) continue;
+      if(!agg[name]) agg[name] = { tag:s.tag||"", slots:[], initial:{}, lost:{}, final:{} };
+      if(s.tag && !agg[name].tag) agg[name].tag = s.tag;
+      agg[name].slots.push(s.slot);
+
+      for(const [ship,cnt] of Object.entries(s.initial||{})){
+        agg[name].initial[ship] = (agg[name].initial[ship]||0) + cnt;
+      }
+      for(const [ship,cnt] of Object.entries(s.lost||{})){
+        agg[name].lost[ship] = (agg[name].lost[ship]||0) + cnt;
+      }
+      for(const [ship,cnt] of Object.entries(s.final||{})){
+        agg[name].final[ship] = (agg[name].final[ship]||0) + cnt;
+      }
+    }
+    return agg;
+  }
+
+  out.attackers = aggregateByName(out.attackersSlots);
+  out.defenders = aggregateByName(out.defendersSlots);
 
   if(!Object.keys(out.attackers).length){
-    throw new Error("RAW OK, ma nessun attaccante parsato (attacker_fleet_composition vuota o non trovata).");
+    throw new Error("RAW: nessun attaccante trovato (blocco [attackers] non parsato).");
   }
-
   return out;
 }
 
