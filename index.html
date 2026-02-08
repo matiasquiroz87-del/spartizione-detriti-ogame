@@ -123,7 +123,7 @@ tr:last-child td{border-bottom:none}
     <div class="topbar">
       <div class="title">
         <h1>Spartizione Detriti OGame</h1>
-        <span class="badge">CR-KEY (RAW on) + RR API</span>
+        <span class="badge">CR-KEY (RAW on) + RR API • spartizione solo ATT</span>
       </div>
     </div>
   </div>
@@ -132,7 +132,7 @@ tr:last-child td{border-bottom:none}
 <div class="wrap">
 
   <div class="card">
-    <h2 class="min-title">1) Carica CR (RAW)</h2>
+    <h2 class="min-title">1) Carica CR (RAW-only)</h2>
 
     <div class="mini">
       Inserisci la <b>CR-KEY</b> (es. <code>cr-it-...</code>). Verrà usato solo <b>rawOut=on</b>.
@@ -154,7 +154,7 @@ tr:last-child td{border-bottom:none}
       <pre id="logBox" style="margin-top:10px"></pre>
     </details>
 
-    <!-- Debug RAW nascosto: lo teniamo ma NON lo popoliamo (così non appare in chiaro) -->
+    <!-- Debug RAW volutamente nascosto -->
     <details style="margin-top:10px">
       <summary>Debug (RAW nascosto)</summary>
       <pre class="mini" style="margin-top:10px">Nascosto.</pre>
@@ -207,6 +207,14 @@ tr:last-child td{border-bottom:none}
             <pre id="rrRaw"></pre>
           </details>
         </details>
+
+        <details style="margin-top:10px">
+          <summary>Attaccanti letti (slot → nome)</summary>
+          <div id="attSlots" style="margin-top:8px"></div>
+          <div class="mini" style="margin-top:8px">
+            Nota: per la spartizione usiamo gli <b>attaccanti aggregati per nome</b>. Questo box serve solo a capire gli slot.
+          </div>
+        </details>
       </div>
 
       <div class="card">
@@ -230,6 +238,7 @@ tr:last-child td{border-bottom:none}
 <script>
 /* ===================== CONFIG ===================== */
 const INCLUDE_LOOT = false;
+
 const COSTS = {
   "Cargo leggero":[2000,2000,0],"Cargo Pesante":[6000,6000,0],"Caccia Leggero":[3000,1000,0],"Caccia Pesante":[6000,4000,0],
   "Incrociatore":[20000,7000,2000],"Nave da battaglia":[45000,15000,0],"Bombardiere":[50000,25000,15000],"Corazzata":[60000,50000,15000],
@@ -261,11 +270,6 @@ function parseNum(str){
   const n = Number(s);
   return isNaN(n)?0:n;
 }
-function mergeCounts(a,b){
-  const out = {...(a||{})};
-  for(const [k,v] of Object.entries(b||{})) out[k] = (out[k]||0) + (v||0);
-  return out;
-}
 const LOG=[];
 function log(msg){
   const t = new Date().toLocaleTimeString();
@@ -290,7 +294,10 @@ function showApp2(){
 }
 
 /* ===================== STATE ===================== */
-const STATE = { cr:null, rr:{} };
+const STATE = {
+  cr:null,
+  rr:{}
+};
 
 /* ===================== FETCH HELPERS ===================== */
 function abortableFetch(url, timeoutMs){
@@ -304,6 +311,7 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
     if(!res.ok) throw new Error("HTTP "+res.status);
     return await res.text();
   }catch(e1){
+    // fallback via r.jina.ai (alcuni host bloccano fetch diretto)
     const clean=String(url).replace(/^https?:\/\//i,"");
     const jinaUrl="https://r.jina.ai/http://" + clean;
     const res2=await abortableFetch(jinaUrl,timeoutMs);
@@ -311,291 +319,287 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
     return await res2.text();
   }
 }
-function stripJinaWrapper(t){
-  const mdIdx=String(t||"").indexOf("Markdown Content:");
-  if(mdIdx>=0) t=String(t).slice(mdIdx+"Markdown Content:".length);
+
+/* ===================== RAW CR READER (NoMoreAngel rawOut=on) ===================== */
+function stripRawText(t){
+  const mdIdx = String(t||"").indexOf("Markdown Content:");
+  if(mdIdx>=0) t = String(t).slice(mdIdx + "Markdown Content:".length);
   return String(t||"").replace(/\r/g,"").trim();
 }
-function normShipName(s){
-  return String(s||"").replace(/\u00A0/g," ").replace(/\s+/g," ").trim();
+function pickScalar(text, key){
+  const safe = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const m = text.match(new RegExp("\\["+safe+"\\]\\s*=>\\s*([^\\n]+)"));
+  return m ? m[1].trim() : "";
 }
-function ensurePlayer(bucket, name, tag){
-  if(!bucket[name]) bucket[name] = { tag: tag||"", initial:{}, lost:{}, final:{} };
-  if(tag && !bucket[name].tag) bucket[name].tag = tag;
-  return bucket[name];
+function sliceBetween(text, startMark, endMark){
+  const i = text.indexOf(startMark);
+  if(i < 0) return "";
+  if(!endMark) return text.slice(i);
+  const j = text.indexOf(endMark, i);
+  return j > 0 ? text.slice(i, j) : text.slice(i);
 }
+function parseFleetsBlock(blockText){
+  const lines = String(blockText||"").split("\n");
+  const slotsBucket = {};
+  const ownerNumToName = {};
 
-/* ===================== RAW PARSER (ATTACKERS-ONLY) ===================== */
-/**
- * Fix chiave: NON scansioniamo tutti i [fleet_owner] indiscriminatamente.
- * Prendiamo SOLO:
- *  - attackers (id->name/tag)
- *  - attacker_fleet_composition (owner id -> ships)
- *  - attacker_ship_losses (owner id -> lost ships)
- * Ignoriamo completamente i defender_* per la spartizione (per ora).
- */
-function parseNoMoreAngelRaw(raw){
-  const text = stripJinaWrapperRaw(String(raw||""));
-  if(!text.includes("stdClass Object")) throw new Error("RAW non riconosciuto: manca 'stdClass Object'.");
+  let curSlot = null;     // "1..N"
+  let curName = "";
+  let curTag  = "";
+  let curShipType = 0;
 
-  const out = {
-    source:"nomoreangel-raw",
-    meta:{cr_id:"", event_time:"", coords:"", rounds:0, winner:""},
-    loot:{m:0,c:0,d:0},
-    debris:{m:0,c:0,d:0},
-    generic:{},
-
-    // ✅ nuovi:
-    attackersSlots:{},   // slot -> {name, tag, initial:{}, lost:{}, final:{}}
-    defendersSlots:{},   // slot -> {name, tag, initial:{}, lost:{}, final:{}}
-
-    // ✅ aggregati (per la spartizione): name -> {tag, initial, lost, final, slots:[...]}
-    attackers:{},
-    defenders:{},
-
-    _maps:{ attOwnerNumToName:{}, defOwnerNumToName:{} } // owner(slot) -> name
-  };
-
-  function pick(key){
-    const m = text.match(new RegExp("\\["+key.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")+"\\]\\s*=>\\s*([^\\r\\n]+)"));
-    return m ? m[1].trim() : "";
-  }
-
-  out.meta.cr_id = pick("cr_id");
-  out.meta.event_time = pick("event_time");
-  out.meta.coords = pick("combat_coordinates");
-  out.meta.rounds = parseNum(pick("combat_rounds"));
-  out.meta.winner = pick("winner");
-
-  out.generic.units_lost_attackers = parseNum(pick("units_lost_attackers"));
-  out.generic.units_lost_defenders = parseNum(pick("units_lost_defenders"));
-  out.generic.loot_percentage = parseNum(pick("loot_percentage"));
-  out.generic.moon_chance = parseNum(pick("moon_chance"));
-
-  out.loot.m = parseNum(pick("loot_metal"));
-  out.loot.c = parseNum(pick("loot_crystal"));
-  out.loot.d = parseNum(pick("loot_deuterium"));
-
-  out.debris.m = parseNum(pick("debris_metal"));
-  out.debris.c = parseNum(pick("debris_crystal"));
-  out.debris.d = parseNum(pick("debris_deuterium"));
-
-  if(!INCLUDE_LOOT) out.loot = {m:0,c:0,d:0};
-
-  function sliceBetween(a, b){
-    const i = text.indexOf(a);
-    if(i<0) return "";
-    const j = b ? text.indexOf(b, i) : -1;
-    return (j>0) ? text.slice(i, j) : text.slice(i);
-  }
-
-  const attackersBlock = sliceBetween("[attackers] =>", "[defenders] =>");
-  const defendersBlock = sliceBetween("[defenders] =>", "[attacker_ship_losses] =>");
-  const attLossBlock   = sliceBetween("[attacker_ship_losses] =>", "[defender_ship_losses] =>");
-  const defLossBlock   = sliceBetween("[defender_ship_losses] =>", null);
-
-  function ensureSlot(slotsBucket, slot, name, tag){
+  function ensureSlot(slot){
     const k = String(slot);
     if(!slotsBucket[k]){
-      slotsBucket[k] = { slot:Number(slot), name:name||"", tag:tag||"", initial:{}, lost:{}, final:{} };
+      slotsBucket[k] = { slot:Number(slot), name:"", tag:"", initial:{}, lost:{}, final:{} };
     }
-    if(name && !slotsBucket[k].name) slotsBucket[k].name = name;
-    if(tag && !slotsBucket[k].tag) slotsBucket[k].tag = tag;
     return slotsBucket[k];
   }
 
-  function addShipToSlot(slotsBucket, slot, name, tag, shipType, cnt){
-    const shipName = SHIP_ID_TO_NAME[shipType];
-    if(!shipName || !cnt) return;
-    const s = ensureSlot(slotsBucket, slot, name, tag);
-    s.initial[shipName] = (s.initial[shipName]||0) + cnt;
-  }
+  for(let i=0;i<lines.length;i++){
+    const l = lines[i];
 
-  // ✅ parse fleets: slot = (array index + 1)
-  function parseFleetsBlock(blockText, side /*"att"|"def"*/){
-    const lines = String(blockText||"").split("\n");
-    let curSlot = null;   // 1..N
-    let curName = "";
-    let curTag  = "";
-    let curShipType = 0;
+    const idxM = l.match(/^\s*\[(\d+)\]\s*=>\s*stdClass Object/i);
+    if(idxM){
+      curSlot = String(parseInt(idxM[1],10) + 1);
+      curName = "";
+      curTag  = "";
+      curShipType = 0;
+      ensureSlot(curSlot);
+      continue;
+    }
+    if(!curSlot) continue;
 
-    const slotsBucket = side==="att" ? out.attackersSlots : out.defendersSlots;
-    const mapNumToName = side==="att" ? out._maps.attOwnerNumToName : out._maps.defOwnerNumToName;
-
-    for(let i=0;i<lines.length;i++){
-      const l = lines[i];
-
-      const idxM = l.match(/^\s*\[(\d+)\]\s*=>\s*stdClass Object/i);
-      if(idxM){
-        curSlot = parseInt(idxM[1],10) + 1;
-        curName = "";
-        curTag  = "";
-        curShipType = 0;
-        continue;
+    if(l.includes("[fleet_owner] =>")){
+      curName = (l.split("=>")[1]||"").trim();
+      const s = ensureSlot(curSlot);
+      if(curName) s.name = curName;
+      ownerNumToName[curSlot] = curName || ownerNumToName[curSlot] || "";
+      continue;
+    }
+    if(l.includes("[fleet_owner_alliance_tag] =>")){
+      curTag = (l.split("=>")[1]||"").trim();
+      const s = ensureSlot(curSlot);
+      if(curTag) s.tag = curTag;
+      continue;
+    }
+    if(l.includes("[ship_type] =>")){
+      curShipType = Number((l.split("=>")[1]||"").trim()) || 0;
+      continue;
+    }
+    if(l.includes("[count] =>") && curShipType){
+      const cnt = Number((l.split("=>")[1]||"").trim()) || 0;
+      const shipName = SHIP_ID_TO_NAME[curShipType];
+      if(shipName && cnt > 0){
+        const s = ensureSlot(curSlot);
+        s.initial[shipName] = (s.initial[shipName]||0) + cnt;
       }
-
-      if(l.includes("[fleet_owner] =>")){
-        curName = (l.split("=>")[1]||"").trim();
-        if(curSlot && curName) mapNumToName[String(curSlot)] = curName;
-        ensureSlot(slotsBucket, curSlot, curName, curTag);
-        continue;
-      }
-      if(l.includes("[fleet_owner_alliance_tag] =>")){
-        curTag = (l.split("=>")[1]||"").trim();
-        ensureSlot(slotsBucket, curSlot, curName, curTag);
-        continue;
-      }
-
-      if(l.includes("[ship_type] =>")){
-        curShipType = parseNum((l.split("=>")[1]||"").trim());
-        continue;
-      }
-      if(l.includes("[count] =>") && curShipType && curSlot){
-        const cnt = parseNum((l.split("=>")[1]||"").trim());
-        if(cnt>0) addShipToSlot(slotsBucket, curSlot, curName, curTag, curShipType, cnt);
-        curShipType = 0;
-        continue;
-      }
+      curShipType = 0;
+      continue;
     }
   }
 
-  parseFleetsBlock(attackersBlock, "att");
-  parseFleetsBlock(defendersBlock, "def");
+  return { slotsBucket, ownerNumToName };
+}
+function parseLossesBlock(blockText, slotsBucket, ownerNumToName){
+  const lines = String(blockText||"").split("\n");
+  let curOwner = null;  // slot
+  let curShipType = 0;
 
-  // ✅ parse losses: owner = slot
-  function parseLossesBlock(blockText, ownerNumToName, slotsBucket){
-    const lines = String(blockText||"").split("\n");
-    let curOwner = null; // slot
-    let curShipType = 0;
+  function ensureSlot(slot){
+    const k = String(slot);
+    if(!slotsBucket[k]){
+      slotsBucket[k] = { slot:Number(slot), name: ownerNumToName[k]||"", tag:"", initial:{}, lost:{}, final:{} };
+    }else{
+      if(!slotsBucket[k].name && ownerNumToName[k]) slotsBucket[k].name = ownerNumToName[k];
+    }
+    return slotsBucket[k];
+  }
 
-    for(let i=0;i<lines.length;i++){
-      const l = lines[i];
+  for(let i=0;i<lines.length;i++){
+    const l = lines[i];
 
-      if(l.includes("[owner] =>")){
-        curOwner = String(parseNum((l.split("=>")[1]||"").trim()));
-        continue;
+    if(l.includes("[owner] =>")){
+      curOwner = String(Number((l.split("=>")[1]||"").trim()) || "");
+      continue;
+    }
+    if(l.includes("[ship_type] =>")){
+      curShipType = Number((l.split("=>")[1]||"").trim()) || 0;
+      continue;
+    }
+    if(l.includes("[count] =>") && curOwner && curShipType){
+      const cnt = Number((l.split("=>")[1]||"").trim()) || 0;
+      const shipName = SHIP_ID_TO_NAME[curShipType];
+      if(shipName && cnt > 0){
+        const s = ensureSlot(curOwner);
+        s.lost[shipName] = (s.lost[shipName]||0) + cnt;
       }
-      if(l.includes("[ship_type] =>")){
-        curShipType = parseNum((l.split("=>")[1]||"").trim());
-        continue;
-      }
-      if(l.includes("[count] =>") && curOwner && curShipType){
-        const cnt = parseNum((l.split("=>")[1]||"").trim());
-        const shipName = SHIP_ID_TO_NAME[curShipType];
-        const name = ownerNumToName[curOwner] || "";
-        if(shipName && cnt>0){
-          const s = ensureSlot(slotsBucket, curOwner, name, "");
-          s.lost[shipName] = (s.lost[shipName]||0) + cnt;
-        }
-        curShipType = 0;
-        continue;
-      }
+      curShipType = 0;
+      continue;
     }
   }
+}
+function computeFinal(slotsBucket){
+  for(const s of Object.values(slotsBucket)){
+    const keys = new Set([...Object.keys(s.initial||{}), ...Object.keys(s.lost||{})]);
+    const fin = {};
+    for(const k of keys){
+      const a = s.initial?.[k] || 0;
+      const b = s.lost?.[k] || 0;
+      const v = Math.max(0, a - b);
+      if(v>0) fin[k] = v;
+    }
+    s.final = fin;
+  }
+}
+function aggregateByName(slotsBucket){
+  const agg = {};
+  for(const s of Object.values(slotsBucket)){
+    const name = (s.name||"").trim();
+    if(!name) continue;
+    if(!agg[name]) agg[name] = { tag:s.tag||"", slots:[], initial:{}, lost:{}, final:{} };
+    if(s.tag && !agg[name].tag) agg[name].tag = s.tag;
+    agg[name].slots.push(s.slot);
 
-  parseLossesBlock(attLossBlock, out._maps.attOwnerNumToName, out.attackersSlots);
-  parseLossesBlock(defLossBlock, out._maps.defOwnerNumToName, out.defendersSlots);
-
-  // ✅ final per slot
-  function computeFinalForSlots(slotsBucket){
-    for(const s of Object.values(slotsBucket)){
-      s.final = {};
-      const keys = new Set([...Object.keys(s.initial||{}), ...Object.keys(s.lost||{})]);
-      for(const k of keys){
-        const ini = s.initial?.[k] || 0;
-        const lo  = s.lost?.[k] || 0;
-        const fin = Math.max(0, ini - lo);
-        if(fin>0) s.final[k]=fin;
-      }
+    for(const [ship,cnt] of Object.entries(s.initial||{})){
+      agg[name].initial[ship] = (agg[name].initial[ship]||0) + cnt;
+    }
+    for(const [ship,cnt] of Object.entries(s.lost||{})){
+      agg[name].lost[ship] = (agg[name].lost[ship]||0) + cnt;
+    }
+    for(const [ship,cnt] of Object.entries(s.final||{})){
+      agg[name].final[ship] = (agg[name].final[ship]||0) + cnt;
     }
   }
-  computeFinalForSlots(out.attackersSlots);
-  computeFinalForSlots(out.defendersSlots);
-
-  // ✅ aggrega per nome (somma slot dello stesso owner)
-  function aggregateByName(slotsBucket){
-    const agg = {};
-    for(const s of Object.values(slotsBucket)){
-      const name = (s.name||"").trim();
-      if(!name) continue;
-      if(!agg[name]) agg[name] = { tag:s.tag||"", slots:[], initial:{}, lost:{}, final:{} };
-      if(s.tag && !agg[name].tag) agg[name].tag = s.tag;
-      agg[name].slots.push(s.slot);
-
-      for(const [ship,cnt] of Object.entries(s.initial||{})){
-        agg[name].initial[ship] = (agg[name].initial[ship]||0) + cnt;
-      }
-      for(const [ship,cnt] of Object.entries(s.lost||{})){
-        agg[name].lost[ship] = (agg[name].lost[ship]||0) + cnt;
-      }
-      for(const [ship,cnt] of Object.entries(s.final||{})){
-        agg[name].final[ship] = (agg[name].final[ship]||0) + cnt;
-      }
-    }
-    return agg;
+  for(const v of Object.values(agg)) v.slots.sort((a,b)=>a-b);
+  return agg;
+}
+function shipsToRes(shipsCount){
+  const out = {m:0,c:0,d:0,total:0};
+  for(const [ship,cnt] of Object.entries(shipsCount||{})){
+    const cost = COSTS[ship];
+    if(!cost) continue;
+    out.m += cost[0]*cnt;
+    out.c += cost[1]*cnt;
+    out.d += cost[2]*cnt;
   }
-
-  out.attackers = aggregateByName(out.attackersSlots);
-  out.defenders = aggregateByName(out.defendersSlots);
-
-  if(!Object.keys(out.attackers).length){
-    throw new Error("RAW: nessun attaccante trovato (blocco [attackers] non parsato).");
-  }
+  out.total = out.m + out.c + out.d;
   return out;
 }
+function parseCR_RawOnly(rawText){
+  const text = stripRawText(rawText);
+  if(!text.includes("stdClass Object")) throw new Error("RAW non riconosciuto (manca 'stdClass Object').");
 
-/* ===================== ECONOMIA (ATTACKERS-ONLY) ===================== */
+  // sezioni (solo qui, niente parsing globale fleet_owner)
+  const attackersBlock = sliceBetween(text, "[attackers] =>", "[defenders] =>");
+  const defendersBlock = sliceBetween(text, "[defenders] =>", "[attacker_ship_losses] =>");
+  const attLossBlock   = sliceBetween(text, "[attacker_ship_losses] =>", "[defender_ship_losses] =>");
+  const defLossBlock   = sliceBetween(text, "[defender_ship_losses] =>", null);
+
+  const att = parseFleetsBlock(attackersBlock);
+  const def = parseFleetsBlock(defendersBlock);
+
+  parseLossesBlock(attLossBlock, att.slotsBucket, att.ownerNumToName);
+  parseLossesBlock(defLossBlock, def.slotsBucket, def.ownerNumToName);
+
+  computeFinal(att.slotsBucket);
+  computeFinal(def.slotsBucket);
+
+  const attackers = aggregateByName(att.slotsBucket);
+  const defenders = aggregateByName(def.slotsBucket);
+
+  if(!Object.keys(attackers).length){
+    throw new Error("Nessun attaccante trovato (blocco [attackers] non parsato).");
+  }
+
+  const meta = {
+    cr_id: pickScalar(text, "cr_id"),
+    event_time: pickScalar(text, "event_time"),
+    coords: pickScalar(text, "combat_coordinates"),
+    rounds: Number(pickScalar(text, "combat_rounds")) || 0,
+    winner: pickScalar(text, "winner"),
+    moon_chance: Number(pickScalar(text, "moon_chance")) || 0
+  };
+
+  const debris = {
+    m: parseNum(pickScalar(text, "debris_metal")),
+    c: parseNum(pickScalar(text, "debris_crystal")),
+    d: parseNum(pickScalar(text, "debris_deuterium"))
+  };
+
+  const loot = {
+    m: parseNum(pickScalar(text, "loot_metal")),
+    c: parseNum(pickScalar(text, "loot_crystal")),
+    d: parseNum(pickScalar(text, "loot_deuterium"))
+  };
+  if(!INCLUDE_LOOT) loot.m=loot.c=loot.d=0;
+
+  const attackersLossResByName = {};
+  for(const [name, p] of Object.entries(attackers)){
+    attackersLossResByName[name] = shipsToRes(p.lost);
+  }
+
+  return {
+    source:"nomoreangel-raw",
+    meta, debris, loot,
+    attackersSlots: att.slotsBucket,
+    defendersSlots: def.slotsBucket,
+    attackers, defenders,
+    attackersLossResByName
+  };
+}
+
+/* ===================== ECONOMIA (SOLO ATT) ===================== */
 function computeFromRawAttackersOnly(cr, rrTotals, mode){
   const players = Object.keys(cr.attackers||{});
   const n = players.length || 1;
 
-  const losses={}, fleetValue={};
+  const lossesRes={}, fleetValue={};
   players.forEach(name=>{
     const p = cr.attackers[name];
-    losses[name]={m:0,c:0,d:0};
-    fleetValue[name]=0;
+    lossesRes[name] = cr.attackersLossResByName?.[name] || {m:0,c:0,d:0,total:0};
 
+    // valore flotta in campo (per modalità equa) da INITIAL aggregato
+    let fv = 0;
     for(const [ship,cnt] of Object.entries(p.initial||{})){
-      const cost=COSTS[ship];
-      if(cost) fleetValue[name] += (cost[0]+cost[1]+cost[2]) * cnt;
+      const cost = COSTS[ship];
+      if(cost) fv += (cost[0]+cost[1]+cost[2]) * cnt;
     }
-    for(const [ship,lostCnt] of Object.entries(p.lost||{})){
-      const cost=COSTS[ship];
-      if(!cost) continue;
-      losses[name].m += cost[0]*lostCnt;
-      losses[name].c += cost[1]*lostCnt;
-      losses[name].d += cost[2]*lostCnt;
-    }
+    fleetValue[name] = fv;
   });
 
   const totLoss = players.reduce((a,nm)=>({
-    m:a.m+losses[nm].m, c:a.c+losses[nm].c, d:a.d+losses[nm].d
+    m:a.m+(lossesRes[nm]?.m||0),
+    c:a.c+(lossesRes[nm]?.c||0),
+    d:a.d+(lossesRes[nm]?.d||0)
   }),{m:0,c:0,d:0});
 
   const totRec = players.reduce((a,nm)=>{
-    const r=rrTotals[nm]||{m:0,c:0,d:0};
+    const r = rrTotals[nm] || {m:0,c:0,d:0};
     return {m:a.m+r.m, c:a.c+r.c, d:a.d+r.d};
   },{m:0,c:0,d:0});
 
   const gain = { m:totRec.m-totLoss.m, c:totRec.c-totLoss.c, d:totRec.d-totLoss.d };
 
   const weights={};
-  if(mode==="paritaria"){ players.forEach(nm=>weights[nm]=1/n); }
-  else{
-    const totFleet = players.reduce((s,nm)=>s+(fleetValue[nm]||0),0)||1;
+  if(mode==="paritaria"){
+    players.forEach(nm=>weights[nm]=1/n);
+  }else{
+    const totFleet = players.reduce((s,nm)=>s+(fleetValue[nm]||0),0) || 1;
     players.forEach(nm=>weights[nm]=(fleetValue[nm]||0)/totFleet);
   }
 
   const saldo={};
   players.forEach(nm=>{
     const r=rrTotals[nm]||{m:0,c:0,d:0};
+    const L = lossesRes[nm] || {m:0,c:0,d:0};
     saldo[nm]={
-      m:losses[nm].m + gain.m*weights[nm] - r.m,
-      c:losses[nm].c + gain.c*weights[nm] - r.c,
-      d:losses[nm].d + gain.d*weights[nm] - r.d,
-      w:weights[nm],
-      lost:losses[nm],
-      rec:r
+      m: L.m + gain.m*weights[nm] - r.m,
+      c: L.c + gain.c*weights[nm] - r.c,
+      d: L.d + gain.d*weights[nm] - r.d,
+      w: weights[nm],
+      lost: L,
+      rec: r
     };
   });
 
@@ -657,6 +661,27 @@ function renderRRTable(rrTotals){
       <tbody>${rows}</tbody>
     </table>`;
 }
+
+function renderAttSlots(cr){
+  const el = document.getElementById("attSlots");
+  if(!cr?.attackersSlots){ el.innerHTML = `<div class="mini">—</div>`; return; }
+  const slots = Object.values(cr.attackersSlots).sort((a,b)=>a.slot-b.slot);
+  if(!slots.length){ el.innerHTML = `<div class="mini">Nessuno slot attaccante trovato.</div>`; return; }
+
+  const rows = slots.map(s=>{
+    const ships = Object.entries(s.initial||{}).reduce((sum,[,cnt])=>sum+(cnt||0),0);
+    const lost  = Object.entries(s.lost||{}).reduce((sum,[,cnt])=>sum+(cnt||0),0);
+    return `<tr><td>${s.slot}</td><td>${s.name||"—"}</td><td>${s.tag||"—"}</td><td>${ships}</td><td>${lost}</td></tr>`;
+  }).join("");
+
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Slot</th><th>Nome</th><th>TAG</th><th># navi (initial)</th><th># navi perse</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
 function renderGainBox(computed){
   const gainBox = document.getElementById("gainBox");
   const gainValue = document.getElementById("gainValue");
@@ -677,12 +702,13 @@ function renderGainBox(computed){
   gainValue.textContent = fmt(total);
   gainBreakdown.textContent = `M ${fmt(computed.gain.m)} • C ${fmt(computed.gain.c)} • D ${fmt(computed.gain.d)}`;
 }
+
 function renderResults(computed){
   const resEl = document.getElementById("resultsTables");
   const trEl = document.getElementById("transports");
 
   if(!computed){
-    resEl.innerHTML = `<div class="mini">Inserisci e carica almeno un RR per calcolare gain/saldi/trasporti.</div>`;
+    resEl.innerHTML = `<div class="mini">Carica CR e almeno un RR per calcolare gain/saldi/trasporti.</div>`;
     trEl.innerHTML = `<div class="mini">—</div>`;
     return;
   }
@@ -762,11 +788,11 @@ function recomputeAndRender(){
   renderResults(computed);
 }
 document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change", ()=>{
-  log("Modalità: " + document.querySelector('input[name="mode"]:checked').value);
+  log("Modalità: " + (document.querySelector('input[name="mode"]:checked')?.value || "paritaria"));
   recomputeAndRender();
 }));
 
-/* ===================== CR LOADER (RAW-ONLY) ===================== */
+/* ===================== CR LOADER (RAW-ONLY, SOLO CR KEY) ===================== */
 document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
   const apiid=(document.getElementById("crApiId").value||"").trim();
   const timeoutMs = parseNum(document.getElementById("timeoutMs")?.value) || 15000;
@@ -781,14 +807,16 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
     const raw = await fetchTextWithFallback(rawUrl, timeoutMs);
 
     // RAW NON VIENE MOSTRATO IN CHIARO (solo parse)
-    STATE.cr = parseNoMoreAngelRaw(raw);
+    STATE.cr = parseCR_RawOnly(raw);
 
-    const att = Object.keys(STATE.cr.attackers||{}).length;
-    const def = Object.keys(STATE.cr.defenders||{}).length;
+    const attNames = Object.keys(STATE.cr.attackers||{});
+    const defNames = Object.keys(STATE.cr.defenders||{});
 
-    setCrStatus(true,`CR OK. Att: ${att} • Def: ${def} • ${STATE.cr.meta.coords||""} (def esclusi)`);
-    log("✅ CR RAW caricato. ATT: " + Object.keys(STATE.cr.attackers).join(", "));
-    if(def>0) log("ℹ️ Difensori presenti nel RAW ma esclusi dalla spartizione.");
+    setCrStatus(true,`CR OK. Att: ${attNames.length} • Def: ${defNames.length} • ${STATE.cr.meta.coords||""} (def esclusi)`);
+    log("✅ CR RAW caricato. ATT: " + attNames.join(", "));
+    if(defNames.length) log("ℹ️ Difensori presenti nel RAW ma esclusi dalla spartizione.");
+
+    renderAttSlots(STATE.cr);
     showApp2();
     recomputeAndRender();
   }catch(e){
@@ -801,7 +829,10 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
 function extractPre(html){
   const m=html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
   if(!m) return null;
-  return m[1].replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&#039;/g,"'").replace(/&quot;/g,'"');
+  return m[1]
+    .replace(/&lt;/g,"<").replace(/&gt;/g,">")
+    .replace(/&amp;/g,"&").replace(/&#039;/g,"'")
+    .replace(/&quot;/g,'"');
 }
 function parseRRFromPre(pre){
   const owner=(pre.match(/\[owner_name\]\s*=>\s*([^\r\n]+)/)||[])[1];
@@ -813,6 +844,7 @@ function parseRRFromPre(pre){
   const rrid=(pre.match(/\[rr_id\]\s*=>\s*([^\r\n]+)/)||[])[1]||"";
   return {owner:owner.trim(),m,c,d,coords:coords.trim(),rrid:rrid.trim()};
 }
+
 document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
   if(!STATE.cr){ log("⚠️ Carica prima il CR."); return; }
 
@@ -852,6 +884,7 @@ document.getElementById("btnLoadRR").addEventListener("click", async ()=>{
   renderRRTable(STATE.rr);
   recomputeAndRender();
 });
+
 document.getElementById("btnClearRR").addEventListener("click", ()=>{
   STATE.rr={};
   document.getElementById("rrRaw").textContent="";
@@ -863,7 +896,7 @@ document.getElementById("btnClearRR").addEventListener("click", ()=>{
 
 /* ===================== INIT ===================== */
 setCrStatus(null,"In attesa del CR…");
-log("Pronto. 1) Carica CR (RAW-only). 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato).");
+log("Pronto. 1) Carica CR (RAW-only via CR-KEY). 2) Carica RR. 3) Vedi gain/saldi e trasporti (solo su riciclato, solo ATT).");
 </script>
 </body>
 </html>
