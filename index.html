@@ -81,7 +81,7 @@ summary{cursor:pointer;color:var(--muted);font-weight:800}
 pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#cfe0ff}
 
 table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:rgba(8,12,20,.35)}
-th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right}
+th,td{padding:8px;border-bottom:1px solid rgba(34,52,85,.6);font-size:12px;text-align:right;vertical-align:top}
 th{color:var(--muted);font-weight:800;background:rgba(16,26,46,.55)}
 th:first-child,td:first-child{text-align:left}
 tr:last-child td{border-bottom:none}
@@ -215,6 +215,16 @@ tr:last-child td{border-bottom:none}
             Nota: per la spartizione usiamo gli <b>attaccanti aggregati per nome</b>. Questo box serve solo a capire gli slot.
           </div>
         </details>
+
+        <!-- ✅ NUOVO: Debug perdite tabellare -->
+        <details style="margin-top:10px">
+          <summary>Debug perdite (RAW → tabella)</summary>
+          <div id="lossDebugTable" style="margin-top:8px"></div>
+          <div class="mini" style="margin-top:8px">
+            Mostra slot, valore flotta (per modalità Equa) e perdite in risorse calcolate da <b>attacker_ship_losses</b>.
+          </div>
+        </details>
+
       </div>
 
       <div class="card">
@@ -320,6 +330,96 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
   }
 }
 
+/* ===================== DEBUG HELPERS (TAB) ===================== */
+function fleetValueFromShips(shipCounts){
+  let v = 0;
+  for(const [ship,cnt] of Object.entries(shipCounts||{})){
+    const cost = COSTS[ship];
+    if(!cost) continue;
+    v += (cost[0]+cost[1]+cost[2]) * (cnt||0);
+  }
+  return v;
+}
+function lossesResFromLostShips(lostShips){
+  const out = {m:0,c:0,d:0, tot:0};
+  for(const [ship,lostCnt] of Object.entries(lostShips||{})){
+    const cost = COSTS[ship];
+    if(!cost) continue;
+    out.m += cost[0]*lostCnt;
+    out.c += cost[1]*lostCnt;
+    out.d += cost[2]*lostCnt;
+  }
+  out.tot = out.m + out.c + out.d;
+  return out;
+}
+function formatLostShipsCompact(lostShips){
+  const entries = Object.entries(lostShips||{})
+    .filter(([,v])=>v>0)
+    .sort((a,b)=>b[1]-a[1]);
+  if(!entries.length) return "—";
+  const top = entries.slice(0, 12).map(([k,v])=>`${k}: ${fmt(v)}`).join(" • ");
+  const rest = entries.length > 12 ? ` • +${entries.length-12} altri` : "";
+  return top + rest;
+}
+function renderLossDebugTable(cr){
+  const el = document.getElementById("lossDebugTable");
+  if(!el) return;
+
+  if(!cr || !cr.attackers){
+    el.innerHTML = `<div class="mini">Carica un CR RAW per vedere il debug.</div>`;
+    return;
+  }
+
+  const players = Object.keys(cr.attackers);
+  if(!players.length){
+    el.innerHTML = `<div class="mini">Nessun attaccante nel CR.</div>`;
+    return;
+  }
+
+  const rows = players.map(name=>{
+    const p = cr.attackers[name];
+    const slots = Array.isArray(p.slots) ? p.slots.slice().sort((a,b)=>a-b).join(", ") : "—";
+    const fleetV = fleetValueFromShips(p.initial);
+    const lossR  = lossesResFromLostShips(p.lost);
+    const lostShips = formatLostShipsCompact(p.lost);
+
+    return `
+      <tr>
+        <td style="text-align:left">${name}${p.tag ? ` <span class="mini">[${p.tag}]</span>` : ""}</td>
+        <td>${slots}</td>
+        <td>${fmt(fleetV)}</td>
+        <td>${fmt(lossR.m)}</td>
+        <td>${fmt(lossR.c)}</td>
+        <td>${fmt(lossR.d)}</td>
+        <td>${fmt(lossR.tot)}</td>
+        <td style="text-align:left">${lostShips}</td>
+      </tr>
+    `;
+  }).join("");
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left">Giocatore (ATT)</th>
+          <th>Slot</th>
+          <th>Valore flotta (M+C+D)</th>
+          <th>Perse M</th>
+          <th>Perse C</th>
+          <th>Perse D</th>
+          <th>Perse Tot</th>
+          <th style="text-align:left">Navi perse (top)</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="mini" style="margin-top:6px">
+      Debug calcolato da <b>attacker_ship_losses</b> (RAW) → conversione in risorse via COSTS.
+      La colonna "Navi perse" mostra le 12 più grandi per quantità.
+    </div>
+  `;
+}
+
 /* ===================== RAW CR READER (NoMoreAngel rawOut=on) ===================== */
 function stripRawText(t){
   const mdIdx = String(t||"").indexOf("Markdown Content:");
@@ -351,7 +451,7 @@ function parseFleetsBlock(blockText){
   function ensureSlot(slot){
     const k = String(slot);
     if(!slotsBucket[k]){
-      slotsBucket[k] = { slot:Number(slot), name:"", tag:"", initial:{}, lost:{}, final:{} };
+      slotsBucket[k] = { slot:Number(slot), name:"", tag:"", initial:{}, lost:{}, final:{}, side:"" };
     }
     return slotsBucket[k];
   }
@@ -409,7 +509,7 @@ function parseLossesBlock(blockText, slotsBucket, ownerNumToName){
   function ensureSlot(slot){
     const k = String(slot);
     if(!slotsBucket[k]){
-      slotsBucket[k] = { slot:Number(slot), name: ownerNumToName[k]||"", tag:"", initial:{}, lost:{}, final:{} };
+      slotsBucket[k] = { slot:Number(slot), name: ownerNumToName[k]||"", tag:"", initial:{}, lost:{}, final:{}, side:"" };
     }else{
       if(!slotsBucket[k].name && ownerNumToName[k]) slotsBucket[k].name = ownerNumToName[k];
     }
@@ -780,12 +880,14 @@ function recomputeAndRender(){
   if(!STATE.cr || !hasAnyRR()){
     renderGainBox(null);
     renderResults(null);
+    renderLossDebugTable(STATE.cr); // aggiorna anche se null
     return;
   }
   const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
   const computed = computeFromRawAttackersOnly(STATE.cr, STATE.rr||{}, mode);
   renderGainBox(computed);
   renderResults(computed);
+  renderLossDebugTable(STATE.cr);
 }
 document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change", ()=>{
   log("Modalità: " + (document.querySelector('input[name="mode"]:checked')?.value || "paritaria"));
@@ -817,6 +919,7 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
     if(defNames.length) log("ℹ️ Difensori presenti nel RAW ma esclusi dalla spartizione.");
 
     renderAttSlots(STATE.cr);
+    renderLossDebugTable(STATE.cr);  // ✅ nuovo
     showApp2();
     recomputeAndRender();
   }catch(e){
