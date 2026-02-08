@@ -531,11 +531,23 @@ function parseLossesBlock(blockText, slotsBucket, ownerNumToName){
   for(let i=0;i<lines.length;i++){
     const l = lines[i];
 
-    if(l.includes("[owner] =>")){
-  const rawOwner = Number((l.split("=>")[1]||"").trim());
-  curOwner = String((isNaN(rawOwner) ? "" : (rawOwner + 1)));
-      continue;
-    }
+   if (l.includes("[owner] =>")) {
+  const rawOwner = Number((l.split("=>")[1] || "").trim());
+  if (isNaN(rawOwner)) { curOwner = ""; continue; }
+
+  const k0 = String(rawOwner);
+  const k1 = String(rawOwner + 1);
+
+  // ✅ se esiste già così, usalo (owner 1-based)
+  if (slotsBucket[k0]) curOwner = k0;
+  // ✅ altrimenti prova +1 (owner 0-based)
+  else if (slotsBucket[k1]) curOwner = k1;
+  // fallback: tieni raw (così almeno lo vedi in debug)
+  else curOwner = k0;
+
+  continue;
+}
+
     if(l.includes("[ship_type] =>")){
       curShipType = Number((l.split("=>")[1]||"").trim()) || 0;
       continue;
