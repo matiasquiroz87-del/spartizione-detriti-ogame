@@ -444,8 +444,6 @@ function parseFleetsBlock(blockText){
   const ownerNumToName = {};
 
   let curSlot = null;     // "1..N"
-  let curName = "";
-  let curTag  = "";
   let curShipType = 0;
 
   // ✅ accettiamo "nuovo fleet" solo al livello giusto
@@ -460,10 +458,27 @@ function parseFleetsBlock(blockText){
     return slotsBucket[k];
   }
 
+  for(let i=0;i<lines.length;i++){
+    const l = lines[i];
+
+    const idxM = l.match(/^\s*\[(\d+)\]\s*=>\s*stdClass Object/i);
+    if(idxM){
+      const ind = leadingSpaces(l);
+      if(fleetIndent === null) fleetIndent = ind;
+
+      // ✅ se non è allo stesso livello, NON è un nuovo fleet
+      if(ind !== fleetIndent) continue;
+
+      curSlot = String(parseInt(idxM[1],10) + 1);
+      curShipType = 0;
+      ensureSlot(curSlot);
+      continue;
+    }
+
     if(!curSlot) continue;
 
     if(l.includes("[fleet_owner] =>")){
-      curName = (l.split("=>")[1]||"").trim();
+      const curName = (l.split("=>")[1]||"").trim();
       const s = ensureSlot(curSlot);
       if(curName) s.name = curName;
       ownerNumToName[curSlot] = curName || ownerNumToName[curSlot] || "";
@@ -471,7 +486,7 @@ function parseFleetsBlock(blockText){
     }
 
     if(l.includes("[fleet_owner_alliance_tag] =>")){
-      curTag = (l.split("=>")[1]||"").trim();
+      const curTag = (l.split("=>")[1]||"").trim();
       const s = ensureSlot(curSlot);
       if(curTag) s.tag = curTag;
       continue;
@@ -494,12 +509,49 @@ function parseFleetsBlock(blockText){
     }
   }
 
+  return { slotsBucket, ownerNumToName };
+}
+
+
 function parseLossesBlock(blockText, slotsBucket, ownerNumToName){
   const lines = String(blockText||"").split("\n");
   let curOwner = null;  // slot
   let curShipType = 0;
 
+  function ensureSlot(slot){
+    const k = String(slot);
+    if(!slotsBucket[k]){
+      slotsBucket[k] = { slot:Number(slot), name: ownerNumToName[k]||"", tag:"", initial:{}, lost:{}, final:{}, side:"" };
+    }else{
+      if(!slotsBucket[k].name && ownerNumToName[k]) slotsBucket[k].name = ownerNumToName[k];
+    }
+    return slotsBucket[k];
+  }
+
+  for(let i=0;i<lines.length;i++){
+    const l = lines[i];
+
+    if(l.includes("[owner] =>")){
+      curOwner = String(Number((l.split("=>")[1]||"").trim()) || "");
+      continue;
+    }
+    if(l.includes("[ship_type] =>")){
+      curShipType = Number((l.split("=>")[1]||"").trim()) || 0;
+      continue;
+    }
+    if(l.includes("[count] =>") && curOwner && curShipType){
+      const cnt = Number((l.split("=>")[1]||"").trim()) || 0;
+      const shipName = SHIP_ID_TO_NAME[curShipType];
+      if(shipName && cnt > 0){
+        const s = ensureSlot(curOwner);
+        s.lost[shipName] = (s.lost[shipName]||0) + cnt;
+      }
+      curShipType = 0;
+      continue;
+    }
+  }
 }
+
 function computeFinal(slotsBucket){
   for(const s of Object.values(slotsBucket)){
     const keys = new Set([...Object.keys(s.initial||{}), ...Object.keys(s.lost||{})]);
