@@ -532,7 +532,8 @@ function parseLossesBlock(blockText, slotsBucket, ownerNumToName){
     const l = lines[i];
 
     if(l.includes("[owner] =>")){
-      curOwner = String(Number((l.split("=>")[1]||"").trim()) || "");
+  const rawOwner = Number((l.split("=>")[1]||"").trim());
+  curOwner = String((isNaN(rawOwner) ? "" : (rawOwner + 1)));
       continue;
     }
     if(l.includes("[ship_type] =>")){
