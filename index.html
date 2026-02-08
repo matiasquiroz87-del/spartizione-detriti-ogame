@@ -154,7 +154,6 @@ tr:last-child td{border-bottom:none}
       <pre id="logBox" style="margin-top:10px"></pre>
     </details>
 
-    <!-- Debug RAW volutamente nascosto -->
     <details style="margin-top:10px">
       <summary>Debug (RAW nascosto)</summary>
       <pre class="mini" style="margin-top:10px">Nascosto.</pre>
@@ -216,12 +215,11 @@ tr:last-child td{border-bottom:none}
           </div>
         </details>
 
-        <!-- ✅ NUOVO: Debug perdite tabellare -->
         <details style="margin-top:10px">
-          <summary>Debug perdite (RAW → tabella)</summary>
+          <summary>Debug perdite (initial → final) ✅</summary>
           <div id="lossDebugTable" style="margin-top:8px"></div>
           <div class="mini" style="margin-top:8px">
-            Mostra slot, valore flotta (per modalità Equa) e perdite in risorse calcolate da <b>attacker_ship_losses</b>.
+            Mostra slot, valore flotta (per modalità Equa) e perdite in risorse calcolate da <b>(initial - final)</b> usando COSTS (stile OGotcha).
           </div>
         </details>
 
@@ -321,7 +319,6 @@ async function fetchTextWithFallback(url, timeoutMs=12000){
     if(!res.ok) throw new Error("HTTP "+res.status);
     return await res.text();
   }catch(e1){
-    // fallback via r.jina.ai (alcuni host bloccano fetch diretto)
     const clean=String(url).replace(/^https?:\/\//i,"");
     const jinaUrl="https://r.jina.ai/http://" + clean;
     const res2=await abortableFetch(jinaUrl,timeoutMs);
@@ -340,18 +337,33 @@ function fleetValueFromShips(shipCounts){
   }
   return v;
 }
-function lossesResFromLostShips(lostShips){
-  const out = {m:0,c:0,d:0, tot:0};
-  for(const [ship,lostCnt] of Object.entries(lostShips||{})){
+
+/* ✅ NUOVA: perdite stile OGotcha = (initial - final) × COSTS */
+function lossesResFromInitialFinal(initialShips, finalShips){
+  const out = { m:0, c:0, d:0, tot:0 };
+  const keys = new Set([
+    ...Object.keys(initialShips || {}),
+    ...Object.keys(finalShips || {})
+  ]);
+
+  for(const ship of keys){
     const cost = COSTS[ship];
     if(!cost) continue;
-    out.m += cost[0]*lostCnt;
-    out.c += cost[1]*lostCnt;
-    out.d += cost[2]*lostCnt;
+
+    const ini = Number(initialShips?.[ship] || 0);
+    const fin = Number(finalShips?.[ship] || 0);
+    const lost = Math.max(0, ini - fin);
+    if(!lost) continue;
+
+    out.m += cost[0] * lost;
+    out.c += cost[1] * lost;
+    out.d += cost[2] * lost;
   }
+
   out.tot = out.m + out.c + out.d;
   return out;
 }
+
 function formatLostShipsCompact(lostShips){
   const entries = Object.entries(lostShips||{})
     .filter(([,v])=>v>0)
@@ -361,6 +373,7 @@ function formatLostShipsCompact(lostShips){
   const rest = entries.length > 12 ? ` • +${entries.length-12} altri` : "";
   return top + rest;
 }
+
 function renderLossDebugTable(cr){
   const el = document.getElementById("lossDebugTable");
   if(!el) return;
@@ -380,8 +393,20 @@ function renderLossDebugTable(cr){
     const p = cr.attackers[name];
     const slots = Array.isArray(p.slots) ? p.slots.slice().sort((a,b)=>a-b).join(", ") : "—";
     const fleetV = fleetValueFromShips(p.initial);
-    const lossR  = lossesResFromLostShips(p.lost);
-    const lostShips = formatLostShipsCompact(p.lost);
+
+    /* ✅ QUI: prima usavi p.lost (attacker_ship_losses). Ora initial/final */
+    const lossR  = lossesResFromInitialFinal(p.initial, p.final);
+
+    /* Per lista "navi perse", mostriamo (initial-final) */
+    const lostShips = {};
+    const keys = new Set([...Object.keys(p.initial||{}), ...Object.keys(p.final||{})]);
+    for(const ship of keys){
+      const ini = p.initial?.[ship] || 0;
+      const fin = p.final?.[ship] || 0;
+      const lost = Math.max(0, ini - fin);
+      if(lost>0) lostShips[ship] = lost;
+    }
+    const lostShipsTxt = formatLostShipsCompact(lostShips);
 
     return `
       <tr>
@@ -392,7 +417,7 @@ function renderLossDebugTable(cr){
         <td>${fmt(lossR.c)}</td>
         <td>${fmt(lossR.d)}</td>
         <td>${fmt(lossR.tot)}</td>
-        <td style="text-align:left">${lostShips}</td>
+        <td style="text-align:left">${lostShipsTxt}</td>
       </tr>
     `;
   }).join("");
@@ -414,8 +439,7 @@ function renderLossDebugTable(cr){
       <tbody>${rows}</tbody>
     </table>
     <div class="mini" style="margin-top:6px">
-      Debug calcolato da <b>attacker_ship_losses</b> (RAW) → conversione in risorse via COSTS.
-      La colonna "Navi perse" mostra le 12 più grandi per quantità.
+      Debug calcolato da <b>(initial - final)</b> → conversione in risorse via COSTS (stile OGotcha).
     </div>
   `;
 }
@@ -443,10 +467,9 @@ function parseFleetsBlock(blockText){
   const slotsBucket = {};
   const ownerNumToName = {};
 
-  let curSlot = null;     // "1..N"
+  let curSlot = null;
   let curShipType = 0;
 
-  // ✅ accettiamo "nuovo fleet" solo al livello giusto
   let fleetIndent = null;
   const leadingSpaces = (s)=> (String(s).match(/^\s*/)?.[0]?.length ?? 0);
 
@@ -465,8 +488,6 @@ function parseFleetsBlock(blockText){
     if(idxM){
       const ind = leadingSpaces(l);
       if(fleetIndent === null) fleetIndent = ind;
-
-      // ✅ se non è allo stesso livello, NON è un nuovo fleet
       if(ind !== fleetIndent) continue;
 
       curSlot = String(parseInt(idxM[1],10) + 1);
@@ -512,10 +533,9 @@ function parseFleetsBlock(blockText){
   return { slotsBucket, ownerNumToName };
 }
 
-
 function parseLossesBlock(blockText, slotsBucket, ownerNumToName){
   const lines = String(blockText||"").split("\n");
-  let curOwner = null;  // slot
+  let curOwner = null;
   let curShipType = 0;
 
   function ensureSlot(slot){
@@ -531,22 +551,19 @@ function parseLossesBlock(blockText, slotsBucket, ownerNumToName){
   for(let i=0;i<lines.length;i++){
     const l = lines[i];
 
-   if (l.includes("[owner] =>")) {
-  const rawOwner = Number((l.split("=>")[1] || "").trim());
-  if (isNaN(rawOwner)) { curOwner = ""; continue; }
+    if (l.includes("[owner] =>")) {
+      const rawOwner = Number((l.split("=>")[1] || "").trim());
+      if (isNaN(rawOwner)) { curOwner = ""; continue; }
 
-  const k0 = String(rawOwner);
-  const k1 = String(rawOwner + 1);
+      const k0 = String(rawOwner);
+      const k1 = String(rawOwner + 1);
 
-  // ✅ se esiste già così, usalo (owner 1-based)
-  if (slotsBucket[k0]) curOwner = k0;
-  // ✅ altrimenti prova +1 (owner 0-based)
-  else if (slotsBucket[k1]) curOwner = k1;
-  // fallback: tieni raw (così almeno lo vedi in debug)
-  else curOwner = k0;
+      if (slotsBucket[k0]) curOwner = k0;
+      else if (slotsBucket[k1]) curOwner = k1;
+      else curOwner = k0;
 
-  continue;
-}
+      continue;
+    }
 
     if(l.includes("[ship_type] =>")){
       curShipType = Number((l.split("=>")[1]||"").trim()) || 0;
@@ -600,23 +617,11 @@ function aggregateByName(slotsBucket){
   for(const v of Object.values(agg)) v.slots.sort((a,b)=>a-b);
   return agg;
 }
-function shipsToRes(shipsCount){
-  const out = {m:0,c:0,d:0,total:0};
-  for(const [ship,cnt] of Object.entries(shipsCount||{})){
-    const cost = COSTS[ship];
-    if(!cost) continue;
-    out.m += cost[0]*cnt;
-    out.c += cost[1]*cnt;
-    out.d += cost[2]*cnt;
-  }
-  out.total = out.m + out.c + out.d;
-  return out;
-}
+
 function parseCR_RawOnly(rawText){
   const text = stripRawText(rawText);
   if(!text.includes("stdClass Object")) throw new Error("RAW non riconosciuto (manca 'stdClass Object').");
 
-  // sezioni (solo qui, niente parsing globale fleet_owner)
   const attackersBlock = sliceBetween(text, "[attackers] =>", "[defenders] =>");
   const defendersBlock = sliceBetween(text, "[defenders] =>", "[attacker_ship_losses] =>");
   const attLossBlock   = sliceBetween(text, "[attacker_ship_losses] =>", "[defender_ship_losses] =>");
@@ -660,18 +665,12 @@ function parseCR_RawOnly(rawText){
   };
   if(!INCLUDE_LOOT) loot.m=loot.c=loot.d=0;
 
-  const attackersLossResByName = {};
-  for(const [name, p] of Object.entries(attackers)){
-    attackersLossResByName[name] = shipsToRes(p.lost);
-  }
-
   return {
     source:"nomoreangel-raw",
     meta, debris, loot,
     attackersSlots: att.slotsBucket,
     defendersSlots: def.slotsBucket,
-    attackers, defenders,
-    attackersLossResByName
+    attackers, defenders
   };
 }
 
@@ -683,9 +682,12 @@ function computeFromRawAttackersOnly(cr, rrTotals, mode){
   const lossesRes={}, fleetValue={};
   players.forEach(name=>{
     const p = cr.attackers[name];
-    lossesRes[name] = cr.attackersLossResByName?.[name] || {m:0,c:0,d:0,total:0};
 
-    // valore flotta in campo (per modalità equa) da INITIAL aggregato
+    /* ✅ QUI: prima prendevi le perdite da attacker_ship_losses.
+       Ora le calcoli da (initial - final) × COSTS */
+    const L = lossesResFromInitialFinal(p.initial, p.final);
+    lossesRes[name] = { m:L.m, c:L.c, d:L.d, total:L.tot };
+
     let fv = 0;
     for(const [ship,cnt] of Object.entries(p.initial||{})){
       const cost = COSTS[ship];
@@ -844,7 +846,7 @@ function renderResults(computed){
   const header=`
     <div class="kpi">
       <div class="box"><div class="v">${fmt(totRec.m)} / ${fmt(totRec.c)} / ${fmt(totRec.d)}</div><div class="l">Riciclato totale ATT (M/C/D)</div></div>
-      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite ATT (da RAW)</div></div>
+      <div class="box"><div class="v">${fmt(totLoss.m)} / ${fmt(totLoss.c)} / ${fmt(totLoss.d)}</div><div class="l">Perdite ATT (initial-final)</div></div>
       <div class="box"><div class="v">${fmt(gain.m)} / ${fmt(gain.c)} / ${fmt(gain.d)}</div><div class="l">Gain ATT (M/C/D)</div></div>
     </div>`;
 
@@ -878,7 +880,7 @@ function renderResults(computed){
     </table>
     <div class="mini" style="margin-top:8px">
       Spartizione calcolata <b>solo tra attaccanti</b>. I difensori sono esclusi (anche dalle perdite).
-      <br>Saldo = Perdite(ATT da RAW) + (Gain×%) − Riciclato.
+      <br>Saldo = Perdite(ATT da initial-final) + (Gain×%) − Riciclato.
     </div>`;
 
   resEl.innerHTML = header + table;
@@ -906,7 +908,7 @@ function recomputeAndRender(){
   if(!STATE.cr || !hasAnyRR()){
     renderGainBox(null);
     renderResults(null);
-    renderLossDebugTable(STATE.cr); // aggiorna anche se null
+    renderLossDebugTable(STATE.cr);
     return;
   }
   const mode = document.querySelector('input[name="mode"]:checked')?.value || "paritaria";
@@ -934,7 +936,6 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
     log("CR: fetch RAW (rawOut=on)…");
     const raw = await fetchTextWithFallback(rawUrl, timeoutMs);
 
-    // RAW NON VIENE MOSTRATO IN CHIARO (solo parse)
     STATE.cr = parseCR_RawOnly(raw);
 
     const attNames = Object.keys(STATE.cr.attackers||{});
@@ -945,7 +946,7 @@ document.getElementById("btnLoadCR").addEventListener("click", async ()=>{
     if(defNames.length) log("ℹ️ Difensori presenti nel RAW ma esclusi dalla spartizione.");
 
     renderAttSlots(STATE.cr);
-    renderLossDebugTable(STATE.cr);  // ✅ nuovo
+    renderLossDebugTable(STATE.cr);
     showApp2();
     recomputeAndRender();
   }catch(e){
